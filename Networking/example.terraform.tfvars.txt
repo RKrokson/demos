@@ -20,9 +20,6 @@ resolver_inbound_endpoint_address01 = "10.32.128.4"
 resolver_outbound_subnet_address01 = ["10.32.128.16/28"]
 shared_subnet_address01 = ["10.32.5.0/24"]
 app_subnet_address01 = ["10.32.6.0/24"]
-# s2s VPN variables
-s2s_site00_addresscidr = ["10.11.0.0/16"]
-s2s_site00_ipaddress = "73.111.27.98"
 # Conditional Variables
 create_vhub01 = true
 add_privateDNS00 = true
