@@ -1,0 +1,8 @@
+# Conditional Variables
+create_vhub01 = false
+add_privateDNS00 = false
+add_privateDNS01 = false
+add_firewall00 = false
+add_firewall01 = false
+add_s2s_VPN00 = false
+add_s2s_VPN01 = false

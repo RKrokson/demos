@@ -1,0 +1,33 @@
+# Virtual Hub 00 variables
+azurerm_vhub00_address_prefix = "10.30.0.0/23"
+shared_vnet_address_space00 = ["10.31.0.0/17"]
+dns_vnet_address_space00 = ["10.31.128.0/17"]
+shared_vnet00_dns = ["10.31.128.4"]
+bastion_subnet_address00 = ["10.31.2.0/24"]
+resolver_inbound_subnet_address00 = ["10.31.128.0/28"]
+resolver_inbound_endpoint_address00 = "10.31.128.4"
+resolver_outbound_subnet_address00 = ["10.31.128.16/28"]
+shared_subnet_address00 = ["10.31.5.0/24"]
+app_subnet_address00 = ["10.31.6.0/24"]
+# Virtual Hub 01 variables
+azurerm_vhub01_address_prefix = "10.30.4.0/23"
+shared_vnet_address_space01 = ["10.32.0.0/17"]
+dns_vnet_address_space01 = ["10.32.128.0/17"]
+shared_vnet01_dns = ["10.32.128.4"]
+bastion_subnet_address01 = ["10.32.2.0/24"]
+resolver_inbound_subnet_address01 = ["10.32.128.0/28"]
+resolver_inbound_endpoint_address01 = "10.32.128.4"
+resolver_outbound_subnet_address01 = ["10.32.128.16/28"]
+shared_subnet_address01 = ["10.32.5.0/24"]
+app_subnet_address01 = ["10.32.6.0/24"]
+# s2s VPN variables
+s2s_site00_addresscidr = ["10.11.0.0/16"]
+s2s_site00_ipaddress = "73.111.27.98"
+# Conditional Variables
+create_vhub01 = true
+add_privateDNS00 = true
+add_privateDNS01 = true
+add_firewall00 = true
+add_firewall01 = true
+add_s2s_VPN00 = false
+add_s2s_VPN01 = false
