@@ -6,8 +6,8 @@ The Terraform deployment in the Networking folder will deploy an Azure Virtual W
 * Azure VPN Gateway in either or both regions
 
 ## Example
-![Diagram](./diagrams/1reg-shub-dns-vpn.png)
-![tfvars](./diagrams/1reg-shub-dns-vpn-vars.png)
+![Diagram](./Diagrams/1reg-shub-dns-vpn.png)
+![tfvars](./Diagrams/1reg-shub-dns-vpn-vars.png)
 
 ## Pre-reqs
 Use Azure Powershell or CLI to pull your subscription ID and set it as an environment variable in Windows for Terraform deployments. Alternative is hardcoding the sub ID in your config file. I've provided a CLI example in the setSubscription.ps1 script.
