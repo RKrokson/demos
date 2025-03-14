@@ -110,9 +110,17 @@ resource "azurerm_bastion_host" "bastion_host00" {
   }
 }
 resource "azurerm_virtual_hub_connection" "vhub_connection00" {
+  count               = var.add_firewall00 ? 0 : 1
   name                      = "${var.azurerm_virtual_hub_connection_vhub00_to_shared00}-${var.azure_region_0_abbr}"
   virtual_hub_id            = azurerm_virtual_hub.vhub00.id
   remote_virtual_network_id = azurerm_virtual_network.shared_vnet00.id
+}
+resource "azurerm_virtual_hub_connection" "vhub_connection00-secure" {
+  count               = var.add_firewall00 ? 1 : 0
+  name                      = "${var.azurerm_virtual_hub_connection_vhub00_to_shared00}-${var.azure_region_0_abbr}"
+  virtual_hub_id            = azurerm_virtual_hub.vhub00.id
+  remote_virtual_network_id = azurerm_virtual_network.shared_vnet00.id
+  internet_security_enabled = true
 }
 resource "azurerm_virtual_network" "dns_vnet00" {
   count               = var.add_privateDNS00 ? 1 : 0
@@ -164,10 +172,17 @@ module "private_dns00" {
   }
 }
 resource "azurerm_virtual_hub_connection" "vhub_connection00-to-dns" {
-  count               = var.add_privateDNS00 ? 1 : 0
+  count               = var.add_privateDNS00 ? (var.add_firewall00 ? 0 : 1) : 0
   name                      = "${var.azurerm_virtual_hub_connection_vhub00_to_dns00}-${var.azure_region_0_abbr}"
   virtual_hub_id            = azurerm_virtual_hub.vhub00.id
   remote_virtual_network_id = azurerm_virtual_network.dns_vnet00[0].id
+}
+resource "azurerm_virtual_hub_connection" "vhub_connection00-to-dns-secure" {
+  count               = var.add_privateDNS00 ? (var.add_firewall00 ? 1 : 0) : 0
+  name                      = "${var.azurerm_virtual_hub_connection_vhub00_to_dns00}-${var.azure_region_0_abbr}"
+  virtual_hub_id            = azurerm_virtual_hub.vhub00.id
+  remote_virtual_network_id = azurerm_virtual_network.dns_vnet00[0].id
+  internet_security_enabled = true
 }
 resource "azurerm_private_dns_resolver" "private_resolver00" {
   count               = var.add_privateDNS00 ? 1 : 0
@@ -429,10 +444,17 @@ resource "azurerm_bastion_host" "bastion_host01" {
   }
 }
 resource "azurerm_virtual_hub_connection" "vhub_connection01" {
-  count               = var.create_vhub01 ? 1 : 0
+  count               = var.create_vhub01 ? (var.add_firewall01 ? 0 : 1) : 0
   name                      = var.azurerm_virtual_hub_connection_vhub01_to_shared01
   virtual_hub_id            = azurerm_virtual_hub.vhub01[0].id
   remote_virtual_network_id = azurerm_virtual_network.shared_vnet01[0].id
+}
+resource "azurerm_virtual_hub_connection" "vhub_connection01-secure" {
+  count               = var.create_vhub01 ? (var.add_firewall01 ? 1 : 0) : 0
+  name                      = var.azurerm_virtual_hub_connection_vhub01_to_shared01
+  virtual_hub_id            = azurerm_virtual_hub.vhub01[0].id
+  remote_virtual_network_id = azurerm_virtual_network.shared_vnet01[0].id
+  internet_security_enabled = true
 }
 resource "azurerm_virtual_network" "dns_vnet01" {
   count               = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
@@ -472,10 +494,17 @@ resource "azurerm_subnet" "resolver_outbound_subnet01" {
   }
 }
 resource "azurerm_virtual_hub_connection" "vhub_connection01-to-dns" {
-  count               = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
+  count = var.create_vhub01 && !var.add_firewall01 && var.add_privateDNS01 ? 1 : 0
   name                      = "${var.azurerm_virtual_hub_connection_vhub01_to_dns01}-${var.azure_region_1_abbr}"
   virtual_hub_id            = azurerm_virtual_hub.vhub01[0].id
   remote_virtual_network_id = azurerm_virtual_network.dns_vnet01[0].id
+}
+resource "azurerm_virtual_hub_connection" "vhub_connection01-to-dns-secure" {
+  count = var.create_vhub01 && var.add_firewall01 && var.add_privateDNS01 ? 1 : 0
+  name                      = "${var.azurerm_virtual_hub_connection_vhub01_to_dns01}-${var.azure_region_1_abbr}"
+  virtual_hub_id            = azurerm_virtual_hub.vhub01[0].id
+  remote_virtual_network_id = azurerm_virtual_network.dns_vnet01[0].id
+  internet_security_enabled = true
 }
 module "private_dns01" {
   count               = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
