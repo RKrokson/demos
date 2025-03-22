@@ -296,7 +296,7 @@ resource "azurerm_virtual_hub_routing_intent" "vhub_routing_intent00" {
   }
 }
 resource "azurerm_network_interface" "vm00_nic" {
-  name                = "${var.vm01_nic_name}-${var.azure_region_0_abbr}"
+  name                = "${var.vm00_nic_name}-${var.azure_region_0_abbr}"
   location            = azurerm_resource_group.rg-net00.location
   resource_group_name = azurerm_resource_group.rg-net00.name
 
@@ -307,7 +307,7 @@ resource "azurerm_network_interface" "vm00_nic" {
   }
 }
 resource "azurerm_linux_virtual_machine" "vm00" {
-  name                = "${var.vm01_name}-${var.azure_region_0_abbr}"
+  name                = "${var.vm00_name}-${var.azure_region_0_abbr}"
   location            = azurerm_resource_group.rg-net00.location
   resource_group_name = azurerm_resource_group.rg-net00.name
   size                = "Standard_B2s"
