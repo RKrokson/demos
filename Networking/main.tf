@@ -20,7 +20,7 @@ resource "azurerm_resource_group" "rg-kv00" {
   location = var.azure_region_0_name
 }
 resource "azurerm_key_vault" "kv00" {
-  name                = "${var.kv_name}-${var.azure_region_0_abbr}"
+  name                = "${var.kv_name}-${var.azure_region_0_abbr}-${random_string.myrandom.id}"
   location            = azurerm_resource_group.rg-kv00.location
   resource_group_name = azurerm_resource_group.rg-kv00.name
   sku_name            = "standard"
