@@ -10,6 +10,10 @@ Azure Firewall is deployed with Routing Intent enabled for both Private and Inte
 
 Azure VPN Gateway is deployed without an environment on the other end. You can connect it to an existing on-prem or deploy another Azure environment to simulate on-prem. This is out of scope for now.
 
+The default primary region (region 0) is Central US. The default secondary region (region 1) is East US 2. You can change these regions by updating them in the variables file. Update both the full region name and abbreviation.
+
+![Regions](./diagrams/region-vars.png)
+
 ## Using the conditionals
 The default for all conditionals is false (set in the variables file). This means they will not be deployed. In order to use the conditionals you need to update their value to true. The easiest way to do this is to use a tfvars file to update the variables. I've included two examples:
 * terraform.tfvars.txt - Simple example that only includes the conditionals. 
