@@ -14,6 +14,10 @@ The default primary region (region 0) is Central US. The default secondary regio
 
 ![Regions](./diagrams/region-vars.png)
 
+The default size for the linux test machines is Standard_b2s. During testing I ran into capacity constraints so I added VM size variables. You can modify that in the variables file or tfvars.
+
+![VM Size Variable](./diagrams/vm-size-vars.png)
+
 ## Using the conditionals
 The default for all conditionals is false (set in the variables file). This means they will not be deployed. In order to use the conditionals you need to update their value to true. The easiest way to do this is to use a tfvars file to update the variables. I've included two examples:
 * terraform.tfvars.txt - Simple example that only includes the conditionals. 
