@@ -6,5 +6,5 @@ add_firewall00 = false
 add_firewall01 = false
 add_s2s_VPN00 = false
 add_s2s_VPN01 = false
-var.vm00_size = "Standard_B2s"
-var.vm01_size = "Standard_B2s"
+vm00_size = "Standard_B2s"
+vm01_size = "Standard_B2s"
