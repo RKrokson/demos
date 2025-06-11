@@ -6,4 +6,4 @@ az account list --output table
 # Set a subscription as the default:
 az account set --subscription <subscription_id>
 # You can set the subscription ID using the following command:
-setx AZURE_SUBSCRIPTION_ID $(az account show --query id --output tsv)
+setx ARM_SUBSCRIPTION_ID $(az account show --query id --output tsv)

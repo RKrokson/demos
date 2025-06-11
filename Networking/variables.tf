@@ -188,6 +188,11 @@ variable "vm00_name" {
   type = string
   default = "vm00"
 }
+variable "vm00_size" {
+  description = "Virtual Machine Size"
+  type = string
+  default = "Standard_B2s"
+}
 variable "vm_admin_username" {
   description = "Virtual Machine Admin Username"
   type = string
@@ -469,6 +474,11 @@ variable "vm01_name" {
   description = "Virtual Machine 01 Name"
   type = string
   default = "vm01"
+}
+variable "vm01_size" {
+  description = "Virtual Machine Size"
+  type = string
+  default = "Standard_B2s"
 }
 variable "add_s2s_VPN01" {
   description = "Add s2s VPN01"

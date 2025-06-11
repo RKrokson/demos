@@ -276,7 +276,7 @@ resource "azurerm_monitor_diagnostic_setting" "fw00_logs" {
   enabled_log {
     category = "AzureFirewallDnsProxy"
   }
-  metric {
+  enabled_metric {
     category = "AllMetrics"
   }
 }
@@ -310,7 +310,7 @@ resource "azurerm_linux_virtual_machine" "vm00" {
   name                = "${var.vm00_name}-${var.azure_region_0_abbr}"
   location            = azurerm_resource_group.rg-net00.location
   resource_group_name = azurerm_resource_group.rg-net00.name
-  size                = "Standard_B2s"
+  size                = var.vm00_size
   admin_username      = "${random_string.myrandom.id}${var.vm_admin_username}"
   network_interface_ids = [
     azurerm_network_interface.vm00_nic.id,
@@ -373,10 +373,10 @@ resource "azurerm_monitor_diagnostic_setting" "s2s_VPN00_logs" {
   enabled_log {
     category = "RouteDiagnosticLog"
   }
-    enabled_log {
+  enabled_log {
     category = "IKEDiagnosticLog"
   }
-  metric {
+  enabled_metric {
     category = "AllMetrics"
   }
 }
@@ -610,7 +610,7 @@ resource "azurerm_monitor_diagnostic_setting" "fw01_logs" {
   enabled_log {
     category = "AzureFirewallDnsProxy"
   }
-  metric {
+  enabled_metric {
     category = "AllMetrics"
   }
 }
@@ -646,7 +646,7 @@ resource "azurerm_linux_virtual_machine" "vm01" {
   name                = "${var.vm01_name}-${var.azure_region_1_abbr}"
   location            = azurerm_resource_group.rg-net01[0].location
   resource_group_name = azurerm_resource_group.rg-net01[0].name
-  size                = "Standard_B2s"
+  size                = var.vm01_size
   admin_username      = "${random_string.myrandom.id}${var.vm_admin_username}"
   network_interface_ids = [
     azurerm_network_interface.vm01_nic[0].id,
@@ -712,7 +712,7 @@ resource "azurerm_monitor_diagnostic_setting" "s2s_VPN01_logs" {
     enabled_log {
     category = "IKEDiagnosticLog"
   }
-  metric {
+  enabled_metric {
     category = "AllMetrics"
   }
 }
