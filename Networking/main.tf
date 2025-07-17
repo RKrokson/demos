@@ -222,6 +222,65 @@ resource "azurerm_private_dns_resolver_outbound_endpoint" "private_resolver00_ou
   location                = azurerm_resource_group.rg-net00.location
   subnet_id               = azurerm_subnet.resolver_outbound_subnet00[0].id
 }
+resource "azapi_resource" "dns_security_policy00" {
+  count               = var.add_privateDNS00 ? 1 : 0
+  type      = "Microsoft.Network/dnsResolverPolicies@2023-07-01-preview"
+  name      = "myDnsSecurityPolicy00-${var.azure_region_0_abbr}"
+  parent_id = azurerm_resource_group.rg-net00.id
+  location  = azurerm_resource_group.rg-net00.location
+
+  body = {
+    properties = {
+      # DNS resolver policy properties - basic policy for now
+    }
+  }
+}
+resource "azapi_resource" "dns_security_policy_shared_vnet00_link" {
+  count               = var.add_privateDNS00 ? 1 : 0
+  type      = "Microsoft.Network/dnsResolverPolicies/virtualNetworkLinks@2023-07-01-preview"
+  name      = "vnet-link-to-dns-policy-shared-vnet00"
+  parent_id = azapi_resource.dns_security_policy00[0].id
+  location  = azurerm_resource_group.rg-net00.location
+
+  body = {
+    properties = {
+      virtualNetwork = {
+        id = azurerm_virtual_network.shared_vnet00.id
+      }
+    }
+  }
+}
+resource "azapi_resource" "dns_security_policy_dns_vnet00_link" {
+  count               = var.add_privateDNS00 ? 1 : 0
+  type      = "Microsoft.Network/dnsResolverPolicies/virtualNetworkLinks@2023-07-01-preview"
+  name      = "vnet-link-to-dns-policy-dns-vnet00"
+  parent_id = azapi_resource.dns_security_policy00[0].id
+  location  = azurerm_resource_group.rg-net00.location
+
+  body = {
+    properties = {
+      virtualNetwork = {
+        id = azurerm_virtual_network.dns_vnet00[0].id
+      }
+    }
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "dns_policy00_logs" {
+  count              = var.add_privateDNS00 ? 1 : 0
+  name               = "dns-policy-logs-${var.azure_region_0_abbr}"
+  target_resource_id = azapi_resource.dns_security_policy00[0].id
+
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.law00.id
+  
+  enabled_log {
+    category = "DnsResponse"
+  }
+  
+  enabled_metric {
+    category = "AllMetrics"
+  }
+}
 resource "azurerm_firewall" "fw00" {
   count               = var.add_firewall00 ? 1 : 0
   name                = "${var.firewall_name00}-${var.azure_region_0_abbr}"
@@ -555,6 +614,64 @@ resource "azurerm_virtual_network_dns_servers" "shared_vnet01_dns" {
     azurerm_subnet.resolver_inbound_subnet01[0],
     azurerm_subnet.resolver_outbound_subnet01[0]
   ]
+}
+resource "azapi_resource" "dns_security_policy01" {
+  count               = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
+  type      = "Microsoft.Network/dnsResolverPolicies@2023-07-01-preview"
+  name      = "myDnsSecurityPolicy01-${var.azure_region_1_abbr}"
+  parent_id = azurerm_resource_group.rg-net01[0].id
+  location  = azurerm_resource_group.rg-net01[0].location
+
+  body = {
+    properties = {
+      # DNS resolver policy properties - basic policy for now
+    }
+  }
+}
+resource "azapi_resource" "dns_security_policy_shared_vnet01_link" {
+  count               = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
+  type      = "Microsoft.Network/dnsResolverPolicies/virtualNetworkLinks@2023-07-01-preview"
+  name      = "vnet-link-to-dns-policy-shared-vnet01"
+  parent_id = azapi_resource.dns_security_policy01[0].id
+  location  = azurerm_resource_group.rg-net01[0].location
+
+  body = {
+    properties = {
+      virtualNetwork = {
+        id = azurerm_virtual_network.shared_vnet01[0].id
+      }
+    }
+  }
+}
+resource "azapi_resource" "dns_security_policy_dns_vnet01_link" {
+  count               = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
+  type      = "Microsoft.Network/dnsResolverPolicies/virtualNetworkLinks@2023-07-01-preview"
+  name      = "vnet-link-to-dns-policy-dns-vnet01"
+  parent_id = azapi_resource.dns_security_policy01[0].id
+  location  = azurerm_resource_group.rg-net01[0].location
+
+  body = {
+    properties = {
+      virtualNetwork = {
+        id = azurerm_virtual_network.dns_vnet01[0].id
+      }
+    }
+  }
+}
+resource "azurerm_monitor_diagnostic_setting" "dns_policy01_logs" {
+  count              = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
+  name               = "dns-policy-logs-${var.azure_region_1_abbr}"
+  target_resource_id = azapi_resource.dns_security_policy01[0].id
+
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.law00.id
+  
+  enabled_log {
+    category = "DnsResponse"
+  }
+  
+  enabled_metric {
+    category = "AllMetrics"
+  }
 }
 resource "azurerm_firewall" "fw01" {
   count               = var.create_vhub01 ? (var.add_firewall01 ? 1 : 0) : 0

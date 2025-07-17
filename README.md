@@ -3,6 +3,7 @@ The Terraform deployment in the Networking folder will deploy an Azure Virtual W
 * a secondary region w/ vWAN
 * Azure Firewall in either or both regions
 * Azure Private DNS in either or both regions (Private DNS Zones and Private Resolver)
+  * DNS Security Policy logging to a Log Analytics Workspace
 * Azure VPN Gateway in either or both regions
 
 ## Example

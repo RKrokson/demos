@@ -76,7 +76,7 @@ variable "azurerm_vhub00_route_pref" {
 variable "log_analytics_workspace_name" {
   description = "Log Analytics Workspace Name"
   type = string
-  default = "law01"
+  default = "law00"
 }
 variable "shared_vnet_name00" {
   description = "Virtual Network name"
