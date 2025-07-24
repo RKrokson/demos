@@ -42,7 +42,7 @@ data "azurerm_key_vault_secret" "vm_password" {
   name         = var.kv_secret_name
   depends_on = [ azurerm_key_vault_secret.vm_password ]
 }
-# Region 0 permanent resources
+## Region 0 permanent resources
 resource "azurerm_resource_group" "rg-net00" {
   name = "${var.resource_group_name_net00}-${var.azure_region_0_abbr}-${random_string.myrandom.id}"
   location = var.azure_region_0_name
@@ -280,6 +280,51 @@ resource "azurerm_monitor_diagnostic_setting" "dns_policy00_logs" {
   enabled_metric {
     category = "AllMetrics"
   }
+}
+# AI Spoke VNet for Region 0
+resource "azurerm_virtual_network" "ai_vnet00" {
+  count               = var.create_AiLZ ? 1 : 0
+  name                = "${var.ai_vnet_name00}-${var.azure_region_0_abbr}"
+  address_space       = var.ai_vnet_address_space00
+  location            = azurerm_resource_group.rg-net00.location
+  resource_group_name = azurerm_resource_group.rg-net00.name
+}
+
+resource "azurerm_subnet" "ai_foundry_subnet00" {
+  count                 = var.create_AiLZ ? 1 : 0
+  name                  = "ai_foundry-${var.ai_vnet_name00}-${var.azure_region_0_abbr}"
+  resource_group_name   = azurerm_resource_group.rg-net00.name
+  virtual_network_name  = azurerm_virtual_network.ai_vnet00[0].name
+  address_prefixes      = var.ai_foundry_subnet_address00
+  delegation {
+    name = "Microsoft.Apps"
+    service_delegation {
+      name    = "Microsoft.Apps"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+    }
+  }
+}
+
+resource "azurerm_subnet" "private_endpoint_subnet00" {
+  count                 = var.create_AiLZ ? 1 : 0
+  name                  = "private_endpoint-${var.ai_vnet_name00}-${var.azure_region_0_abbr}"
+  resource_group_name   = azurerm_resource_group.rg-net00.name
+  virtual_network_name  = azurerm_virtual_network.ai_vnet00[0].name
+  address_prefixes      = var.private_endpoint_subnet_address00
+}
+# Connect AI VNet 00 to vHub 00
+resource "azurerm_virtual_hub_connection" "vhub_connection00-to-ai" {
+  count                      = var.create_AiLZ ? 1 : 0
+  name                       = "${var.azurerm_virtual_hub_connection_vhub00_to_ai00}-${var.azure_region_0_abbr}"
+  virtual_hub_id             = azurerm_virtual_hub.vhub00.id
+  remote_virtual_network_id  = azurerm_virtual_network.ai_vnet00[0].id
+}
+
+# DNS servers for AI VNet 00
+resource "azurerm_virtual_network_dns_servers" "ai_vnet00_dns" {
+  count            = var.create_AiLZ ? 1 : 0
+  virtual_network_id = azurerm_virtual_network.ai_vnet00[0].id
+  dns_servers        = var.shared_vnet00_dns
 }
 resource "azurerm_firewall" "fw00" {
   count               = var.add_firewall00 ? 1 : 0
@@ -672,6 +717,51 @@ resource "azurerm_monitor_diagnostic_setting" "dns_policy01_logs" {
   enabled_metric {
     category = "AllMetrics"
   }
+}
+# AI Spoke VNet for Region 1
+resource "azurerm_virtual_network" "ai_vnet01" {
+  count               = var.create_vhub01 ? (var.create_AiLZ ? 1 : 0) : 0
+  name                = "${var.ai_vnet_name01}-${var.azure_region_1_abbr}"
+  address_space       = var.ai_vnet_address_space01
+  location            = azurerm_resource_group.rg-net01[0].location
+  resource_group_name = azurerm_resource_group.rg-net01[0].name
+}
+
+resource "azurerm_subnet" "ai_foundry_subnet01" {
+  count                 = var.create_vhub01 ? (var.create_AiLZ ? 1 : 0) : 0
+  name                  = "ai_foundry-${var.ai_vnet_name01}-${var.azure_region_1_abbr}"
+  resource_group_name   = azurerm_resource_group.rg-net01[0].name
+  virtual_network_name  = azurerm_virtual_network.ai_vnet01[0].name
+  address_prefixes      = var.ai_foundry_subnet_address01
+  delegation {
+    name = "Microsoft.Apps"
+    service_delegation {
+      name    = "Microsoft.Apps"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+    }
+  }
+}
+
+resource "azurerm_subnet" "private_endpoint_subnet01" {
+  count                 = var.create_vhub01 ? (var.create_AiLZ ? 1 : 0) : 0
+  name                  = "private_endpoint-${var.ai_vnet_name01}-${var.azure_region_1_abbr}"
+  resource_group_name   = azurerm_resource_group.rg-net01[0].name
+  virtual_network_name  = azurerm_virtual_network.ai_vnet01[0].name
+  address_prefixes      = var.private_endpoint_subnet_address01
+}
+# Connect AI VNet 01 to vHub 01
+resource "azurerm_virtual_hub_connection" "vhub_connection01-to-ai" {
+  count                      = var.create_vhub01 ? (var.create_AiLZ ? 1 : 0) : 0
+  name                       = "${var.azurerm_virtual_hub_connection_vhub01_to_ai01}-${var.azure_region_1_abbr}"
+  virtual_hub_id             = azurerm_virtual_hub.vhub01[0].id
+  remote_virtual_network_id  = azurerm_virtual_network.ai_vnet01[0].id
+}
+
+# DNS servers for AI VNet 01
+resource "azurerm_virtual_network_dns_servers" "ai_vnet01_dns" {
+  count            = var.create_vhub01 ? (var.create_AiLZ ? 1 : 0) : 0
+  virtual_network_id = azurerm_virtual_network.ai_vnet01[0].id
+  dns_servers        = var.shared_vnet01_dns
 }
 resource "azurerm_firewall" "fw01" {
   count               = var.create_vhub01 ? (var.add_firewall01 ? 1 : 0) : 0

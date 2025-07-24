@@ -66,7 +66,7 @@ variable "azurerm_virtual_hub00_name" {
 variable "azurerm_vhub00_address_prefix" {
   description = "value of the address prefix for the virtual hub"
   type = string
-  default = "10.0.0.0/23"
+  default = "172.30.0.0/23"
 }
 variable "azurerm_vhub00_route_pref" {
   description = "value of the route preference for the virtual hub"
@@ -83,25 +83,20 @@ variable "shared_vnet_name00" {
   type = string
   default = "shared-vnet00"
 }
-variable "dns_vnet_name00" {
-  description = "Virtual Network name"
-  type = string
-  default = "dns-vnet00"
-}
 variable "shared_vnet_address_space00" {
   description = "Virtual Network address_space"
   type = list(string)
-  default = ["10.1.0.0/17"]
+  default = ["172.20.0.0/20"]
 }
-variable "dns_vnet_address_space00" {
-  description = "Virtual Network address_space"
-  type = list(string)
-  default = ["10.1.128.0/17"]
+variable "azurerm_virtual_hub_connection_vhub00_to_shared00" {
+  description = "Virtual Hub Connection from vhub00 to shared vnet00"
+  type = string
+  default = "vhub00-to-shared00"
 }
 variable "shared_vnet00_dns" {
   description = "Virtual Network DNS Servers"
   type = list(string)
-  default = ["10.1.128.4"]
+  default = ["172.20.16.4"]
 }
 variable "shared_subnet_name00" {
   description = "Virtual Network Shared Subnet Name"
@@ -111,7 +106,7 @@ variable "shared_subnet_name00" {
 variable "shared_subnet_address00" {
   description = "Virtual Network Shared Subnet Address Spaces"
   type = list(string)
-  default = ["10.1.5.0/24"]
+  default = ["172.20.5.0/24"]
 }
 variable "app_subnet_name00" {
   description = "Virtual Network App Subnet Name"
@@ -121,7 +116,22 @@ variable "app_subnet_name00" {
 variable "app_subnet_address00" {
   description = "Virtual Network App Subnet Address Spaces"
   type = list(string)
-  default = ["10.1.6.0/24"]
+  default = ["172.20.6.0/24"]
+}
+variable "dns_vnet_name00" {
+  description = "Virtual Network name"
+  type = string
+  default = "dns-vnet00"
+}
+variable "dns_vnet_address_space00" {
+  description = "Virtual Network address_space"
+  type = list(string)
+  default = ["172.20.16.0/20"]
+}
+variable "azurerm_virtual_hub_connection_vhub00_to_dns00" {
+  description = "Virtual Hub Connection from vhub00 to dns vnet00"
+  type = string
+  default = "vhub00-to-dns00"
 }
 variable "resolver_inbound_subnet_name00" {
   description = "Virtual Network Private Resolver Inbound Subnet Name"
@@ -131,12 +141,12 @@ variable "resolver_inbound_subnet_name00" {
 variable "resolver_inbound_subnet_address00" {
   description = "Virtual Network Private Resolver Inbound Subnet Address Spaces"
   type = list(string)
-  default = ["10.1.128.0/28"]
+  default = ["172.20.16.0/28"]
 }
 variable "resolver_inbound_endpoint_address00" {
   description = "Virtual Network Private Resolver Inbound Endpoint Address"
   type = string
-  default = "10.1.128.4"
+  default = "172.20.16.4"
 }
 variable "resolver_outbound_subnet_name00" {
   description = "Virtual Network Private Resolver Outbound Subnet Name"
@@ -146,7 +156,7 @@ variable "resolver_outbound_subnet_name00" {
 variable "resolver_outbound_subnet_address00" {
   description = "Virtual Network Private Resolver Outbound Subnet Address Spaces"
   type = list(string)
-  default = ["10.1.128.16/28"]
+  default = ["172.20.16.16/28"]
 }
 variable "bastion_pip_name00" {
   description = "Bastion Public IP Name"
@@ -166,17 +176,7 @@ variable "bastion_host_sku00" {
 variable "bastion_subnet_address00" {
   description = "Virtual Network Bastion Subnet Address Spaces"
   type = list(string)
-  default = ["10.1.0.0/24"]
-}
-variable "azurerm_virtual_hub_connection_vhub00_to_shared00" {
-  description = "Virtual Hub Connection from vhub00 to shared vnet00"
-  type = string
-  default = "vhub00-to-shared00"
-}
-variable "azurerm_virtual_hub_connection_vhub00_to_dns00" {
-  description = "Virtual Hub Connection from vhub00 to dns vnet00"
-  type = string
-  default = "vhub00-to-dns00"
+  default = ["172.20.0.0/24"]
 }
 variable "vm00_nic_name" {
   description = "Virtual Machine 01 NIC Name"
@@ -199,6 +199,48 @@ variable "vm_admin_username" {
   default = "adminuser"
 }
 # Region 0 conditional resources
+## AI LZ Conditional Variables for region 0
+variable "create_AiLZ" {
+  description = "Create the AI Landing Zone spoke VNet in each region"
+  type        = bool
+  default     = false
+}
+variable "ai_vnet_name00" {
+  description = "AI spoke VNet name for region 0"
+  type        = string
+  default     = "ai-vnet00"
+}
+variable "ai_vnet_address_space00" {
+  description = "AI spoke VNet address space for region 0"
+  type        = list(string)
+  default     = ["172.20.32.0/20"]
+}
+variable "azurerm_virtual_hub_connection_vhub00_to_ai00" {
+  description = "vHub00 to AI VNet00 connection name"
+  type        = string
+  default     = "vhub00-to-ai00"
+}
+variable "ai_foundry_subnet_name00" {
+  description = "Virtual Network AI Foundry Subnet Name"
+  type = string
+  default = "ai-foundry-subnet00"
+}
+variable "ai_foundry_subnet_address00" {
+  description = "AI foundry subnet address prefix for region 0"
+  type        = list(string)
+  default     = ["172.20.32.0/24"]
+}
+variable "private_endpoint_subnet_name00" {
+  description = "Virtual Network Private Endpoint Subnet Name"
+  type = string
+  default = "private-endpoint-subnet00"
+}
+variable "private_endpoint_subnet_address00" {
+  description = "Private endpoint subnet address prefix for region 0"
+  type        = list(string)
+  default     = ["172.20.33.0/24"]
+}
+## Firewall variables for region 0
 variable "add_firewall00" {
   description = "Add Firewall 00"
   type = bool
@@ -308,7 +350,7 @@ variable "azurerm_virtual_hub01_name" {
 variable "azurerm_vhub01_address_prefix" {
   description = "value of the address prefix for the virtual hub"
   type = string
-  default = "10.0.2.0/23"
+  default = "172.30.2.0/23"
 }
 variable "azurerm_vhub01_route_pref" {
   description = "value of the route preference for the virtual hub"
@@ -328,17 +370,17 @@ variable "dns_vnet_name01" {
 variable "shared_vnet_address_space01" {
   description = "Virtual Network address_space"
   type = list(string)
-  default = ["10.2.0.0/17"]
+  default = ["172.21.0.0/20"]
 }
 variable "dns_vnet_address_space01" {
   description = "Virtual Network address_space"
   type = list(string)
-  default = ["10.2.128.0/17"]
+  default = ["172.21.16.0/20"]
 }
 variable "shared_vnet01_dns" {
   description = "Virtual Network DNS Servers"
   type = list(string)
-  default = ["10.2.128.4"]
+  default = ["172.21.16.4"]
 }
 variable "shared_subnet_name01" {
   description = "Virtual Network Shared Subnet Name"
@@ -348,7 +390,7 @@ variable "shared_subnet_name01" {
 variable "shared_subnet_address01" {
   description = "Virtual Network Shared Subnet Address Spaces"
   type = list(string)
-  default = ["10.2.5.0/24"]
+  default = ["1172.21.5.0/24"]
 }
 variable "app_subnet_name01" {
   description = "Virtual Network App Subnet Name"
@@ -358,8 +400,55 @@ variable "app_subnet_name01" {
 variable "app_subnet_address01" {
   description = "Virtual Network App Subnet Address Spaces"
   type = list(string)
-  default = ["10.2.6.0/24"]
+  default = ["172.21.6.0/24"]
 }
+variable "azurerm_virtual_hub_connection_vhub01_to_shared01" {
+  description = "Virtual Hub Connection from vhub01 to shared vnet01"
+  type = string
+  default = "vhub01-to-shared01"
+}
+variable "azurerm_virtual_hub_connection_vhub01_to_dns01" {
+  description = "Virtual Hub Connection from vhub01 to dns vnet01"
+  type = string
+  default = "vhub01-to-dns01"
+}
+## AI LZ Conditional Variables for region 1
+variable "ai_vnet_name01" {
+  description = "AI spoke VNet name for region 1"
+  type        = string
+  default     = "ai-vnet01"
+}
+variable "ai_vnet_address_space01" {
+  description = "AI spoke VNet address space for region 1"
+  type        = list(string)
+  default     = ["172.21.32.0/20"]
+}
+variable "azurerm_virtual_hub_connection_vhub01_to_ai01" {
+  description = "vHub01 to AI VNet01 connection name"
+  type        = string
+  default     = "vhub01-to-ai01"
+}
+variable "ai_foundry_subnet_name01" {
+  description = "Virtual Network AI Foundry Subnet Name"
+  type = string
+  default = "ai-foundry-subnet01"
+}
+variable "ai_foundry_subnet_address01" {
+  description = "AI foundry subnet address prefix for region 1"
+  type        = list(string)
+  default     = ["172.21.32.0/24"]
+}
+variable "private_endpoint_subnet_name01" {
+  description = "Virtual Network Private Endpoint Subnet Name"
+  type = string
+  default = "private-endpoint-subnet01"
+}
+variable "private_endpoint_subnet_address01" {
+  description = "Private endpoint subnet address prefix for region 1"
+  type        = list(string)
+  default     = ["172.21.33.0/24"]
+}
+## DNS conditional variables for region 1
 variable "resolver_inbound_subnet_name01" {
   description = "Virtual Network Private Resolver Inbound Subnet Name"
   type = string
@@ -368,12 +457,12 @@ variable "resolver_inbound_subnet_name01" {
 variable "resolver_inbound_subnet_address01" {
   description = "Virtual Network Private Resolver Inbound Subnet Address Spaces"
   type = list(string)
-  default = ["10.2.128.0/28"]
+  default = ["172.21.16.0/28"]
 }
 variable "resolver_inbound_endpoint_address01" {
   description = "Virtual Network Private Resolver Inbound Endpoint Address"
   type = string
-  default = "10.2.128.4"
+  default = "172.21.16.4"
 }
 variable "resolver_outbound_subnet_name01" {
   description = "Virtual Network Private Resolver Outbound Subnet Name"
@@ -383,8 +472,9 @@ variable "resolver_outbound_subnet_name01" {
 variable "resolver_outbound_subnet_address01" {
   description = "Virtual Network Private Resolver Outbound Subnet Address Spaces"
   type = list(string)
-  default = ["10.2.128.16/28"]
+  default = ["172.21.16.16/28"]
 }
+## Bastion conditional variables for region 1
 variable "bastion_subnet_name01" {
   description = "Virtual Network Bastion Subnet Name"
   type = string
@@ -408,17 +498,7 @@ variable "bastion_host_sku01" {
 variable "bastion_subnet_address01" {
   description = "Virtual Network Bastion Subnet Address Spaces"
   type = list(string)
-  default = ["10.2.0.0/24"]
-}
-variable "azurerm_virtual_hub_connection_vhub01_to_shared01" {
-  description = "Virtual Hub Connection from vhub01 to shared vnet01"
-  type = string
-  default = "vhub01-to-shared01"
-}
-variable "azurerm_virtual_hub_connection_vhub01_to_dns01" {
-  description = "Virtual Hub Connection from vhub01 to dns vnet01"
-  type = string
-  default = "vhub01-to-dns01"
+  default = ["172.21.0.0/24"]
 }
 variable "add_firewall01" {
   description = "Add Firewall 01"
@@ -480,6 +560,7 @@ variable "vm01_size" {
   type = string
   default = "Standard_B2s"
 }
+# Site-to-Site VPN variables for region 1
 variable "add_s2s_VPN01" {
   description = "Add s2s VPN01"
   type = bool
@@ -513,7 +594,7 @@ variable "s2s_site01_addresscidr" {
 variable "s2s_site01_ipaddress" {
   description = "s2s site01 ip address"
   type = string
-  default = "10.1.0.0"
+  default = "10.2.0.0"
 }
 variable "s2s_site01_speed" {
   description = "s2s site01 speed in mbps"
