@@ -14,22 +14,22 @@
 variable "azure_region_0_abbr" {
   description = "Azure Region 0 Abbreviation"
   type = string
-  default = "cus"
+  default = "eus2"
 }
 variable "azure_region_0_name" {
   description = "Azure Region 0 Name"
   type = string
-  default = "centralus"
+  default = "eastus2"
 }
 variable "azure_region_1_abbr" {
   description = "Azure Region 1 Abbreviation"
   type = string
-  default = "eus2"
+  default = "cus"
 }
 variable "azure_region_1_name" {
   description = "Azure Region 1 Name"
   type = string
-  default = "eastus2"
+  default = "centralus"
 }
 # KV variables
 variable "kv_name" {
@@ -189,6 +189,21 @@ variable "vm00_name" {
   default = "vm00"
 }
 variable "vm00_size" {
+  description = "Virtual Machine Size"
+  type = string
+  default = "Standard_B2s"
+}
+variable "vm001_nic_name" {
+  description = "Virtual Machine 01 NIC Name"
+  type = string
+  default = "vm001-nic"
+}
+variable "vm001_name" {
+  description = "Virtual Machine 01 Name"
+  type = string
+  default = "vm001"
+}
+variable "vm001_size" {
   description = "Virtual Machine Size"
   type = string
   default = "Standard_B2s"
@@ -390,7 +405,7 @@ variable "shared_subnet_name01" {
 variable "shared_subnet_address01" {
   description = "Virtual Network Shared Subnet Address Spaces"
   type = list(string)
-  default = ["1172.21.5.0/24"]
+  default = ["172.21.5.0/24"]
 }
 variable "app_subnet_name01" {
   description = "Virtual Network App Subnet Name"

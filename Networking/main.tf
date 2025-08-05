@@ -1,9 +1,11 @@
 # Pre-reqs and/or foundational resources
 resource "random_string" "myrandom" {
-  length = 3
-  upper = false 
-  special = false
-  numeric = false   
+  length      = 4
+  min_numeric = 4
+  numeric     = true
+  special     = false
+  lower       = true
+  upper       = false 
 }
 data "azurerm_client_config" "current" {
 }
@@ -265,7 +267,21 @@ resource "azapi_resource" "dns_security_policy_dns_vnet00_link" {
     }
   }
 }
+resource "azapi_resource" "dns_security_policy_ai_vnet00_link" {
+  count               = var.add_privateDNS00 ? (var.create_AiLZ ? 1 : 0) : 0
+  type      = "Microsoft.Network/dnsResolverPolicies/virtualNetworkLinks@2023-07-01-preview"
+  name      = "vnet-link-to-dns-policy-ai-vnet00"
+  parent_id = azapi_resource.dns_security_policy00[0].id
+  location  = azurerm_resource_group.rg-net00.location
 
+  body = {
+    properties = {
+      virtualNetwork = {
+        id = azurerm_virtual_network.ai_vnet00[0].id
+      }
+    }
+  }
+}
 resource "azurerm_monitor_diagnostic_setting" "dns_policy00_logs" {
   count              = var.add_privateDNS00 ? 1 : 0
   name               = "dns-policy-logs-${var.azure_region_0_abbr}"
@@ -297,9 +313,9 @@ resource "azurerm_subnet" "ai_foundry_subnet00" {
   virtual_network_name  = azurerm_virtual_network.ai_vnet00[0].name
   address_prefixes      = var.ai_foundry_subnet_address00
   delegation {
-    name = "Microsoft.Apps"
+    name = "Microsoft.App"
     service_delegation {
-      name    = "Microsoft.Apps"
+      name    = "Microsoft.App/environments"
       actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
     }
   }
@@ -322,9 +338,14 @@ resource "azurerm_virtual_hub_connection" "vhub_connection00-to-ai" {
 
 # DNS servers for AI VNet 00
 resource "azurerm_virtual_network_dns_servers" "ai_vnet00_dns" {
-  count            = var.create_AiLZ ? 1 : 0
+  count            = var.add_privateDNS00 ? (var.create_AiLZ ? 1 : 0) : 0
   virtual_network_id = azurerm_virtual_network.ai_vnet00[0].id
   dns_servers        = var.shared_vnet00_dns
+
+  depends_on = [
+    azurerm_subnet.resolver_inbound_subnet00[0],
+    azurerm_subnet.resolver_outbound_subnet00[0]
+  ]
 }
 resource "azurerm_firewall" "fw00" {
   count               = var.add_firewall00 ? 1 : 0
@@ -429,6 +450,40 @@ resource "azurerm_linux_virtual_machine" "vm00" {
     publisher = "Canonical"
     offer     = "0001-com-ubuntu-server-jammy"
     sku       = "22_04-lts"
+    version   = "latest"
+  }
+}
+resource "azurerm_network_interface" "vm001_nic" {
+  count                      = var.create_AiLZ ? 1 : 0
+  name                = "${var.vm001_nic_name}-${var.azure_region_0_abbr}"
+  location            = azurerm_resource_group.rg-net00.location
+  resource_group_name = azurerm_resource_group.rg-net00.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.shared_subnet00.id
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+resource "azurerm_windows_virtual_machine" "vm001" {
+  count                      = var.create_AiLZ ? 1 : 0
+  name                = "${var.vm001_name}-${var.azure_region_0_abbr}"
+  location            = azurerm_resource_group.rg-net00.location
+  resource_group_name = azurerm_resource_group.rg-net00.name
+  size                = var.vm001_size
+  admin_username      = "${random_string.myrandom.id}${var.vm_admin_username}"
+  network_interface_ids = [
+    azurerm_network_interface.vm001_nic[0].id,
+  ]
+  admin_password = data.azurerm_key_vault_secret.vm_password.value
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+  source_image_reference {
+    publisher = "MicrosoftWindowsServer"
+    offer     = "WindowsServer"
+    sku       = "2019-Datacenter"
     version   = "latest"
   }
 }
@@ -703,6 +758,21 @@ resource "azapi_resource" "dns_security_policy_dns_vnet01_link" {
     }
   }
 }
+resource "azapi_resource" "dns_security_policy_ai_vnet01_link" {
+  count = var.create_vhub01 && var.create_AiLZ && var.add_privateDNS01 ? 1 : 0
+  type      = "Microsoft.Network/dnsResolverPolicies/virtualNetworkLinks@2023-07-01-preview"
+  name      = "vnet-link-to-dns-policy-ai-vnet01"
+  parent_id = azapi_resource.dns_security_policy01[0].id
+  location  = azurerm_resource_group.rg-net01[0].location
+
+  body = {
+    properties = {
+      virtualNetwork = {
+        id = azurerm_virtual_network.ai_vnet01[0].id
+      }
+    }
+  }
+}
 resource "azurerm_monitor_diagnostic_setting" "dns_policy01_logs" {
   count              = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
   name               = "dns-policy-logs-${var.azure_region_1_abbr}"
@@ -734,9 +804,9 @@ resource "azurerm_subnet" "ai_foundry_subnet01" {
   virtual_network_name  = azurerm_virtual_network.ai_vnet01[0].name
   address_prefixes      = var.ai_foundry_subnet_address01
   delegation {
-    name = "Microsoft.Apps"
+    name = "Microsoft.App"
     service_delegation {
-      name    = "Microsoft.Apps"
+      name    = "Microsoft.App/environments"
       actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
     }
   }
@@ -759,9 +829,14 @@ resource "azurerm_virtual_hub_connection" "vhub_connection01-to-ai" {
 
 # DNS servers for AI VNet 01
 resource "azurerm_virtual_network_dns_servers" "ai_vnet01_dns" {
-  count            = var.create_vhub01 ? (var.create_AiLZ ? 1 : 0) : 0
+  count            = var.add_privateDNS01 ? (var.create_AiLZ ? 1 : 0) : 0
   virtual_network_id = azurerm_virtual_network.ai_vnet01[0].id
   dns_servers        = var.shared_vnet01_dns
+
+  depends_on = [
+    azurerm_subnet.resolver_inbound_subnet01[0],
+    azurerm_subnet.resolver_outbound_subnet01[0]
+  ]
 }
 resource "azurerm_firewall" "fw01" {
   count               = var.create_vhub01 ? (var.add_firewall01 ? 1 : 0) : 0

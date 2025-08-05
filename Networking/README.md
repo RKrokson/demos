@@ -3,6 +3,8 @@ The Terraform deployment in this folder will deploy an Azure Virtual WAN environ
 * a secondary region w/ vWAN
 * Azure Firewall in either or both regions
 * Azure Private DNS in either or both regions (Private DNS Zones and Private Resolver)
+  * DNS Security Policy logging to a Log Analytics Workspace
+* Virtual network for secure AI Foundry deployment (vNet only in this deployment)
 * Azure VPN Gateway in either or both regions
 
 ## Notes
