@@ -16,7 +16,7 @@ Azure DNS Private Zones are deployed using the Azure Verified Module "Private Li
 * Azure Verified Modules - https://azure.github.io/Azure-Verified-Modules/indexes/terraform/tf-pattern-modules/
 * Direct link to exceptions - https://github.com/Azure/terraform-azurerm-avm-ptn-network-private-link-private-dns-zones?tab=readme-ov-file#-private_link_private_dns_zones
 
-The default primary region (region 0) is Central US. The default secondary region (region 1) is East US 2. You can change these regions by updating them in the variables file. Update both the full region name and abbreviation.
+The default primary region (region 0) is East US 2. The default secondary region (region 1) is Central US. You can change these regions by updating them in the variables file. Update both the full region name and abbreviation.
 
 ![Regions](./diagrams/region-vars.png)
 
