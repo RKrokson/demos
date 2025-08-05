@@ -2,6 +2,7 @@
 The Terraform deployment in the secureAIFoundry folder will deploy AI Foundry with AI Agent Service and private endpoints. I modified the sample template below to be dependent on the Networking Foundation template. Apply the Networking Foundation folder first and then apply this folder to complete the build. AI Foundry, and required resources, will be deployed in your primary region only. Ensure you select a region that supports AI Foundry and where you have quota.
 
 * AI Foundry TF example with AI Agent Service - https://github.com/azure-ai-foundry/foundry-samples/tree/main/samples/microsoft/infrastructure-setup-terraform
+* "Secure" - I'm using this to highlight the usage of private endpoints. This environment still allows the use of API keys. You can change disableLocalAuth to True to only allow Entra auth.
 
 The template above follows the documented architecture (below) for deploying AI Foundry Standard Setup with private networking (BYO VNet). 
 
