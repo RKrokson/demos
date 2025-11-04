@@ -164,6 +164,7 @@ resource "azurerm_subnet" "resolver_outbound_subnet00" {
 module "private_dns00" {
   count               = var.add_privateDNS00 ? 1 : 0
   source = "Azure/avm-ptn-network-private-link-private-dns-zones/azurerm"
+  version = "0.17.0"
   location = azurerm_resource_group.rg-net00.location
   resource_group_name = azurerm_resource_group.rg-net00.name
   resource_group_creation_enabled = false
@@ -668,6 +669,7 @@ resource "azurerm_virtual_hub_connection" "vhub_connection01-to-dns-secure" {
 module "private_dns01" {
   count               = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
   source = "Azure/avm-ptn-network-private-link-private-dns-zones/azurerm"
+  version = "0.17.0"
   location = azurerm_resource_group.rg-net01[0].location
   resource_group_name = azurerm_resource_group.rg-net01[0].name
   resource_group_creation_enabled = false
