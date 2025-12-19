@@ -10,6 +10,7 @@
 "westus3" = "wus3"
 "westeurope" = "weu"
 "northeurope" = "neu"
+"swedencentral" = "sece"
 */
 variable "azure_region_0_abbr" {
   description = "Azure Region 0 Abbreviation"
