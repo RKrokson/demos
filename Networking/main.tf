@@ -164,13 +164,13 @@ resource "azurerm_subnet" "resolver_outbound_subnet00" {
 module "private_dns00" {
   count               = var.add_privateDNS00 ? 1 : 0
   source = "Azure/avm-ptn-network-private-link-private-dns-zones/azurerm"
-  version = "0.17.0"
+  version = "0.23.0"
   location = azurerm_resource_group.rg-net00.location
-  resource_group_name = azurerm_resource_group.rg-net00.name
-  resource_group_creation_enabled = false
-  virtual_network_resource_ids_to_link_to = {
+  parent_id = azurerm_resource_group.rg-net00.id
+  virtual_network_link_default_virtual_networks = {
     "dns_vnet00" = {
-      vnet_resource_id = azurerm_virtual_network.dns_vnet00[0].id
+      virtual_network_resource_id = azurerm_virtual_network.dns_vnet00[0].id
+      resolution_policy = "NxDomainRedirect"
     }
   }
 }
@@ -224,6 +224,31 @@ resource "azurerm_private_dns_resolver_outbound_endpoint" "private_resolver00_ou
   private_dns_resolver_id = azurerm_private_dns_resolver.private_resolver00[0].id
   location                = azurerm_resource_group.rg-net00.location
   subnet_id               = azurerm_subnet.resolver_outbound_subnet00[0].id
+}
+resource "azurerm_private_dns_resolver_dns_forwarding_ruleset" "private_resolver00_forwarding_ruleset00" {
+  count               = var.add_privateDNS00 ? 1 : 0
+  name                                       = "${var.private_resolver_name00}-ruleset00-${var.azure_region_0_abbr}"
+  resource_group_name                        = azurerm_resource_group.rg-net00.name
+  location                                   = azurerm_resource_group.rg-net00.location
+  private_dns_resolver_outbound_endpoint_ids = [azurerm_private_dns_resolver_outbound_endpoint.private_resolver00_outbound00[0].id]
+}
+
+resource "azurerm_private_dns_resolver_forwarding_rule" "private_resolver00_forwarding_rule00" {
+  count               = var.add_privateDNS00 ? 1 : 0
+  name                      = "${var.private_resolver_name00}-rule00-${var.azure_region_0_abbr}"
+  dns_forwarding_ruleset_id = azurerm_private_dns_resolver_dns_forwarding_ruleset.private_resolver00_forwarding_ruleset00[0].id
+  domain_name               = "."
+  enabled                   = true
+  target_dns_servers {
+    ip_address = "8.8.8.8"
+    port       = 53
+  }
+}
+resource "azurerm_private_dns_resolver_virtual_network_link" "private_resolver00_dnsvnet00link" {
+  count               = var.add_privateDNS00 ? 1 : 0
+  name                      = "${var.private_resolver_name00}-dnsvnetlink00-${var.azure_region_0_abbr}"
+  dns_forwarding_ruleset_id = azurerm_private_dns_resolver_dns_forwarding_ruleset.private_resolver00_forwarding_ruleset00[0].id
+  virtual_network_id        = azurerm_virtual_network.dns_vnet00[0].id
 }
 resource "azapi_resource" "dns_security_policy00" {
   count               = var.add_privateDNS00 ? 1 : 0
@@ -669,13 +694,13 @@ resource "azurerm_virtual_hub_connection" "vhub_connection01-to-dns-secure" {
 module "private_dns01" {
   count               = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
   source = "Azure/avm-ptn-network-private-link-private-dns-zones/azurerm"
-  version = "0.17.0"
+  version = "0.23.0"
   location = azurerm_resource_group.rg-net01[0].location
-  resource_group_name = azurerm_resource_group.rg-net01[0].name
-  resource_group_creation_enabled = false
-  virtual_network_resource_ids_to_link_to = {
+  parent_id = azurerm_resource_group.rg-net01[0].id
+  virtual_network_link_default_virtual_networks = {
     "dns_vnet01" = {
-      vnet_resource_id = azurerm_virtual_network.dns_vnet01[0].id
+      virtual_network_resource_id = azurerm_virtual_network.dns_vnet01[0].id
+      resolution_policy = "NxDomainRedirect"
     }
   }
 }
@@ -706,6 +731,31 @@ resource "azurerm_private_dns_resolver_outbound_endpoint" "private_resolver01_ou
   private_dns_resolver_id = azurerm_private_dns_resolver.private_resolver01[0].id
   location                = azurerm_resource_group.rg-net01[0].location
   subnet_id               = azurerm_subnet.resolver_outbound_subnet01[0].id
+}
+resource "azurerm_private_dns_resolver_dns_forwarding_ruleset" "private_resolver01_forwarding_ruleset00" {
+  count               = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
+  name                                       = "${var.private_resolver_name01}-ruleset00-${var.azure_region_1_abbr}"
+  resource_group_name                        = azurerm_resource_group.rg-net01[0].name
+  location                                   = azurerm_resource_group.rg-net01[0].location
+  private_dns_resolver_outbound_endpoint_ids = [azurerm_private_dns_resolver_outbound_endpoint.private_resolver01_outbound00[0].id]
+}
+
+resource "azurerm_private_dns_resolver_forwarding_rule" "private_resolver01_forwarding_rule00" {
+  count               = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
+  name                      = "${var.private_resolver_name01}-rule00-${var.azure_region_1_abbr}"
+  dns_forwarding_ruleset_id = azurerm_private_dns_resolver_dns_forwarding_ruleset.private_resolver01_forwarding_ruleset00[0].id
+  domain_name               = "."
+  enabled                   = true
+  target_dns_servers {
+    ip_address = "8.8.8.8"
+    port       = 53
+  }
+}
+resource "azurerm_private_dns_resolver_virtual_network_link" "private_resolver01_dnsvnet01link" {
+  count               = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0
+  name                      = "${var.private_resolver_name01}-dnsvnetlink01-${var.azure_region_1_abbr}"
+  dns_forwarding_ruleset_id = azurerm_private_dns_resolver_dns_forwarding_ruleset.private_resolver01_forwarding_ruleset00[0].id
+  virtual_network_id        = azurerm_virtual_network.dns_vnet01[0].id
 }
 resource "azurerm_virtual_network_dns_servers" "shared_vnet01_dns" {
   count               = var.create_vhub01 ? (var.add_privateDNS01 ? 1 : 0) : 0

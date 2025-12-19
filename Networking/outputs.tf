@@ -14,11 +14,3 @@ output "azure_region_0_abbr" {
   description = "The abbreviation of the Azure 0 region."
   value = var.azure_region_0_abbr
 }
-output "private_endpoint_subnet00_id" {
-  value = azurerm_subnet.private_endpoint_subnet00[0].id
-  description = "The ID of the AI Foundry private endpoint subnet."
-}
-output "ai_foundry_subnet00_id" {
-  value = azurerm_subnet.ai_foundry_subnet00[0].id
-  description = "The ID of the AI Foundry subnet."
-}
