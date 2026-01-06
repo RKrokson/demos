@@ -15,12 +15,12 @@
 variable "azure_region_0_abbr" {
   description = "Azure Region 0 Abbreviation"
   type = string
-  default = "eus2"
+  default = "sece"
 }
 variable "azure_region_0_name" {
   description = "Azure Region 0 Name"
   type = string
-  default = "eastus2"
+  default = "swedencentral"
 }
 variable "azure_region_1_abbr" {
   description = "Azure Region 1 Abbreviation"
@@ -190,21 +190,6 @@ variable "vm00_name" {
   default = "vm00"
 }
 variable "vm00_size" {
-  description = "Virtual Machine Size"
-  type = string
-  default = "Standard_B2s"
-}
-variable "vm001_nic_name" {
-  description = "Virtual Machine 01 NIC Name"
-  type = string
-  default = "vm001-nic"
-}
-variable "vm001_name" {
-  description = "Virtual Machine 01 Name"
-  type = string
-  default = "vm001"
-}
-variable "vm001_size" {
   description = "Virtual Machine Size"
   type = string
   default = "Standard_B2s"

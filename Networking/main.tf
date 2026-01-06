@@ -457,7 +457,7 @@ resource "azurerm_network_interface" "vm00_nic" {
     private_ip_address_allocation = "Dynamic"
   }
 }
-resource "azurerm_linux_virtual_machine" "vm00" {
+resource "azurerm_windows_virtual_machine" "vm00" {
   name                = "${var.vm00_name}-${var.azure_region_0_abbr}"
   location            = azurerm_resource_group.rg-net00.location
   resource_group_name = azurerm_resource_group.rg-net00.name
@@ -467,41 +467,8 @@ resource "azurerm_linux_virtual_machine" "vm00" {
     azurerm_network_interface.vm00_nic.id,
   ]
   admin_password = data.azurerm_key_vault_secret.vm_password.value
-  disable_password_authentication = false
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-lts"
-    version   = "latest"
-  }
-}
-resource "azurerm_network_interface" "vm001_nic" {
-  count                      = var.create_AiLZ ? 1 : 0
-  name                = "${var.vm001_nic_name}-${var.azure_region_0_abbr}"
-  location            = azurerm_resource_group.rg-net00.location
-  resource_group_name = azurerm_resource_group.rg-net00.name
-
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = azurerm_subnet.shared_subnet00.id
-    private_ip_address_allocation = "Dynamic"
-  }
-}
-resource "azurerm_windows_virtual_machine" "vm001" {
-  count                      = var.create_AiLZ ? 1 : 0
-  name                = "${var.vm001_name}-${var.azure_region_0_abbr}"
-  location            = azurerm_resource_group.rg-net00.location
-  resource_group_name = azurerm_resource_group.rg-net00.name
-  size                = var.vm001_size
-  admin_username      = "${random_string.myrandom.id}${var.vm_admin_username}"
-  network_interface_ids = [
-    azurerm_network_interface.vm001_nic[0].id,
-  ]
-  admin_password = data.azurerm_key_vault_secret.vm_password.value
+  patch_mode     = "AutomaticByPlatform"
+  bypass_platform_safety_checks_on_user_schedule_enabled = true
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
@@ -509,7 +476,7 @@ resource "azurerm_windows_virtual_machine" "vm001" {
   source_image_reference {
     publisher = "MicrosoftWindowsServer"
     offer     = "WindowsServer"
-    sku       = "2019-Datacenter"
+    sku       = "2025-datacenter-azure-edition"
     version   = "latest"
   }
 }
@@ -975,7 +942,7 @@ resource "azurerm_network_interface" "vm01_nic" {
     private_ip_address_allocation = "Dynamic"
   }
 }
-resource "azurerm_linux_virtual_machine" "vm01" {
+resource "azurerm_windows_virtual_machine" "vm01" {
   count               = var.create_vhub01 ? 1 : 0
   name                = "${var.vm01_name}-${var.azure_region_1_abbr}"
   location            = azurerm_resource_group.rg-net01[0].location
@@ -986,15 +953,16 @@ resource "azurerm_linux_virtual_machine" "vm01" {
     azurerm_network_interface.vm01_nic[0].id,
   ]
   admin_password = data.azurerm_key_vault_secret.vm_password.value
-  disable_password_authentication = false
+  patch_mode     = "AutomaticByPlatform"
+  bypass_platform_safety_checks_on_user_schedule_enabled = true
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
   source_image_reference {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-lts"
+    publisher = "MicrosoftWindowsServer"
+    offer     = "WindowsServer"
+    sku       = "2025-datacenter-azure-edition"
     version   = "latest"
   }
 }
