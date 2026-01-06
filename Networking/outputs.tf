@@ -1,6 +1,6 @@
 output "vm_admin_username" {
   description = "Virtual Machine Admin Username"
-  value = azurerm_linux_virtual_machine.vm00.admin_username
+  value = azurerm_windows_virtual_machine.vm00.admin_username
 }
 output "rg_net00_id" {
   description = "The ID of the Networking Resource Group."
