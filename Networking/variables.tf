@@ -25,12 +25,12 @@ variable "azure_region_0_name" {
 variable "azure_region_1_abbr" {
   description = "Azure Region 1 Abbreviation"
   type = string
-  default = "eus2"
+  default = "cus"
 }
 variable "azure_region_1_name" {
   description = "Azure Region 1 Name"
   type = string
-  default = "eastus2"
+  default = "centralus"
 }
 # KV variables
 variable "kv_name" {
