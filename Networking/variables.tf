@@ -15,22 +15,22 @@
 variable "azure_region_0_abbr" {
   description = "Azure Region 0 Abbreviation"
   type = string
-  default = "eus2"
+  default = "sece"
 }
 variable "azure_region_0_name" {
   description = "Azure Region 0 Name"
   type = string
-  default = "eastus2"
+  default = "swedencentral"
 }
 variable "azure_region_1_abbr" {
   description = "Azure Region 1 Abbreviation"
   type = string
-  default = "cus"
+  default = "eus2"
 }
 variable "azure_region_1_name" {
   description = "Azure Region 1 Name"
   type = string
-  default = "centralus"
+  default = "eastus2"
 }
 # KV variables
 variable "kv_name" {

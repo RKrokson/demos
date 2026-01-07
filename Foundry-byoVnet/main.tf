@@ -35,7 +35,7 @@ resource "azurerm_resource_group" "rg-ai00" {
 ## Create a storage account for agent data
 ##
 resource "azurerm_storage_account" "storage_account" {
-  name                = "aifoundry${random_string.unique.result}storage"
+  name                = "aifoundry${random_string.unique.result}storage00"
   resource_group_name = azurerm_resource_group.rg-ai00.name
   location            = azurerm_resource_group.rg-ai00.location
 
@@ -138,7 +138,7 @@ resource "azapi_resource" "ai_search" {
 ## Create the AI Foundry resource
 ##
 resource "azapi_resource" "ai_foundry" {
-  type                      = "Microsoft.CognitiveServices/accounts@2025-04-01-preview"
+  type                      = "Microsoft.CognitiveServices/accounts@2025-06-01"
   name                      = "aifoundry${random_string.unique.result}"
   parent_id                 = azurerm_resource_group.rg-ai00.id
   location                  = azurerm_resource_group.rg-ai00.location
@@ -201,7 +201,7 @@ resource "azurerm_cognitive_deployment" "aifoundry_deployment_gpt_4o" {
   model {
     format  = "OpenAI"
     name    = "gpt-4o"
-    version = "2024-05-13"
+    version = "2024-11-20"
   }
 }
 
@@ -337,7 +337,7 @@ resource "azapi_resource" "ai_foundry_project" {
     azurerm_private_endpoint.pe-aifoundry
   ]
 
-  type                      = "Microsoft.CognitiveServices/accounts/projects@2025-04-01-preview"
+  type                      = "Microsoft.CognitiveServices/accounts/projects@2025-06-01"
   name                      = "project${random_string.unique.result}"
   parent_id                 = azapi_resource.ai_foundry.id
   location                  = azurerm_resource_group.rg-ai00.location
@@ -375,7 +375,7 @@ resource "time_sleep" "wait_project_identities" {
 ## Create AI Foundry project connections
 ##
 resource "azapi_resource" "conn_cosmosdb" {
-  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview"
+  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-06-01"
   name                      = azurerm_cosmosdb_account.cosmosdb.name
   parent_id                 = azapi_resource.ai_foundry_project.id
   schema_validation_enabled = false
@@ -402,7 +402,7 @@ resource "azapi_resource" "conn_cosmosdb" {
 ## Create the AI Foundry project connection to Azure Storage Account
 ##
 resource "azapi_resource" "conn_storage" {
-  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview"
+  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-06-01"
   name                      = azurerm_storage_account.storage_account.name
   parent_id                 = azapi_resource.ai_foundry_project.id
   schema_validation_enabled = false
@@ -433,7 +433,7 @@ resource "azapi_resource" "conn_storage" {
 ## Create the AI Foundry project connection to AI Search
 ##
 resource "azapi_resource" "conn_aisearch" {
-  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview"
+  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-06-01"
   name                      = azapi_resource.ai_search.name
   parent_id                 = azapi_resource.ai_foundry_project.id
   schema_validation_enabled = false
@@ -450,7 +450,7 @@ resource "azapi_resource" "conn_aisearch" {
       authType = "AAD"
       metadata = {
         ApiType    = "Azure"
-        ApiVersion = "2024-05-01-preview"
+        ApiVersion = "2025-05-01-preview"
         ResourceId = azapi_resource.ai_search.id
         location   = azurerm_resource_group.rg-ai00.location
       }
