@@ -22,9 +22,9 @@ Azure DNS Private Zones are deployed using the Azure Verified Module "Private Li
 
 The default primary region (region 0) is Sweden Central. The default secondary region (region 1) is Central US. You can change these regions by updating them in the variables file. Update both the full region name and abbreviation.
 
-![Regions](./diagrams/region-vars.png)
+![Regions](./diagrams/region-vars-v1.1.png)
 
-The default size for the linux test machines is Standard_b2s. During testing I ran into capacity constraints so I added VM size variables. You can modify that in the variables file or tfvars.
+The default size for the Windows test machines is Standard_b2s. During testing I ran into capacity constraints so I added VM size variables. You can modify that in the variables file or tfvars.
 
 ![VM Size Variable](./diagrams/vm-size-vars.png)
 
@@ -43,30 +43,36 @@ Below are examples of the various scenarios you can build using the conditionals
 
 ### 1 Region, vHub, w/ DNS & VPN
 
-![Diagram](./diagrams/1reg-hub-dns-vpn.png)
-![tfvars](./diagrams/1reg-hub-dns-vpn-vars.png)
+![Diagram](./diagrams/1reg-hub-dns-vpn-v1.1.png)
+![tfvars](./diagrams/1reg-hub-dns-vpn-vars-v1.1.png)
 
 ### 1 Region, vHub, w/o DNS or VPN (default deployment without tfvars in place)
 
-![Diagram](./diagrams/1reg-hub-ndns-nvpn.png)
-![tfvars](./diagrams/1reg-hub-ndns-nvpn-vars.png)
+![Diagram](./diagrams/1reg-hub-ndns-nvpn-v1.1.png)
+![tfvars](./diagrams/1reg-hub-ndns-nvpn-vars-v1.1.png)
 
 ### 1 Region, Secure Hub, w/ DNS & VPN
 
-![Diagram](./diagrams/1reg-shub-dns-vpn.png)
-![tfvars](./diagrams/1reg-shub-dns-vpn-vars.png)
+![Diagram](./diagrams/1reg-shub-dns-vpn-v1.1.png)
+![tfvars](./diagrams/1reg-shub-dns-vpn-vars-v1.1.png)
 
 ### 1 Region, Secure Hub, w/o DNS or VPN
 
-![Diagram](./diagrams/1reg-shub-ndns-nvpn.png)
-![tfvars](./diagrams/1reg-shub-ndns-nvpn-vars.png)
+![Diagram](./diagrams/1reg-shub-ndns-nvpn-v1.1.png)
+![tfvars](./diagrams/1reg-shub-ndns-nvpn-vars-v1.1.png)
 
 ### 2 Regions, vHub, w/ DNS & VPN
 
-![Diagram](./diagrams/2reg-hub-dns-vpn.png)
-![tfvars](./diagrams/2reg-hub-dns-vpn-vars.png)
+![Diagram](./diagrams/2reg-hub-dns-vpn-v1.1.png)
+![tfvars](./diagrams/2reg-hub-dns-vpn-vars-v1.1.png)
 
-### 2 Regions, vHub, w/o DNS or VPN
+### 2 Regions, Secure vHub, w/ DNS & VPN
 
-![Diagram](./diagrams/2reg-shub-dns-vpn.png)
-![tfvars](./diagrams/2reg-shub-dns-vpn-vars.png)
+![Diagram](./diagrams/2reg-shub-dns-vpn-v1.1.png)
+![tfvars](./diagrams/2reg-shub-dns-vpn-vars-v1.1.png)
+
+### Add-on - AI Landing Zone vNet for Foundry BYO vNet
+
+![Diagram](./diagrams/1reg-aiLZ.png)
+
+![tfvars](./diagrams/1reg-aiLZ-vars.png)

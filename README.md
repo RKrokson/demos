@@ -13,8 +13,8 @@ The Terraform deployment in the Networking folder will deploy an Azure Virtual W
 
 ### Example
 
-![Diagram](./Diagrams/1reg-shub-dns-vpn.png)
-![tfvars](./Diagrams/1reg-shub-dns-vpn-vars.png)
+![Diagram](./Diagrams/1reg-hub-dns-vpn-v1.1.png)
+![tfvars](./Diagrams/vm-size-vars.png)
 
 ### Pre-reqs
 
