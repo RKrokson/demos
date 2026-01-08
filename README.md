@@ -52,7 +52,7 @@ Below is a rough estimate using Central US:
 
 ## Private (BYO VNet) Foundry with AI Agent Service (optional)
 
-The Terraform deployment in the Foundry-byoVnet folder will deploy Foundry with AI Agent Service and private endpoints. I modified the sample template below to be dependent on the Networking Foundation template. Apply the Networking Foundation folder first and then apply this folder to complete the build. Foundry, and required resources, will be deployed in your primary region only. Ensure you select a region that supports AI Foundry and where you have quota.
+The Terraform deployment in the Foundry-byoVnet folder will deploy Foundry with AI Agent Service and private endpoints. I modified the sample template below to be dependent on the Networking Foundation template. Apply the Networking Foundation folder first (using the Create_AiLZ conditional) and then apply this folder to complete the build. Foundry, and required resources, will be deployed in your primary region only. **Ensure you select a region that supports AI Foundry and where you have quota.**
 
 - Private Foundry TF example with AI Agent Service - https://github.com/azure-ai-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/15b-private-network-standard-agent-setup-byovnet
 
