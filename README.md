@@ -62,6 +62,19 @@ The template above follows the documented architecture (below) for deploying AI 
 
 ![secureAIFoundry](./Diagrams/secureAIFoundry-diagram.png)
 
+## Managed vNet for Foundry with AI Agent Service (optional)
+
+The Terraform deployment in the Foundry-managedVnet folder will deploy Foundry with AI Agent Service and private endpoints in a Microsoft managed vNet. I modified the sample template below to be dependent on the Networking Foundation template. Apply the Networking Foundation folder first (using the Create_AiLZ conditional) and then apply this folder to complete the build. Foundry, and required resources, will be deployed in your primary region only. **Ensure you select a region that supports AI Foundry and where you have quota.**
+
+- Foundry TF example with AI Agent Service and Managed vNet - https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/18-managed-virtual-network-preview
+- "Secure" - I'm using this to highlight the usage of private endpoints. This environment still allows the use of API keys. You can change disableLocalAuth to True to only allow Entra auth.
+
+The template above follows the documented architecture (below) for deploying AI Foundry Standard Setup with managed network.
+
+- AI Foundry Standard Setup with private networking - https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/managed-virtual-network?view=foundry
+
+![managedVnetFoundry](./Diagrams/managedVnet-diagram.png)
+
 # Disclaimer
 
 The attached diagrams and code are provided AS IS without warranty of any kind and should not be interpreted as an offer or commitment on the part of Microsoft, and Microsoft cannot guarantee the accuracy of any information presented. MICROSOFT MAKES NO WARRANTIES, EXPRESS OR IMPLIED, IN THIS DIAGRAM(s) CODE SAMPLE(s).
