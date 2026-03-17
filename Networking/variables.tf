@@ -229,7 +229,7 @@ variable "ai_foundry_subnet_name00" {
 variable "ai_foundry_subnet_address00" {
   description = "AI foundry subnet address prefix for region 0"
   type        = list(string)
-  default     = ["172.20.32.0/24"]
+  default     = ["172.20.32.0/26"]
 }
 variable "private_endpoint_subnet_name00" {
   description = "Virtual Network Private Endpoint Subnet Name"
