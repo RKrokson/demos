@@ -33,3 +33,22 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+# Squad: ignore runtime state (logs, inbox, sessions)
+.squad/orchestration-log/
+.squad/log/
+.squad/decisions/inbox/
+.squad/sessions/
+# Squad: SubSquad activation file (local to this machine)
+.squad-workstream
+
+# IDE, environment, and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.env
+.env.local
+.env.*.local
+Thumbs.db
+.DS_Store
