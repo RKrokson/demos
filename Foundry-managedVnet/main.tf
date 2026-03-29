@@ -95,7 +95,10 @@ resource "azurerm_private_endpoint" "pe-storage-blob" {
 
 # Private Endpoint for File
 resource "azurerm_private_endpoint" "pe-storage_file" {
-  name                = "${azurerm_storage_account.main[0].name}-pe-file"
+  depends_on = [
+    azurerm_storage_account.storage_account
+  ]
+  name                = "${azurerm_storage_account.storage_account.name}-pe-file"
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location
   subnet_id           = data.terraform_remote_state.networking.outputs.private_endpoint_subnet00_id
@@ -193,7 +196,10 @@ resource "time_sleep" "wait_storage" {
 
   depends_on = [
     azurerm_storage_account.storage_account,
-    azurerm_private_endpoint.pe-storage
+    azurerm_private_endpoint.pe-storage-blob,
+    azurerm_private_endpoint.pe-storage_file,
+    azurerm_private_endpoint.pe-storage_table,
+    azurerm_private_endpoint.pe-storage_queue
   ]
 }
 
@@ -323,8 +329,8 @@ resource "azapi_resource" "cosmos_outbound_rule" {
     time_sleep.wait_cosmos,
     azurerm_role_assignment.foundry_network_connection_approver,
     azurerm_role_assignment.foundry_cosmos_contributor,
-    azurerm_role_assignment.project_cosmos_reader,
-    azurerm_role_assignment.project_cosmos_operator
+    azurerm_role_assignment.cosmosdb_reader_foundry_project,
+    azurerm_role_assignment.cosmosdb_operator_foundry_project
   ]
 }
 
@@ -434,8 +440,8 @@ resource "azapi_resource" "aisearch_outbound_rule" {
   depends_on = [
     time_sleep.wait_aisearch,
     azurerm_role_assignment.foundry_network_connection_approver,
-    azurerm_role_assignment.project_search_index,
-    azurerm_role_assignment.project_search_contributor
+    azurerm_role_assignment.search_index_data_contributor_foundry_project,
+    azurerm_role_assignment.search_service_contributor_foundry_project
   ]
 }
 
@@ -465,6 +471,10 @@ resource "azapi_resource" "foundry" {
   location                  = azurerm_resource_group.rg-ai01.location
 
   schema_validation_enabled = false
+
+  response_export_values = [
+    "identity.principalId"
+  ]
 
   identity {
     type = "SystemAssigned"
@@ -503,6 +513,21 @@ resource "azapi_resource" "foundry" {
           useMicrosoftManagedNetwork = true
         }
       ]
+      userOwnedStorage = [
+        {
+          resourceId = azurerm_storage_account.storage_account.id
+        }
+      ]
+      userOwnedCosmosDB = [
+        {
+          resourceId = azurerm_cosmosdb_account.cosmosdb.id
+        }
+      ]
+      userOwnedSearch = [
+        {
+          resourceId = azapi_resource.ai_search.id
+        }
+      ]
     }
   }
 
@@ -512,6 +537,12 @@ resource "azapi_resource" "foundry" {
       output
     ]
   }
+
+  depends_on = [
+    azurerm_storage_account.storage_account,
+    azurerm_cosmosdb_account.cosmosdb,
+    azapi_resource.ai_search
+  ]
 }
 
 # Create Private Endpoints for foundry
@@ -560,9 +591,14 @@ resource "azapi_resource" "managed_network" {
       managedNetwork = {
         isolationMode      = "AllowInternetOutbound"
         managedNetworkKind = "V2"
+        provisionNetworkNow = true
       }
     }
   }
+  depends_on = [
+    azapi_resource.foundry,
+    azurerm_role_assignment.foundry_network_connection_approver
+  ]
 }
 
 # Role Assignment: Network Connection Approver for Foundry Account Identity
@@ -617,7 +653,7 @@ resource "azurerm_cognitive_deployment" "foundry_deployment_gpt_4o" {
 resource "azapi_resource" "foundry_project" {
   depends_on = [
     azapi_resource.foundry,
-    azurerm_private_endpoint.pe-storage,
+    azurerm_private_endpoint.pe-storage-blob,
     azurerm_private_endpoint.pe-cosmosdb,
     azurerm_private_endpoint.pe-aisearch,
     azurerm_private_endpoint.pe-foundry
@@ -659,7 +695,7 @@ resource "time_sleep" "wait_project_identities" {
 ## Create Foundry project connections
 ##
 resource "azapi_resource" "conn_cosmosdb" {
-  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview"
+  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-10-01-preview"
   name                      = azurerm_cosmosdb_account.cosmosdb.name
   parent_id                 = azapi_resource.foundry_project.id
 
@@ -682,7 +718,7 @@ resource "azapi_resource" "conn_cosmosdb" {
 ## Create the Foundry project connection to Azure Storage Account
 ##
 resource "azapi_resource" "conn_storage" {
-  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview"
+  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-10-01-preview"
   name                      = azurerm_storage_account.storage_account.name
   parent_id                 = azapi_resource.foundry_project.id
 
@@ -705,7 +741,7 @@ resource "azapi_resource" "conn_storage" {
 ## Create the Foundry project connection to AI Search
 ##
 resource "azapi_resource" "conn_aisearch" {
-  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview"
+  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-10-01-preview"
   name                      = azapi_resource.ai_search.name
   parent_id                 = azapi_resource.foundry_project.id
 
