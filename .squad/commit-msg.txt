@@ -1,0 +1,56 @@
+squad: phase 2 batch 1 — file splits, conditionals, security, docs
+
+## Changes
+
+### Donut (Infra Dev) — File Splits, Conditional Cleanup, Security Hardening
+
+* **File Splits:** Decomposed monolithic main.tf files across all three modules:
+  - Networking/main.tf (953→7 files): vwan.tf, firewall.tf, dns.tf, compute.tf, ai-spoke.tf, keyvault.tf, main.tf
+  - Foundry-byoVnet/main.tf → storage.tf, cosmosdb.tf, aisearch.tf, foundry.tf, project.tf, rbac.tf
+  - Foundry-managedVnet/main.tf → 7 files including networking.tf
+  - Zero resource address changes; existing state unaffected
+
+* **Conditional Cleanup:** Merged vHub connection pairs (6 resource blocks → 3):
+  - Single resources now use internet_security_enabled = var.add_firewallXX
+  - Removed inter-PE dependency chains (Foundry-byoVnet)
+  - Added 60m timeouts to firewall and vHub resources
+  - All time_sleep resources annotated with PG-validated comments
+
+* **Security Hardening:**
+  - vm_admin_username output marked as sensitive
+  - Firewall RCGs now include allow-all WARNING comments
+  - AI Search: disableLocalAuth = true (both modules)
+  - Foundry-byoVnet: networkAcls.defaultAction = Deny
+  - All modules pass terraform validate and terraform fmt
+
+### Mordecai (Docs) — Tables, Cleanup Consolidation, ALZ Guide
+
+* **README Variable/Output Tables:** First-time documentation of Terraform interfaces
+  - Networking: Added Conditional Variables table (6 toggles), Outputs table (20 items labeled "Platform-to-ALZ Contract")
+  - Both Foundry modules: Added Variables and Outputs tables with descriptions
+  - All modules: Added Quick Start sections (init→plan→apply)
+
+* **Cleanup Guide Consolidation:**
+  - Root README: Improved destroy order with code blocks and purge link
+  - copilot-instructions.md: Removed 2 outdated cleanup gotchas (state rm, ghost DNS)
+  - Standardized GitHub org to microsoft-foundry (verified 404 on azure-ai-foundry)
+  - Removed duplicate managedVnet-diagram.png and empty diagrams/ subfolder
+
+* **ALZ Onboarding Guide:** New docs/adding-application-landing-zone.md
+  - Folder structure, remote state setup, available Networking outputs, naming conventions
+  - Provider config, tags, README template, pre-submit checklist
+  - Text-based architecture diagram in root README (platform/ALZ/terraform_remote_state flow)
+  - Links from root README
+
+### Scribe (Docs) — Orchestration & Decision Consolidation
+
+* **Orchestration Log:** Entries for Donut and Mordecai with timestamps and deliverables
+* **Session Log:** Brief 2026-03-30T17-30-phase2-batch1.md summary
+* **Decision Inbox Merger:** 4 decisions moved to decisions.md with deduplication:
+  - local-auth-research (Carl)
+  - vhub-connection-merge (Donut)
+  - github-org-standardization (Mordecai)
+  - foundry-alz-architecture-directive (Ryan)
+* **Agent History Updates:** Donut and Mordecai histories appended with phase2 completion notes
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
