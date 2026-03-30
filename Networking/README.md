@@ -70,6 +70,37 @@ Application landing zones consume these outputs via `terraform_remote_state`. Th
 
 DNS zone outputs are null when `add_private_dns00 = false`.
 
+## CIDR Allocation
+
+Each region uses a `172.2x.0.0/16` supernet split into `/20` blocks. Virtual hub prefixes use a separate `172.30.x.x` range. See [docs/ip-addressing.md](../docs/ip-addressing.md) for the full allocation scheme.
+
+### Virtual Hub Prefixes
+
+| Resource | CIDR | Region |
+|----------|------|--------|
+| vHub 00 | `172.30.0.0/23` | Sweden Central (region 0) |
+| vHub 01 | `172.30.2.0/23` | Central US (region 1) |
+
+### Region 0 — `172.20.0.0/16`
+
+| Block | CIDR | Purpose | Subnets |
+|-------|------|---------|---------|
+| 0 | `172.20.0.0/20` | Platform — Shared spoke VNet | Bastion `172.20.0.0/24`, Shared `172.20.5.0/24`, App `172.20.6.0/24` |
+| 1 | `172.20.16.0/20` | Platform — DNS VNet | Inbound `172.20.16.0/28`, Outbound `172.20.16.16/28` |
+| 2 | `172.20.32.0/20` | App LZ — Foundry-byoVnet | AI Foundry `172.20.32.0/26`, Private Endpoints `172.20.33.0/24` |
+| 3 | `172.20.48.0/20` | App LZ — Foundry-managedVnet | AI Foundry `172.20.48.0/26`, Private Endpoints `172.20.49.0/24` |
+| 4–15 | `172.20.64.0/20` – `172.20.240.0/20` | Unassigned | Available for future app landing zones |
+
+### Region 1 — `172.21.0.0/16`
+
+| Block | CIDR | Purpose | Subnets |
+|-------|------|---------|---------|
+| 0 | `172.21.0.0/20` | Platform — Shared spoke VNet | Bastion `172.21.0.0/24`, Shared `172.21.5.0/24`, App `172.21.6.0/24` |
+| 1 | `172.21.16.0/20` | Platform — DNS VNet | Inbound `172.21.16.0/28`, Outbound `172.21.16.16/28` |
+| 2 | `172.21.32.0/20` | Reserved — Foundry-byoVnet (future) | — |
+| 3 | `172.21.48.0/20` | Reserved — Foundry-managedVnet (future) | — |
+| 4–15 | `172.21.64.0/20` – `172.21.240.0/20` | Unassigned | Available for future app landing zones |
+
 ## Module Structure (for contributors)
 
 Internally, the Networking module uses a `modules/region-hub/` child module to avoid duplicating per-region resource blocks. The root module calls it twice:
