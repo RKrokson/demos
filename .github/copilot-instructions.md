@@ -6,7 +6,7 @@ This repo contains Azure infrastructure-as-code (Terraform) for demo/lab environ
 
 **Platform Landing Zone:**
 
-1. **`Networking/`** — Shared networking foundation. Deploys Azure Virtual WAN, virtual hubs, spoke VNets, and optional components (Azure Firewall, Private DNS). Must be applied first. All application landing zones depend on this.
+1. **`Networking/`** — Shared networking foundation. Deploys Azure Virtual WAN, virtual hubs, spoke VNets, and optional components (Azure Firewall, Private DNS). Uses a `modules/region-hub/` child module internally — the root module calls it once per region to avoid duplicated resource blocks. Must be applied first. All application landing zones depend on this.
 
 **Application Landing Zones (optional):**
 
@@ -29,11 +29,11 @@ terraform apply
 terraform destroy
 ```
 
-Target a single resource:
+Target a single resource (Networking uses child modules, so prefix with the module path):
 
 ```sh
-terraform plan -target=azurerm_virtual_network.shared_vnet00
-terraform apply -target=azurerm_virtual_network.shared_vnet00
+terraform plan -target=module.region0.azurerm_virtual_network.shared_vnet
+terraform apply -target=module.region0.azurerm_virtual_network.shared_vnet
 ```
 
 Validate syntax without deploying:
