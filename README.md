@@ -34,7 +34,7 @@ This repo follows a two-tier landing zone pattern:
 |---|---|---|---|
 | `Networking/` | Platform | Azure Virtual WAN, hubs, spoke VNets, optional Firewall and Private DNS | [README](./Networking/README.md) |
 
-**Application Landing Zones** — Optional workloads that plug into the platform. Pick one approach or neither. Do not deploy both Foundry modules at the same time.
+**Application Landing Zones** — Optional workloads that plug into the platform. Deploy one or both Foundry modules. Each creates its own spoke VNet with a dedicated address range, so there are no CIDR conflicts. Running both at the same time has not been fully tested.
 
 | Folder | Layer | Description | Docs |
 |---|---|---|---|
