@@ -13,7 +13,7 @@ The template follows the [documented architecture](https://learn.microsoft.com/e
 ## Prerequisites
 
 - All [platform landing zone prerequisites](../README.md#prerequisites)
-- Platform Landing Zone (`Networking/`) must be applied first with `create_ai_lz = true`
+- Platform Landing Zone (`Networking/`) must be applied first
 - Private DNS zones must be deployed (`add_private_dns00 = true` in Networking)
 - Azure region with AI Foundry support and sufficient quota
 
@@ -21,7 +21,7 @@ Foundry and its required resources deploy in your primary region only.
 
 ## Quick Start
 
-Make sure the Networking module is applied with `create_ai_lz = true` and `add_private_dns00 = true` first.
+Make sure the Networking module is applied with `add_private_dns00 = true` first.
 
 ```sh
 cd Foundry-managedVnet
@@ -35,6 +35,14 @@ terraform apply
 | Variable | Type | Default | Description |
 |---|---|---|---|
 | `resource_group_name_ai01` | `string` | `"rg-ai01"` | Resource Group Name |
+| `ai_vnet_name` | `string` | `"ai-vnet"` | AI spoke VNet name |
+| `ai_vnet_address_space` | `list(string)` | `["172.20.48.0/20"]` | AI spoke VNet address space |
+| `ai_foundry_subnet_name` | `string` | `"ai-foundry-subnet"` | Foundry workload subnet name |
+| `ai_foundry_subnet_address` | `list(string)` | `["172.20.48.0/26"]` | Foundry workload subnet address |
+| `private_endpoint_subnet_name` | `string` | `"private-endpoint-subnet"` | Private endpoint subnet name |
+| `private_endpoint_subnet_address` | `list(string)` | `["172.20.49.0/24"]` | Private endpoint subnet address |
+| `connect_to_vhub` | `bool` | `true` | Connect AI spoke VNet to platform vHub |
+| `enable_dns_link` | `bool` | `false` | Link VNet to platform DNS resolver policy |
 
 ## Outputs
 

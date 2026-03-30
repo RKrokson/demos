@@ -11,7 +11,6 @@ The base deployment creates a Virtual WAN, a virtual hub, a spoke VNet, and a te
 | Variable | Default | What It Enables |
 |---|---|---|
 | `create_vhub01` | `false` | Second region (hub, VNets, VMs) |
-| `create_ai_lz` | `false` | AI Landing Zone spoke VNet (required before any Foundry module) |
 | `add_firewall00` | `false` | Azure Firewall in region 0 |
 | `add_firewall01` | `false` | Azure Firewall in region 1 (requires `create_vhub01`) |
 | `add_private_dns00` | `false` | Private DNS Resolver in region 0 |
@@ -37,7 +36,7 @@ Create a `terraform.tfvars` file to enable optional components (see [Using the C
 
 ## Downstream Dependencies
 
-Application landing zone modules (`Foundry-byoVnet/`, `Foundry-managedVnet/`) consume this module's outputs via `terraform_remote_state` (local backend, reads `./terraform.tfstate`). You must apply this module with `create_ai_lz = true` before deploying any Foundry module. If you need private DNS resolution for Foundry, also set `add_private_dns00 = true`.
+Application landing zone modules (`Foundry-byoVnet/`, `Foundry-managedVnet/`) consume this module's outputs via `terraform_remote_state` (local backend, reads `./terraform.tfstate`). Each Foundry module creates its own spoke VNet and subnets — no Networking toggle is required. If you need private DNS resolution for Foundry, set `add_private_dns00 = true`.
 
 ## Outputs — Platform-to-ALZ Contract
 
@@ -47,17 +46,17 @@ Application landing zones consume these outputs via `terraform_remote_state`. Th
 |---|---|
 | `vm_admin_username` | Virtual Machine Admin Username |
 | `rg_net00_id` | The ID of the Networking Resource Group |
+| `rg_net00_name` | The name of the Networking Resource Group |
 | `rg_net00_location` | The location of the Networking Resource Group |
 | `azure_region_0_abbr` | The abbreviation of the Azure 0 region |
-| `ai_foundry_subnet00_id` | The ID of the AI Foundry Subnet 00 (null if `create_ai_lz = false`) |
-| `private_endpoint_subnet00_id` | The ID of the Private Endpoint Subnet 00 (null if `create_ai_lz = false`) |
-| `ai_foundry_subnet01_id` | The ID of the AI Foundry Subnet 01 (null if region 1 or AiLZ disabled) |
-| `private_endpoint_subnet01_id` | The ID of the Private Endpoint Subnet 01 (null if region 1 or AiLZ disabled) |
+| `add_firewall00` | Whether Azure Firewall is deployed in region 0 |
 | `vhub00_id` | The ID of Virtual Hub 00 |
 | `vhub01_id` | The ID of Virtual Hub 01 (null if `create_vhub01 = false`) |
 | `log_analytics_workspace_id` | The ID of the Log Analytics Workspace |
 | `key_vault_id` | The ID of Key Vault |
 | `key_vault_name` | The name of Key Vault |
+| `dns_resolver_policy00_id` | The DNS resolver policy ID (null if `add_private_dns00 = false`) |
+| `dns_inbound_endpoint00_ip` | The DNS resolver inbound endpoint IP (null if `add_private_dns00 = false`) |
 | `dns_zone_blob_id` | Private DNS Zone ID for `privatelink.blob.core.windows.net` |
 | `dns_zone_file_id` | Private DNS Zone ID for `privatelink.file.core.windows.net` |
 | `dns_zone_table_id` | Private DNS Zone ID for `privatelink.table.core.windows.net` |
@@ -135,8 +134,6 @@ Below are examples of various configurations you can build with different tfvars
 ![Diagram](./diagrams/2reg-shub-dns-vpn-v1.1.png)
 ![tfvars](./diagrams/2reg-shub-dns-vpn-vars-v1.1.png)
 
-### Add-on — AI Landing Zone VNet for Foundry
+### Add-on — AI Foundry (deploy a Foundry module separately)
 
-![Diagram](./diagrams/1reg-aiLZ.png)
-
-![tfvars](./diagrams/1reg-aiLZ-vars.png)
+Each Foundry module creates its own spoke VNet. See the [Foundry-byoVnet](../Foundry-byoVnet/README.md) or [Foundry-managedVnet](../Foundry-managedVnet/README.md) README for details.

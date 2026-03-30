@@ -67,7 +67,7 @@ Future modules will follow the same application landing zone pattern. See the [A
    terraform apply
    ```
 
-4. (Optional) Deploy an application landing zone. Make sure you applied the Networking module with `create_ai_lz = true` and `add_private_dns00 = true` first.
+4. (Optional) Deploy an application landing zone. Each Foundry module creates its own spoke VNet. If you need private DNS resolution, set `add_private_dns00 = true` in your Networking tfvars and re-apply before deploying a Foundry module.
    ```sh
    cd ../Foundry-byoVnet   # or Foundry-managedVnet
    terraform init
