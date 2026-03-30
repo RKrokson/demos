@@ -233,3 +233,110 @@ Clarified Foundry Application Landing Zone deployment model and future architect
 - **Donut:** Code refactoring targets simplified dependency chain
 - **Mordecai:** Documentation reflects current conditional model and future direction
 - **Ryan:** Clarifies governance — ALZ model guides future module design
+
+---
+
+## Resource Label Standardization (2026-03-30T18:00:00Z)
+
+**Owner:** Donut (Infra Dev)  
+**Status:** APPROVED & IMPLEMENTED
+
+### Summary
+
+Standardized internal Terraform resource labels for the Foundry account across both modules to reduce cognitive load and eliminate inconsistencies.
+
+### What Changed
+
+| Resource | Foundry-byoVnet (was) | Foundry-byoVnet (now) | Foundry-managedVnet |
+|---|---|---|---|
+| Foundry account | `ai_foundry` | `foundry` | `foundry` |
+| Foundry project | `ai_foundry_project` | `foundry_project` | `foundry_project` |
+| Capability host | `ai_foundry_project_capability_host` | `foundry_project_capability_host` | `foundry_project_capability_host` |
+
+**Output names** still use `ai_foundry_` prefix in both modules per Decision #5 (Foundry Output Naming).
+
+In Networking, `random_string.myrandom` was renamed to `random_string.unique` to match both Foundry modules' convention.
+
+### Impact
+
+- **State migration required** for existing byoVnet deployments. Use `terraform state mv` for all three resource labels (`ai_foundry` → `foundry`, `ai_foundry_project` → `foundry_project`, `ai_foundry_project_capability_host` → `foundry_project_capability_host`).
+- Networking `random_string.myrandom` → `random_string.unique` also requires `terraform state mv` for existing deployments.
+- No impact on Foundry-managedVnet (labels were already correct).
+- **Benefit:** Single consistent naming convention across all modules reduces confusion during troubleshooting and documentation.
+
+---
+
+## Variable Naming Conventions (2026-03-30T18:00:00Z)
+
+**Owner:** Donut (Infra Dev)  
+**Status:** APPROVED & IMPLEMENTED
+
+### Summary
+
+Renamed 8 PascalCase and mixed-case variables to snake_case to align with Terraform community conventions and improve code consistency.
+
+### Variables Renamed
+
+| Old Name | New Name | Type | Impact |
+|---|---|---|---|
+| `firewall_SkuName00` | `firewall_sku_name00` | string | 3 references in firewall.tf |
+| `firewall_SkuName01` | `firewall_sku_name01` | string | 3 references in firewall.tf |
+| `firewall_SkuTier00` | `firewall_sku_tier00` | string | 3 references in firewall.tf, 1 validation |
+| `firewall_SkuTier01` | `firewall_sku_tier01` | string | 3 references in firewall.tf, 1 validation |
+| `resource_group_name_KV` | `resource_group_name_kv` | string | 3 references in keyvault.tf |
+| `create_AiLZ` | `create_ai_lz` | bool | 15+ references across all modules |
+| `add_privateDNS00` | `add_private_dns00` | bool | 7 references in dns.tf |
+| `add_privateDNS01` | `add_private_dns01` | bool | 7 references in dns.tf |
+
+### Validation Blocks Added
+
+- `firewall_sku_name00`, `firewall_sku_name01` — validates `Standard`, `Premium`
+- `firewall_sku_tier00`, `firewall_sku_tier01` — validates `Basic`, `Standard`, `Premium`
+- CIDR variables — validates IPv4 CIDR format
+- Bastion SKU variables — validates `Basic`, `Standard`
+
+### Description Improvements
+
+Fixed 18 variable descriptions to be unique and descriptive:
+- VNet names now indicate region and purpose
+- Firewall names specify which region and component
+- DNS resolver names clarify region and setup
+- Bastion names differentiate by region
+
+### Impact
+
+- **All tfvars files updated** (terraform.tfvars.example and terraform.tfvars.advanced.example in Networking, plus any existing deployments must update variable references).
+- **Validation blocks prevent invalid combinations at plan time** rather than failing at apply.
+- **Code consistency:** All variables now follow snake_case convention matching Terraform best practices.
+
+---
+
+## Storage Account Configuration Pattern (2026-03-30T18:00:00Z)
+
+**Owner:** Donut (Infra Dev)  
+**Status:** APPROVED & IMPLEMENTED
+
+### Summary
+
+Refined storage account configurations across Foundry modules to optimize for redundancy and security.
+
+### Changes
+
+**Foundry-byoVnet (storage.tf):**  
+- Changed account replication from `ZRS` (Zone-Redundant Storage) to `LRS` (Locally-Redundant Storage)
+- Rationale: Lab/demo environment does not require cross-zone redundancy; LRS reduces cost and complexity
+
+**Foundry-managedVnet (storage.tf):**  
+- Added `["AzureServices"]` to `network_rules.bypass` list
+- Enables Azure services (Cognitive Search, AI Services, etc.) to authenticate via managed identity without being blocked by the Deny-by-default network policy
+- Preserves security: Only Microsoft services can bypass, not arbitrary clients
+
+### Impact
+
+- **Cost reduction** in byoVnet (ZRS → LRS)
+- **Enhanced interoperability** in managedVnet (AzureServices bypass allows seamless service integration)
+- Both changes align with decision #6 (Local Auth Security Hardening) — services use RBAC and managed identity, not shared keys
+
+### Cross-Module Consistency
+
+Both modules now follow a consistent pattern: LRS/local redundancy for lab environments, explicit bypass rules for managed identity scenarios.
