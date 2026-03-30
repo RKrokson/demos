@@ -1,80 +1,82 @@
-# Networking Foundation and optional demos
+# Azure Demo Lab — Infrastructure as Code
 
-## Networking Foundation
+Terraform modules for deploying Azure networking and AI Foundry lab environments. This repo is for demos and testing, not production.
 
-The Terraform deployment in the Networking folder will deploy an Azure Virtual WAN environment that can be used as the foundation for demos (not production environments). There are conditional variables to add any of the following:
+## Landing Zone Model
 
-- a secondary region w/ vWAN
-- Azure Firewall in either or both regions
-- Azure Private DNS in either or both regions (Private DNS Zones and Private Resolver)
-  - DNS Security Policy logging to a Log Analytics Workspace
-- Virtual network for a secure private Foundry deployment (vNet only in this deployment)
-- Azure VPN Gateway in either or both regions
+This repo follows a two-tier landing zone pattern:
 
-### Example
+**Platform Landing Zone** — Shared networking foundation that all workloads depend on.
 
-![Diagram](./Diagrams/1reg-hub-dns-vpn-v1.1.png)
-![tfvars](./Diagrams/vm-size-vars.png)
+| Folder | Layer | Description | Docs |
+|---|---|---|---|
+| `Networking/` | Platform | Azure Virtual WAN, hubs, spoke VNets, optional Firewall and Private DNS | [README](./Networking/README.md) |
 
-### Pre-reqs
+**Application Landing Zones** — Optional workloads that plug into the platform. Pick one approach or neither. Do not deploy both Foundry modules at the same time.
 
-Here are the pre-reqs for running this in your environment:
+| Folder | Layer | Description | Docs |
+|---|---|---|---|
+| `Foundry-byoVnet/` | Application | AI Foundry with private endpoints in a BYO VNet | [README](./Foundry-byoVnet/README.md) |
+| `Foundry-managedVnet/` | Application | AI Foundry with private endpoints in a Microsoft-managed VNet | [README](./Foundry-managedVnet/README.md) |
 
-- Update/Set Azure Subscription ID variable
+Future modules will follow the same application landing zone pattern.
+
+## Prerequisites
+
+- Azure CLI installed and authenticated (`az login`)
+- Terraform >= 1.8.3
+- `ARM_SUBSCRIPTION_ID` environment variable set (see `setSubscription.ps1`)
 - Git
-- Terraform
 
-Set your Azure Subscription ID as an environment variable in Windows for Terraform deployments. The alternative is hardcoding the sub ID in your Terraform config file. I've provided a CLI example in the setSubscription.ps1 script to pull your sub ID and set as an environment variable.
+## Getting Started
 
-Install Git and Terraform locally. Git clone the repo to your machine. CD into the cloned folder and run terraform init to install the required providers.
+1. Clone the repo and cd into it.
 
-### Cost
+2. Set your subscription:
+   ```powershell
+   .\setSubscription.ps1
+   ```
 
-This is meant for demo/lab purposes. One of the reasons to use IaC for your lab is to easily deploy and delete. I wouldn't leave any of these configurations running for an extended period of time. With that said, you can power off the VM and Azure Firewall to save costs when not in use. You can use the Azure Calculator to estimate cost.
+3. Deploy the platform landing zone:
+   ```sh
+   cd Networking
+   terraform init
+   terraform plan
+   terraform apply
+   ```
 
-Below is a rough estimate using Central US:
+4. (Optional) Deploy an application landing zone. Make sure you applied the Networking module with `create_AiLZ = true` and `add_privateDNS00 = true` first.
+   ```sh
+   cd ../Foundry-byoVnet   # or Foundry-managedVnet
+   terraform init
+   terraform plan
+   terraform apply
+   ```
 
-#### One day (24 hours) w/ single region
+See each module's README for configuration details and tfvars examples.
 
-- Azure vWAN - $6
-- Azure Firewall Premium - $42
-- VPN Gateway scale unit - $8.66
-- VM (Standard_B2s w/ Windows) - $1.19
-- Total cost - $57.86
+## Destroy Order
 
-#### One month (730 hours) w/ single region
+Tear down in reverse order. Destroy application landing zones first, then the platform.
 
-- Azure vWAN - $182.50
-- Azure Firewall Premium - $1,277.50
-- VPN Gateway scale unit - $263.53
-- VM (Standard_B2s) - $36.21
-- Total cost - $1,759.96
+1. `cd Foundry-byoVnet` (or `Foundry-managedVnet`) → `terraform destroy`
+2. Purge the soft-deleted AI Foundry resource. The subnet service association link will block Networking deletion until this is done. Wait ~10 minutes after purge.
+3. `cd ../Networking` → `terraform destroy`
 
-## Private (BYO VNet) Foundry with AI Agent Service (optional)
+See each module's README for detailed cleanup steps and troubleshooting.
 
-The Terraform deployment in the Foundry-byoVnet folder will deploy Foundry with AI Agent Service and private endpoints. I modified the sample template below to be dependent on the Networking Foundation template. Apply the Networking Foundation folder first (using the Create_AiLZ conditional) and then apply this folder to complete the build. Foundry, and required resources, will be deployed in your primary region only. **Ensure you select a region that supports AI Foundry and where you have quota.**
+## Cost Estimates
 
-- Private Foundry TF example with AI Agent Service - https://github.com/azure-ai-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/15b-private-network-standard-agent-setup-byovnet
+This is for demos and labs. Deploy and delete as needed. Don't leave resources running long-term. You can power off VMs and Azure Firewall to save costs when not in use. Use the [Azure Calculator](https://azure.microsoft.com/en-us/pricing/calculator/) for your own estimate.
 
-The template above follows the documented architecture (below) for deploying AI Foundry Standard Setup with private networking (BYO VNet).
+Rough estimate using Central US, single region:
 
-- Foundry Standard Setup with private networking - https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/virtual-networks
+| Resource | Daily (24h) | Monthly (730h) |
+|---|---|---|
+| Azure vWAN | $6 | $182.50 |
+| Azure Firewall Premium | $42 | $1,277.50 |
+| VM (Standard_B2s w/ Windows) | $1.19 | $36.21 |
 
-![secureAIFoundry](./Diagrams/secureAIFoundry-diagram.png)
-
-## Managed vNet for Foundry with AI Agent Service (optional)
-
-The Terraform deployment in the Foundry-managedVnet folder will deploy Foundry with AI Agent Service and private endpoints in a Microsoft managed vNet. I modified the sample template below to be dependent on the Networking Foundation template. Apply the Networking Foundation folder first (using the Create_AiLZ conditional) and then apply this folder to complete the build. Foundry, and required resources, will be deployed in your primary region only. **Ensure you select a region that supports AI Foundry and where you have quota.**
-
-- Foundry TF example with AI Agent Service and Managed vNet - https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/18-managed-virtual-network-preview
-- "Secure" - I'm using this to highlight the usage of private endpoints. This environment still allows the use of API keys. You can change disableLocalAuth to True to only allow Entra auth.
-
-The template above follows the documented architecture (below) for deploying AI Foundry Standard Setup with managed network.
-
-- AI Foundry Standard Setup with private networking - https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/managed-virtual-network?view=foundry
-
-![managedVnetFoundry](./Diagrams/managedVnet-diagram.png)
-
-# Disclaimer
+## Disclaimer
 
 The attached diagrams and code are provided AS IS without warranty of any kind and should not be interpreted as an offer or commitment on the part of Microsoft, and Microsoft cannot guarantee the accuracy of any information presented. MICROSOFT MAKES NO WARRANTIES, EXPRESS OR IMPLIED, IN THIS DIAGRAM(s) CODE SAMPLE(s).

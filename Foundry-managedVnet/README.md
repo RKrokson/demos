@@ -1,25 +1,25 @@
-# Managed vNet for Foundry with AI Agent Service (optional)
+# Application Landing Zone — AI Foundry (Managed VNet)
 
-The Terraform deployment in the Foundry-managedVnet folder will deploy Foundry with AI Agent Service and private endpoints in a Microsoft managed vNet. I modified the sample template below to be dependent on the Networking Foundation template. Apply the Networking Foundation folder first (using the Create_AiLZ conditional) and then apply this folder to complete the build. Foundry, and required resources, will be deployed in your primary region only. **Ensure you select a region that supports AI Foundry and where you have quota.**
+This is an optional application landing zone. It deploys AI Foundry with AI Agent Service and private endpoints in a Microsoft-managed VNet. You do not need to deploy this to use the Networking module on its own.
 
-- Foundry TF example with AI Agent Service and Managed vNet - https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/18-managed-virtual-network-preview
-- "Secure" - I'm using this to highlight the usage of private endpoints. This environment still allows the use of API keys. You can change disableLocalAuth to True to only allow Entra auth.
+This module is based on the [PG-validated Terraform sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/18-managed-virtual-network-preview), modified to pull network dependencies from the platform landing zone via `terraform_remote_state`.
 
-The template above follows the documented architecture (below) for deploying AI Foundry Standard Setup with managed network.
+"Secure" refers to the use of private endpoints. The environment still allows API keys by default. Set `disableLocalAuth` to `True` in the Terraform code to require Entra-only auth.
 
-- AI Foundry Standard Setup with private networking - https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/managed-virtual-network?view=foundry
+The template follows the [documented architecture](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/managed-virtual-network?view=foundry) for AI Foundry Standard Setup with a managed network.
 
 ![managedVnetFoundry](../Diagrams/managedVnet-diagram.png)
 
-## Cleanup step
+## Prerequisites
 
-### Remove managed network before running destroy
+- All [platform landing zone prerequisites](../README.md#prerequisites)
+- Platform Landing Zone (`Networking/`) must be applied first with `create_AiLZ = true`
+- Private DNS zones must be deployed (`add_privateDNS00 = true` in Networking)
+- Azure region with AI Foundry support and sufficient quota
 
-The managed network resource isn't allowing delete via API. You can remove from terraform state before running destory.
+Foundry and its required resources deploy in your primary region only.
 
-```
-terraform state rm azapi_resource.managed_network
-```
+## Cleanup Steps
 
 ### Purge AI Foundry deleted item
 
