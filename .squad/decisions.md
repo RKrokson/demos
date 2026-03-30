@@ -82,6 +82,55 @@ Five key questions for implementation:
 
 ---
 
+### 5. Foundry Module Output Naming Standardization (Carl — Lead/Architect)
+
+**Status:** Approved  
+**Date:** 2025-07-25
+
+The two Foundry module output files use inconsistent naming for equivalent resources:
+
+| Concept | Foundry-byoVnet | Foundry-managedVnet |
+|---|---|---|
+| Foundry account | `ai_foundry_id` | `foundry_id` |
+| Foundry project | `ai_foundry_project_id` | `foundry_project_id` |
+
+**Decision:** Standardize on `ai_foundry_` prefix across both modules.
+
+**Rationale:**
+1. Matches the product name (Azure AI Foundry)
+2. BYO module already uses it consistently
+3. Avoids ambiguity — `foundry_id` alone is vague
+
+**Implementation:** Rename internal resources in `Foundry-managedVnet/main.tf` and update its `outputs.tf`. No external consumers exist yet, so this is a zero-cost rename.
+
+**Priority:** Medium — must be done before any downstream automation consumes these outputs.
+
+---
+
+### 6. Tagging Strategy — locals + explicit per-resource tags (Carl — Lead/Architect)
+
+**Status:** Approved  
+**Date:** 2025-07-25
+
+**Context:** Donut's initial implementation used `default_tags` in the provider block. Katia's validation correctly identified this as invalid — `default_tags` is an AWS Terraform provider concept, not supported by azurerm.
+
+**Decision:** Use `local.common_tags` defined in `locals.tf` and apply `tags = local.common_tags` explicitly on every taggable resource.
+
+**Tagging Rules:**
+
+1. **azurerm resources** — add `tags = local.common_tags` to all resources that support the `tags` argument (resource groups, VNets, VMs, NICs, firewalls, bastions, Key Vault, Log Analytics, etc.). Skip resources that don't support tags (subnets, hub connections, diagnostic settings, role assignments, etc.).
+2. **azapi_resource** — add `tags = local.common_tags` as a top-level argument on tracked resources only (those with a `location`). Skip child/proxy resources (connections, capabilityHosts, virtualNetworkLinks, outbound rules, managed networks).
+3. **Standard tag set:** `environment = "non-prod"`, `managed_by = "terraform"`, `project = "azure-infra-poc"`.
+
+**Impact:**
+- Backlog item #6 ("Adopt default_tags strategy") is now resolved with the correct approach.
+- Carl (Fix tags implementation) tagged 59 resources across all three modules on 2026-03-30.
+- All modules pass `terraform validate`.
+
+**Key Learning:** azurerm provider does not support `default_tags` — always use locals + explicit per-resource tagging.
+
+---
+
 ## Implementation Backlog (Prioritized)
 
 1. **CRITICAL:** Fix 4 count-guard bugs (Katia's findings)
