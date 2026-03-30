@@ -340,3 +340,39 @@ Refined storage account configurations across Foundry modules to optimize for re
 ### Cross-Module Consistency
 
 Both modules now follow a consistent pattern: LRS/local redundancy for lab environments, explicit bypass rules for managed identity scenarios.
+
+---
+
+## ALZ VNet Refactor — IP Address Allocation & Module Ownership (2026-07-26)
+
+**Owner:** Donut (Infra Dev)  
+**Status:** APPROVED & IMPLEMENTED
+
+### Summary
+
+Each Foundry application landing zone module owns its own spoke VNet, subnets, hub connection, and DNS links. The platform Networking module no longer creates or manages AI LZ networking resources. The `create_ai_lz` conditional has been fully removed.
+
+### IP Address Allocation
+
+Non-overlapping `/20` blocks assigned per module:
+
+| Block # | CIDR (Region 0) | Assigned To |
+|---------|-----------------|-------------|
+| 2 | `172.20.32.0/20` | Foundry-byoVnet |
+| 3 | `172.20.48.0/20` | Foundry-managedVnet |
+
+Both modules can be deployed simultaneously against the same vHub without CIDR collision. The allocation table is documented in `docs/ip-addressing.md`.
+
+### Platform-to-App Interface
+
+New Networking outputs consumed by Foundry modules:
+- `rg_net00_name` — resource group name
+- `add_firewall00` — firewall toggle (drives `internet_security_enabled`)
+- `dns_resolver_policy00_id` — DNS policy ID for VNet links
+- `dns_inbound_endpoint00_ip` — DNS resolver IP for custom DNS servers
+
+### Impact
+
+- Katia's count-guard bug #3 (`ai_vnet01_dns`) is resolved by resource removal
+- Future app LZs can onboard without modifying the Networking module
+- Both Foundry modules are fully independent and self-contained for networking
