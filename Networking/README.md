@@ -83,13 +83,13 @@ Azure DNS Private Zones are deployed using the Azure Verified Module "Private Li
 
 The default primary region (region 0) is Sweden Central. The default secondary region (region 1) is Central US. Change these in the variables file — update both the full region name and abbreviation.
 
-![Regions](./diagrams/region-vars-v1.1.png)
+![Regions](./Diagrams/region-vars-v1.1.png)
 
 ## VM Sizing
 
 The default VM size is Standard_B2s. If you hit capacity constraints, override it in your tfvars.
 
-![VM Size Variable](./diagrams/vm-size-vars.png)
+![VM Size Variable](./Diagrams/vm-size-vars.png)
 
 ## Using the Conditionals
 
@@ -106,33 +106,45 @@ Below are examples of various configurations you can build with different tfvars
 
 ### 1 Region, vHub, w/ DNS
 
-![Diagram](./diagrams/1reg-hub-dns-vpn-v1.1.png)
-![tfvars](./diagrams/1reg-hub-dns-vpn-vars-v1.1.png)
+Single region with a virtual hub and Private DNS Resolver enabled.
+
+![Diagram](./Diagrams/1reg-hub-dns-vpn-v1.1.png)
+![tfvars](./Diagrams/1reg-hub-dns-vpn-vars-v1.1.png)
 
 ### 1 Region, vHub (default deployment, no tfvars)
 
-![Diagram](./diagrams/1reg-hub-ndns-nvpn-v1.1.png)
-![tfvars](./diagrams/1reg-hub-ndns-nvpn-vars-v1.1.png)
+Bare minimum — one hub, one spoke VNet, one VM. No firewall or DNS.
+
+![Diagram](./Diagrams/1reg-hub-ndns-nvpn-v1.1.png)
+![tfvars](./Diagrams/1reg-hub-ndns-nvpn-vars-v1.1.png)
 
 ### 1 Region, Secure Hub, w/ DNS
 
-![Diagram](./diagrams/1reg-shub-dns-vpn-v1.1.png)
-![tfvars](./diagrams/1reg-shub-dns-vpn-vars-v1.1.png)
+Single region with Azure Firewall (Routing Intent) and Private DNS Resolver.
+
+![Diagram](./Diagrams/1reg-shub-dns-vpn-v1.1.png)
+![tfvars](./Diagrams/1reg-shub-dns-vpn-vars-v1.1.png)
 
 ### 1 Region, Secure Hub
 
-![Diagram](./diagrams/1reg-shub-ndns-nvpn-v1.1.png)
-![tfvars](./diagrams/1reg-shub-ndns-nvpn-vars-v1.1.png)
+Single region with Azure Firewall (Routing Intent) but no DNS resolver.
+
+![Diagram](./Diagrams/1reg-shub-ndns-nvpn-v1.1.png)
+![tfvars](./Diagrams/1reg-shub-ndns-nvpn-vars-v1.1.png)
 
 ### 2 Regions, vHub, w/ DNS
 
-![Diagram](./diagrams/2reg-hub-dns-vpn-v1.1.png)
-![tfvars](./diagrams/2reg-hub-dns-vpn-vars-v1.1.png)
+Two regions, each with a hub and DNS resolver. No firewall.
+
+![Diagram](./Diagrams/2reg-hub-dns-vpn-v1.1.png)
+![tfvars](./Diagrams/2reg-hub-dns-vpn-vars-v1.1.png)
 
 ### 2 Regions, Secure vHub, w/ DNS
 
-![Diagram](./diagrams/2reg-shub-dns-vpn-v1.1.png)
-![tfvars](./diagrams/2reg-shub-dns-vpn-vars-v1.1.png)
+Two regions with Azure Firewall and DNS resolver in both.
+
+![Diagram](./Diagrams/2reg-shub-dns-vpn-v1.1.png)
+![tfvars](./Diagrams/2reg-shub-dns-vpn-vars-v1.1.png)
 
 ### Add-on — AI Foundry (deploy a Foundry module separately)
 
