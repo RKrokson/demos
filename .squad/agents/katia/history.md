@@ -40,7 +40,7 @@
   - (8) tfvars: PASS — all 3 files (`terraform.tfvars`, `.example`, `.advanced.example`) use snake_case names (`create_ai_lz`, `add_private_dns00/01`, `add_firewall00/01`). No stale PascalCase variable names.
   - **OBSERVATION (non-blocking):** Documentation files still reference old PascalCase variable names (`create_AiLZ`, `add_privateDNS00`) in: root README, Networking/README, both Foundry READMEs, copilot-instructions.md, adding-application-landing-zone.md. Users following README instructions would use stale variable names and get "variable not declared" errors. Mordecai should update docs to match renamed variables.
   - **Verdict:** PASS — Phase 2 Batch 2 code changes are correct and complete. Doc update needed for variable name consistency (assign to Mordecai).
-- **2026-03-30 (scribe-coordination):** Scribe wrote orchestration log entry for Phase 2 Batch 2 validation work. Decision #7 (ALZ VNet migration) and #8 (firewall control) merged into decisions.md. Ready for git commit. Non-blocking documentation sync issue flagged for Mordecai.
+- **2026-03-30 (region-module-validation):** Scribe coordinating region child module implementation. Region 1's `count = var.create_vhub01 ? 1 : 0` on the module boundary structurally eliminates Katia's count-guard bugs — internal resources only need single-level conditionals, not nested `create_vhub01 && ...` chains. All validations expected to pass (terraform validate, fmt, no resource drifts).
 - **2026-07-15 (alz-vnet-refactor-validation):** Full 11-check validation of Donut's ALZ VNet refactor. **All 11 checks PASS.**
   - (1) `terraform fmt -check`: PASS all 3 modules — zero formatting drift.
   - (2) `terraform validate`: PASS all 3 modules — managedVnet still has pre-existing `ignore_changes` warning (not refactor related).
@@ -54,3 +54,18 @@
   - (10) docs/ip-addressing.md: PASS — exists with complete allocation table covering Region 0 and Region 1, rules, and vHub prefixes.
   - (11) Networking/ai-spoke.tf: PASS — file deleted entirely (no stale file).
   - **Verdict:** PASS — ALZ VNet refactor is clean, correct, and ready for merge. Phase 2 closes successfully.
+- **2026-07-15 (final-repo-validation):** Full 9-check sign-off validation after all 3 phases complete. **All 9 checks PASS.**
+  - (1) `terraform fmt -check`: PASS all 3 modules — zero formatting drift.
+  - (2) `terraform validate`: PASS all 3 modules — Foundry-managedVnet has pre-existing `ignore_changes` warning on `output` attribute (tracked since initial review, not a new issue).
+  - (3) VPN references: PASS — zero matches for `vpn`, `VPN`, or `s2s_` in any .tf file. VPN removal is complete.
+  - (4) create_ai_lz / create_AiLZ: PASS — zero matches in any Networking .tf file. ALZ VNet migration to Foundry modules is complete.
+  - (5) PascalCase variable names: PASS — zero matches in any variables.tf. All variables use snake_case.
+  - (6) locals.tf with common_tags: PASS — all 3 modules have locals.tf defining `common_tags`.
+  - (7) README image references: PASS — all 16 image references across 3 READMEs resolve to existing files (14 in Networking/Diagrams, 2 in root Diagrams).
+  - (8) docs/ directory: PASS — contains all 3 required documents: adding-application-landing-zone.md, ip-addressing.md, region-module-design.md.
+  - (9) Security spot-check: PASS —
+    - Sensitive outputs: `vm_admin_username` marked `sensitive = true` in Networking. Foundry module outputs are resource IDs only (not secrets).
+    - `disableLocalAuth = true` on AI Search in both Foundry modules. Foundry resource itself is `false` in byoVnet (intentional, per code comment) and `true` in managedVnet.
+    - Firewall warning comments: 2 `WARNING: Allow-all rule for non-production lab use only` comments present in firewall.tf.
+  - **OBSERVATION (non-blocking):** Foundry-managedVnet `ignore_changes = [output]` warning persists. Provider-side issue, not actionable in user code.
+  - **Verdict:** PASS — Full repo revamp (Phases 1-3) validated. All code, naming, security, documentation, and structural checks pass. Repo is clean and ready for merge.

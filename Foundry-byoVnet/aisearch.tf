@@ -10,7 +10,7 @@ resource "azapi_resource" "ai_search" {
 
   body = {
     sku = {
-      name = "standard"
+      name = var.ai_search_sku
     }
 
     identity = {
@@ -44,10 +44,6 @@ resource "azapi_resource" "ai_search" {
 ## Create Private Endpoint for AI Search
 ##
 resource "azurerm_private_endpoint" "pe-aisearch" {
-  depends_on = [
-    azapi_resource.ai_search
-  ]
-
   name                = "${azapi_resource.ai_search.name}-private-endpoint"
   resource_group_name = azurerm_resource_group.rg-ai00.name
   location            = azurerm_resource_group.rg-ai00.location

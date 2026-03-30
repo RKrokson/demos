@@ -1,6 +1,6 @@
 output "vm_admin_username" {
   description = "Virtual Machine Admin Username"
-  value       = azurerm_windows_virtual_machine.vm00.admin_username
+  value       = module.region0.vm_admin_username
   sensitive   = true
 }
 output "rg_net00_id" {
@@ -18,11 +18,11 @@ output "azure_region_0_abbr" {
 # vHub outputs
 output "vhub00_id" {
   description = "The ID of Virtual Hub 00"
-  value       = azurerm_virtual_hub.vhub00.id
+  value       = module.region0.hub_id
 }
 output "vhub01_id" {
   description = "The ID of Virtual Hub 01"
-  value       = var.create_vhub01 ? azurerm_virtual_hub.vhub01[0].id : null
+  value       = var.create_vhub01 ? module.region1[0].hub_id : null
 }
 
 # Log Analytics Workspace
@@ -94,9 +94,9 @@ output "add_firewall00" {
 }
 output "dns_resolver_policy00_id" {
   description = "The ID of the DNS resolver policy for region 0 (null if Private DNS is not deployed)"
-  value       = var.add_private_dns00 ? azapi_resource.dns_security_policy00[0].id : null
+  value       = module.region0.dns_resolver_policy_id
 }
 output "dns_inbound_endpoint00_ip" {
   description = "The IP address of the DNS resolver inbound endpoint for region 0 (null if Private DNS is not deployed)"
-  value       = var.add_private_dns00 ? var.resolver_inbound_endpoint_address00 : null
+  value       = module.region0.dns_inbound_endpoint_ip
 }

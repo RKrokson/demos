@@ -101,7 +101,6 @@ resource "azapi_resource" "managed_network" {
     }
   }
   depends_on = [
-    azapi_resource.foundry,
     azurerm_role_assignment.foundry_network_connection_approver
   ]
 }

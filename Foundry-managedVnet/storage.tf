@@ -38,10 +38,6 @@ resource "azurerm_storage_account" "storage_account" {
 
 # Private Endpoint for Blob
 resource "azurerm_private_endpoint" "pe-storage-blob" {
-  depends_on = [
-    azurerm_storage_account.storage_account
-  ]
-
   name                = "${azurerm_storage_account.storage_account.name}-pe-blob"
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location
@@ -66,9 +62,6 @@ resource "azurerm_private_endpoint" "pe-storage-blob" {
 
 # Private Endpoint for File
 resource "azurerm_private_endpoint" "pe-storage_file" {
-  depends_on = [
-    azurerm_storage_account.storage_account
-  ]
   name                = "${azurerm_storage_account.storage_account.name}-pe-file"
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location

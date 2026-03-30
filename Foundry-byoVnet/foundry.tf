@@ -14,7 +14,7 @@ resource "azapi_resource" "foundry" {
   body = {
     kind = "AIServices",
     sku = {
-      name = "S0"
+      name = var.foundry_sku
     }
     identity = {
       type = "SystemAssigned"
@@ -53,32 +53,24 @@ resource "azapi_resource" "foundry" {
 ## Create a deployment for OpenAI's GPT-4o in the AI Foundry resource
 ##
 resource "azurerm_cognitive_deployment" "aifoundry_deployment_gpt_4o" {
-  depends_on = [
-    azapi_resource.foundry
-  ]
-
-  name                 = "gpt-4o"
+  name                 = var.gpt_model_deployment_name
   cognitive_account_id = azapi_resource.foundry.id
 
   sku {
-    name     = "GlobalStandard"
-    capacity = 1
+    name     = var.gpt_model_sku_name
+    capacity = var.gpt_model_capacity
   }
 
   model {
     format  = "OpenAI"
-    name    = "gpt-4o"
-    version = "2024-11-20"
+    name    = var.gpt_model_name
+    version = var.gpt_model_version
   }
 }
 
 ## Create Private Endpoint for AI Foundry (Cognitive Services)
 ##
 resource "azurerm_private_endpoint" "pe-aifoundry" {
-  depends_on = [
-    azapi_resource.foundry
-  ]
-
   name                = "${azapi_resource.foundry.name}-private-endpoint"
   resource_group_name = azurerm_resource_group.rg-ai00.name
   location            = azurerm_resource_group.rg-ai00.location

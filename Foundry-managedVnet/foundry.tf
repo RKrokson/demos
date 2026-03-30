@@ -23,7 +23,7 @@ resource "azapi_resource" "foundry" {
   body = {
     kind = "AIServices",
     sku = {
-      name = "S0"
+      name = var.foundry_sku
     }
     properties = {
 
@@ -77,20 +77,13 @@ resource "azapi_resource" "foundry" {
       output
     ]
   }
-
-  depends_on = [
-    azurerm_storage_account.storage_account,
-    azurerm_cosmosdb_account.cosmosdb,
-    azapi_resource.ai_search
-  ]
 }
 
 # Create Private Endpoints for foundry
 
 resource "azurerm_private_endpoint" "pe-foundry" {
   depends_on = [
-    azurerm_private_endpoint.pe-aisearch,
-    azapi_resource.foundry
+    azurerm_private_endpoint.pe-aisearch
   ]
 
   name                = "${azapi_resource.foundry.name}-private-endpoint"
@@ -121,21 +114,17 @@ resource "azurerm_private_endpoint" "pe-foundry" {
 ## Create a deployment for OpenAI's GPT-4o in the Foundry resource
 ##
 resource "azurerm_cognitive_deployment" "foundry_deployment_gpt_4o" {
-  depends_on = [
-    azapi_resource.foundry
-  ]
-
-  name                 = "gpt-4o"
+  name                 = var.gpt_model_deployment_name
   cognitive_account_id = azapi_resource.foundry.id
 
   sku {
-    name     = "GlobalStandard"
-    capacity = 1
+    name     = var.gpt_model_sku_name
+    capacity = var.gpt_model_capacity
   }
 
   model {
     format  = "OpenAI"
-    name    = "gpt-4o"
-    version = "2024-11-20"
+    name    = var.gpt_model_name
+    version = var.gpt_model_version
   }
 }

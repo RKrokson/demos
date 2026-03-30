@@ -5,7 +5,6 @@
 ##
 resource "azapi_resource" "foundry_project" {
   depends_on = [
-    azapi_resource.foundry,
     azurerm_private_endpoint.pe-storage,
     azurerm_private_endpoint.pe-cosmosdb,
     azurerm_private_endpoint.pe-aisearch,
@@ -21,7 +20,7 @@ resource "azapi_resource" "foundry_project" {
 
   body = {
     sku = {
-      name = "S0"
+      name = var.foundry_sku
     }
     identity = {
       type = "SystemAssigned"
@@ -55,10 +54,6 @@ resource "azapi_resource" "conn_cosmosdb" {
   parent_id                 = azapi_resource.foundry_project.id
   schema_validation_enabled = false
 
-  depends_on = [
-    azapi_resource.foundry_project
-  ]
-
   body = {
     name = azurerm_cosmosdb_account.cosmosdb.name
     properties = {
@@ -81,10 +76,6 @@ resource "azapi_resource" "conn_storage" {
   name                      = azurerm_storage_account.storage_account.name
   parent_id                 = azapi_resource.foundry_project.id
   schema_validation_enabled = false
-
-  depends_on = [
-    azapi_resource.foundry_project
-  ]
 
   body = {
     name = azurerm_storage_account.storage_account.name
@@ -112,10 +103,6 @@ resource "azapi_resource" "conn_aisearch" {
   name                      = azapi_resource.ai_search.name
   parent_id                 = azapi_resource.foundry_project.id
   schema_validation_enabled = false
-
-  depends_on = [
-    azapi_resource.foundry_project
-  ]
 
   body = {
     name = azapi_resource.ai_search.name

@@ -10,7 +10,7 @@ resource "azapi_resource" "ai_search" {
 
   body = {
     sku = {
-      name = "standard"
+      name = var.ai_search_sku
     }
 
     identity = {

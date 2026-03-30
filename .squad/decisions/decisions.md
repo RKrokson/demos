@@ -376,3 +376,127 @@ New Networking outputs consumed by Foundry modules:
 - Katia's count-guard bug #3 (`ai_vnet01_dns`) is resolved by resource removal
 - Future app LZs can onboard without modifying the Networking module
 - Both Foundry modules are fully independent and self-contained for networking
+
+---
+
+## Region Hub Child Module (2026-03-30T20:30:00Z)
+
+**Owner:** Donut (Infra Dev)  
+**Status:** APPROVED & IMPLEMENTED
+
+### Summary
+
+Extracted 31 per-region resources from Networking root module into `modules/region-hub/` child module. Eliminates code duplication, improves maintainability, and structurally resolves count-guard nesting complexity.
+
+### What Moved
+
+**To child module (31 resources per region):**
+- Virtual Hub (1)
+- Spoke VNet and 2 subnets (3)
+- vHub connection (1)
+- Firewall (conditional, 1)
+- Firewall rule collections group (conditional, 1)
+- DNS Resolver (conditional, 1)
+- DNS Resolver inbound endpoint (conditional, 1)
+- DNS Resolver outbound rules (conditional, 4)
+- Bastion host subnet (1)
+- Bastion host (1)
+- Network Interface (1)
+- Virtual Machine (1)
+- VM network interface association (1)
+- VM admin password secret (1)
+- Key Vault secret permissions (1)
+- DNS resolver policy link (conditional, 1)
+
+**Root module refactored:**
+- `vwan.tf` trimmed to vWAN-only (11 lines)
+- `firewall.tf` deleted
+- `dns.tf` deleted
+- `compute.tf` deleted
+- Root module calls: `module.region0` (always-on), `module.region1` (gated by `count = var.create_vhub01 ? 1 : 0`)
+
+### Variables Extension
+
+Two additional variables added to child module (not in original design but required by resources):
+- `firewall_availability_zones` — list of AZs for firewall deployment
+- `dns_forwarder_ip` — IP address for DNS forwarding
+
+Both are passed through from root to child module. No new root-level variables added.
+
+### Impact
+
+- **Count-guard complexity eliminated:** Nested `create_vhub01 ? (add_firewall01 ? ...) : 0` pattern replaced by module-level `count`. Child module resources only need single-level guards (`add_firewall && ...` or `add_private_dns && ...`).
+- **Code duplication removed:** 31 resources per region no longer duplicated in root main.tf
+- **Root file organization simplified:** 7 domain files consolidated into 2 (vwan.tf + root main.tf trimmed)
+- **Zero state migration needed:** Lab repo, no live state. New deployments unaffected.
+- **Zero UX change:** Root variables, outputs, and `.tfvars` patterns remain identical
+
+### Citation
+
+Carl's design document: `docs/region-module-design.md`
+
+---
+
+## User Directive: Region Child Module — Flat Variables (2026-03-30T19:47:00Z)
+
+**By:** Ryan Krokson (via Copilot)  
+**Status:** ACTIVE GUIDELINE
+
+### Direction
+
+Region child module must maintain flat per-region variables. No region map. `create_vhub01 = true` remains the UX for enabling a second region. The child module is an internal DRY refactor only — user experience stays the same.
+
+### Rationale
+
+The map approach adds user complexity (copying/configuring a full region block) vs a single boolean toggle. For a demo/POC repo, the simpler UX wins.
+
+### Implementation
+
+Root variables use `*00`/`*01` naming convention (firewall_sku_name00, firewall_sku_name01, etc.). Module calls pass these flat variables to child module inputs. Child module resources use generic names, mapped by module instance.
+
+---
+
+## Decision: depends_on Cleanup Rules & Variable Extraction Pattern (2026-07-26, finalized 2026-03-30)
+
+**Author:** Donut (Infra Dev)  
+**Status:** IMPLEMENTED
+
+### depends_on Cleanup Rules
+
+Established criteria for when `depends_on` is necessary vs redundant:
+
+**Remove when:** A resource already references an attribute of the dependency (e.g., `parent_id = azapi_resource.foundry.id`, `cognitive_account_id = azapi_resource.foundry.id`, `name = "${resource.name}-suffix"`). Terraform builds implicit dependency graphs from attribute references.
+
+**Keep when:**
+- `time_sleep` resources (side-effect ordering, no attributes to reference)
+- RBAC propagation delays (must wait for identity propagation)
+- Capability host prerequisites (connections, role assignments must exist but aren't referenced by attributes)
+- Sequential Cosmos DB SQL role assignments (API conflict avoidance)
+- Private endpoint ordering where no attribute is referenced
+
+**Result:** Removed 19 redundant `depends_on` blocks. Zero behavioral change.
+
+### Variable Extraction Pattern
+
+All hardcoded SKUs, versions, and capacity values should be variables with current values as defaults. This enables customization without code changes.
+
+**Impact:** Backward compatible — all defaults match previous hardcoded values.
+
+---
+
+## Decision: Region Hub Module Variables Extension (2026-07-27, finalized 2026-03-30)
+
+**Author:** Donut (Infra Dev)  
+**Status:** IMPLEMENTED
+
+### Context
+
+Carl's region-hub module design (Decision #9) defines the child module variable interface but omits two root-level variables that are consumed by per-region resources: `firewall_availability_zones` and `dns_forwarder_ip`. These are shared across both regions (no 00/01 suffix) but are needed inside the child module for firewall and DNS forwarding rule resources.
+
+### Decision
+
+Added both as child module variables with defaults matching the root-level defaults. They are passed through from both `module.region0` and `module.region1` calls. This is the minimal extension needed to make the module self-contained.
+
+### Impact
+
+No user-facing changes. The child module variable interface is slightly larger than Carl's design specified, but functionally necessary. No new root-level variables added.

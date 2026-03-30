@@ -30,10 +30,6 @@ resource "azurerm_storage_account" "storage_account" {
 ## Create Private Endpoint for storage
 ##
 resource "azurerm_private_endpoint" "pe-storage" {
-  depends_on = [
-    azurerm_storage_account.storage_account
-  ]
-
   name                = "${azurerm_storage_account.storage_account.name}-private-endpoint"
   resource_group_name = azurerm_resource_group.rg-ai00.name
   location            = azurerm_resource_group.rg-ai00.location
