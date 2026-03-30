@@ -5,7 +5,6 @@
 ##
 resource "azapi_resource" "foundry_project" {
   depends_on = [
-    azapi_resource.foundry,
     azurerm_private_endpoint.pe-storage-blob,
     azurerm_private_endpoint.pe-cosmosdb,
     azurerm_private_endpoint.pe-aisearch,
@@ -162,7 +161,6 @@ resource "azapi_resource" "foundry_project_capability_host" {
     }
   }
   depends_on = [
-    azapi_resource.foundry_project,
     azapi_resource.conn_aisearch,
     azapi_resource.conn_cosmosdb,
     azapi_resource.conn_storage,

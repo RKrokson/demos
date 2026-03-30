@@ -84,6 +84,16 @@ variable "log_analytics_workspace_name" {
   type        = string
   default     = "law00"
 }
+variable "log_analytics_sku" {
+  description = "SKU for the Log Analytics workspace"
+  type        = string
+  default     = "PerGB2018"
+}
+variable "log_analytics_retention_days" {
+  description = "Retention period in days for the Log Analytics workspace"
+  type        = number
+  default     = 30
+}
 variable "shared_vnet_name00" {
   description = "Shared VNet name for Region 0"
   type        = string
@@ -214,6 +224,16 @@ variable "add_firewall00" {
   description = "Add Firewall 00"
   type        = bool
   default     = false
+}
+variable "firewall_availability_zones" {
+  description = "Availability zones for Azure Firewall deployment"
+  type        = list(string)
+  default     = ["1", "2", "3"]
+}
+variable "dns_forwarder_ip" {
+  description = "IP address of the external DNS forwarder used in DNS resolver forwarding rules"
+  type        = string
+  default     = "8.8.8.8"
 }
 variable "firewall_name00" {
   description = "Firewall 00 Name"

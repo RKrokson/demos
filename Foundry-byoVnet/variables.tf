@@ -47,3 +47,42 @@ variable "enable_dns_link" {
   type        = bool
   default     = false
 }
+
+## GPT model deployment variables
+variable "gpt_model_deployment_name" {
+  description = "Name of the GPT model deployment in AI Foundry"
+  type        = string
+  default     = "gpt-4o"
+}
+variable "gpt_model_name" {
+  description = "GPT model name"
+  type        = string
+  default     = "gpt-4o"
+}
+variable "gpt_model_version" {
+  description = "GPT model version"
+  type        = string
+  default     = "2024-11-20"
+}
+variable "gpt_model_sku_name" {
+  description = "SKU name for the GPT model deployment"
+  type        = string
+  default     = "GlobalStandard"
+}
+variable "gpt_model_capacity" {
+  description = "Capacity units for the GPT model deployment"
+  type        = number
+  default     = 1
+}
+
+## Service SKU variables
+variable "ai_search_sku" {
+  description = "SKU for the AI Search service"
+  type        = string
+  default     = "standard"
+}
+variable "foundry_sku" {
+  description = "SKU for the AI Foundry (Cognitive Services) account and project"
+  type        = string
+  default     = "S0"
+}

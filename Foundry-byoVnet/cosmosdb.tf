@@ -35,10 +35,6 @@ resource "azurerm_cosmosdb_account" "cosmosdb" {
 ## Create Private Endpoint for Cosmos DB
 ##
 resource "azurerm_private_endpoint" "pe-cosmosdb" {
-  depends_on = [
-    azurerm_cosmosdb_account.cosmosdb
-  ]
-
   name                = "${azurerm_cosmosdb_account.cosmosdb.name}-private-endpoint"
   resource_group_name = azurerm_resource_group.rg-ai00.name
   location            = azurerm_resource_group.rg-ai00.location
