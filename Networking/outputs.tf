@@ -1,18 +1,18 @@
 output "vm_admin_username" {
   description = "Virtual Machine Admin Username"
-  value = azurerm_windows_virtual_machine.vm00.admin_username
+  value       = azurerm_windows_virtual_machine.vm00.admin_username
 }
 output "rg_net00_id" {
   description = "The ID of the Networking Resource Group."
-  value = azurerm_resource_group.rg-net00.id
+  value       = azurerm_resource_group.rg-net00.id
 }
 output "rg_net00_location" {
   description = "The location of the Networking Resource Group."
-  value = azurerm_resource_group.rg-net00.location
+  value       = azurerm_resource_group.rg-net00.location
 }
 output "azure_region_0_abbr" {
   description = "The abbreviation of the Azure 0 region."
-  value = var.azure_region_0_abbr
+  value       = var.azure_region_0_abbr
 }
 output "ai_foundry_subnet00_id" {
   description = "The ID of the AI Foundry Subnet 00"
@@ -21,4 +21,82 @@ output "ai_foundry_subnet00_id" {
 output "private_endpoint_subnet00_id" {
   description = "The ID of the Private Endpoint Subnet 00"
   value       = var.create_AiLZ ? azurerm_subnet.private_endpoint_subnet00[0].id : null
+}
+
+# Region 1 subnet outputs
+output "ai_foundry_subnet01_id" {
+  description = "The ID of the AI Foundry Subnet 01"
+  value       = var.create_vhub01 && var.create_AiLZ ? azurerm_subnet.ai_foundry_subnet01[0].id : null
+}
+output "private_endpoint_subnet01_id" {
+  description = "The ID of the Private Endpoint Subnet 01"
+  value       = var.create_vhub01 && var.create_AiLZ ? azurerm_subnet.private_endpoint_subnet01[0].id : null
+}
+
+# vHub outputs
+output "vhub00_id" {
+  description = "The ID of Virtual Hub 00"
+  value       = azurerm_virtual_hub.vhub00.id
+}
+output "vhub01_id" {
+  description = "The ID of Virtual Hub 01"
+  value       = var.create_vhub01 ? azurerm_virtual_hub.vhub01[0].id : null
+}
+
+# Log Analytics Workspace
+output "log_analytics_workspace_id" {
+  description = "The ID of the Log Analytics Workspace"
+  value       = azurerm_log_analytics_workspace.law00.id
+}
+
+# Key Vault
+output "key_vault_id" {
+  description = "The ID of Key Vault"
+  value       = azurerm_key_vault.kv00.id
+}
+output "key_vault_name" {
+  description = "The name of Key Vault"
+  value       = azurerm_key_vault.kv00.name
+}
+
+# Private DNS Zone IDs (constructed from the RG that hosts them)
+output "dns_zone_blob_id" {
+  description = "Private DNS Zone ID for privatelink.blob.core.windows.net"
+  value       = var.add_privateDNS00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net" : null
+}
+output "dns_zone_file_id" {
+  description = "Private DNS Zone ID for privatelink.file.core.windows.net"
+  value       = var.add_privateDNS00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.windows.net" : null
+}
+output "dns_zone_table_id" {
+  description = "Private DNS Zone ID for privatelink.table.core.windows.net"
+  value       = var.add_privateDNS00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.table.core.windows.net" : null
+}
+output "dns_zone_queue_id" {
+  description = "Private DNS Zone ID for privatelink.queue.core.windows.net"
+  value       = var.add_privateDNS00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.queue.core.windows.net" : null
+}
+output "dns_zone_vaultcore_id" {
+  description = "Private DNS Zone ID for privatelink.vaultcore.azure.net"
+  value       = var.add_privateDNS00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net" : null
+}
+output "dns_zone_cognitiveservices_id" {
+  description = "Private DNS Zone ID for privatelink.cognitiveservices.azure.com"
+  value       = var.add_privateDNS00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.cognitiveservices.azure.com" : null
+}
+output "dns_zone_openai_id" {
+  description = "Private DNS Zone ID for privatelink.openai.azure.com"
+  value       = var.add_privateDNS00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.openai.azure.com" : null
+}
+output "dns_zone_services_ai_id" {
+  description = "Private DNS Zone ID for privatelink.services.ai.azure.com"
+  value       = var.add_privateDNS00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.services.ai.azure.com" : null
+}
+output "dns_zone_search_id" {
+  description = "Private DNS Zone ID for privatelink.search.windows.net"
+  value       = var.add_privateDNS00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.search.windows.net" : null
+}
+output "dns_zone_documents_id" {
+  description = "Private DNS Zone ID for privatelink.documents.azure.com"
+  value       = var.add_privateDNS00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.documents.azure.com" : null
 }

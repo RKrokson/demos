@@ -1,31 +1,31 @@
-# Private (BYO VNet) Foundry with AI Agent Service (optional)
+# Application Landing Zone — AI Foundry (BYO VNet)
 
-The Terraform deployment in the Foundry-byoVnet folder will deploy Foundry with AI Agent Service and private endpoints. I modified the sample template below to be dependent on the Networking Foundation template. Apply the Networking Foundation folder first (using the Create_AiLZ conditional) and then apply this folder to complete the build. Foundry, and required resources, will be deployed in your primary region only. **Ensure you select a region that supports AI Foundry and where you have quota.**
+This is an optional application landing zone. It deploys AI Foundry with AI Agent Service and private endpoints into a VNet created by the platform landing zone (Networking module). You do not need to deploy this to use the Networking module on its own.
 
-- Foundry TF example with AI Agent Service - https://github.com/azure-ai-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/15b-private-network-standard-agent-setup-byovnet
-- "Secure" - I'm using this to highlight the usage of private endpoints. This environment still allows the use of API keys. You can change disableLocalAuth to True to only allow Entra auth.
+This module is based on the [PG-validated Terraform sample](https://github.com/azure-ai-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/15b-private-network-standard-agent-setup-byovnet), modified to pull network dependencies from the platform landing zone via `terraform_remote_state`.
 
-The template above follows the documented architecture (below) for deploying AI Foundry Standard Setup with private networking (BYO VNet).
+"Secure" refers to the use of private endpoints. The environment still allows API keys by default. Set `disableLocalAuth` to `True` in the Terraform code to require Entra-only auth.
 
-- AI Foundry Standard Setup with private networking - https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/virtual-networks
+The template follows the [documented architecture](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/virtual-networks) for AI Foundry Standard Setup with private networking (BYO VNet).
 
 ![secureAIFoundry](../Diagrams/secureAIFoundry-diagram.png)
 
-## Cleanup step
+## Prerequisites
+
+- All [platform landing zone prerequisites](../README.md#prerequisites)
+- Platform Landing Zone (`Networking/`) must be applied first with `create_AiLZ = true`
+- Private DNS zones must be deployed (`add_privateDNS00 = true` in Networking)
+- Azure region with AI Foundry support and sufficient quota
+
+Foundry and its required resources deploy in your primary region only.
+
+## Cleanup Steps
 
 ### Purge AI Foundry deleted item
 
 After you run terraform destroy you'll still have Foundry in a soft delete state. You need to purge this first before you can run terraform destroy on the network foundation. The Foundry resource will retain the 'serviceassociationlink' to the AI subnet. This is documented below. Around 10+ minutes you should be able to destroy the network foundation.
 
 - Purge a deleted resource - https://learn.microsoft.com/en-us/azure/ai-services/recover-purge-resources?tabs=azure-cli#purge-a-deleted-resource
-
-### Ghost or stale resources
-
-You may run into nested resource errors when attempting to destroy the environment. If you've already deleted the resource with CLI/Portal and the error persists you can try a REST call. Here is an example (update SubId and RG):
-
-```
-az rest --method delete --url "https://management.azure.com/subscriptions/INSERT-SUB-ID/resourceGroups/rg-net00-eus2-####/providers/Microsoft.Network/dnsResolvers/resolver00-eus2/outboundEndpoints/resolver00-outbound00-eus2?api-version=2022-07-01"
-```
 
 ## Troubleshooting
 

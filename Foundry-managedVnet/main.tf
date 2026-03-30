@@ -27,8 +27,9 @@ data "azurerm_client_config" "current" {}
 ## Create a resource group for Foundry resources
 ##
 resource "azurerm_resource_group" "rg-ai01" {
-  name = "${var.resource_group_name_ai01}-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
+  name     = "${var.resource_group_name_ai01}-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
   location = data.terraform_remote_state.networking.outputs.rg_net00_location
+  tags     = local.common_tags
 }
 
 ########## Create resources required to for agent data storage
@@ -60,9 +61,10 @@ resource "azurerm_storage_account" "storage_account" {
   ## Network access configuration
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
+  tags                            = local.common_tags
   network_rules {
     default_action = "Deny"
-    bypass = []
+    bypass         = []
   }
 }
 
@@ -76,6 +78,7 @@ resource "azurerm_private_endpoint" "pe-storage-blob" {
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location
   subnet_id           = data.terraform_remote_state.networking.outputs.private_endpoint_subnet00_id
+  tags                = local.common_tags
   private_service_connection {
     name                           = "${azurerm_storage_account.storage_account.name}-pe-blob-connection"
     private_connection_resource_id = azurerm_storage_account.storage_account.id
@@ -88,7 +91,7 @@ resource "azurerm_private_endpoint" "pe-storage-blob" {
   private_dns_zone_group {
     name = "${azurerm_storage_account.storage_account.name}-blob-dns-group"
     private_dns_zone_ids = [
-      "${data.terraform_remote_state.networking.outputs.rg_net00_id}/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+      data.terraform_remote_state.networking.outputs.dns_zone_blob_id
     ]
   }
 }
@@ -102,6 +105,7 @@ resource "azurerm_private_endpoint" "pe-storage_file" {
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location
   subnet_id           = data.terraform_remote_state.networking.outputs.private_endpoint_subnet00_id
+  tags                = local.common_tags
 
   private_service_connection {
     name                           = "${azurerm_storage_account.storage_account.name}-pe-file-connection"
@@ -113,7 +117,7 @@ resource "azurerm_private_endpoint" "pe-storage_file" {
   private_dns_zone_group {
     name = "${azurerm_storage_account.storage_account.name}-file-dns-group"
     private_dns_zone_ids = [
-      "${data.terraform_remote_state.networking.outputs.rg_net00_id}/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.windows.net"
+      data.terraform_remote_state.networking.outputs.dns_zone_file_id
     ]
   }
 }
@@ -124,6 +128,7 @@ resource "azurerm_private_endpoint" "pe-storage_table" {
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location
   subnet_id           = data.terraform_remote_state.networking.outputs.private_endpoint_subnet00_id
+  tags                = local.common_tags
 
   private_service_connection {
     name                           = "${azurerm_storage_account.storage_account.name}-pe-table-connection"
@@ -133,9 +138,9 @@ resource "azurerm_private_endpoint" "pe-storage_table" {
   }
 
   private_dns_zone_group {
-    name                 = "${azurerm_storage_account.storage_account.name}-table-dns-group"
+    name = "${azurerm_storage_account.storage_account.name}-table-dns-group"
     private_dns_zone_ids = [
-      "${data.terraform_remote_state.networking.outputs.rg_net00_id}/providers/Microsoft.Network/privateDnsZones/privatelink.table.core.windows.net"
+      data.terraform_remote_state.networking.outputs.dns_zone_table_id
     ]
   }
 }
@@ -146,6 +151,7 @@ resource "azurerm_private_endpoint" "pe-storage_queue" {
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location
   subnet_id           = data.terraform_remote_state.networking.outputs.private_endpoint_subnet00_id
+  tags                = local.common_tags
 
   private_service_connection {
     name                           = "${azurerm_storage_account.storage_account.name}-pe-queue-connection"
@@ -155,9 +161,9 @@ resource "azurerm_private_endpoint" "pe-storage_queue" {
   }
 
   private_dns_zone_group {
-    name                 = "${azurerm_storage_account.storage_account.name}-queue-dns-group"
+    name = "${azurerm_storage_account.storage_account.name}-queue-dns-group"
     private_dns_zone_ids = [
-      "${data.terraform_remote_state.networking.outputs.rg_net00_id}/providers/Microsoft.Network/privateDnsZones/privatelink.queue.core.windows.net"
+      data.terraform_remote_state.networking.outputs.dns_zone_queue_id
     ]
   }
 }
@@ -243,17 +249,18 @@ resource "azurerm_cosmosdb_account" "cosmosdb" {
   free_tier_enabled = false
 
   # Set security-related settings
-  local_authentication_disabled = true
-  public_network_access_enabled = false
+  local_authentication_disabled         = true
+  public_network_access_enabled         = false
   network_acl_bypass_for_azure_services = false
 
   # Set high availability and failover settings
   automatic_failover_enabled       = false
   multiple_write_locations_enabled = false
+  tags                             = local.common_tags
 
   # Configure consistency settings
   consistency_policy {
-    consistency_level = "Session"
+    consistency_level       = "Session"
     max_interval_in_seconds = 5
     max_staleness_prefix    = 100
   }
@@ -271,6 +278,7 @@ resource "azurerm_private_endpoint" "pe-cosmosdb" {
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location
   subnet_id           = data.terraform_remote_state.networking.outputs.private_endpoint_subnet00_id
+  tags                = local.common_tags
 
   private_service_connection {
     name                           = "${azurerm_cosmosdb_account.cosmosdb.name}-pe-connection"
@@ -284,7 +292,7 @@ resource "azurerm_private_endpoint" "pe-cosmosdb" {
   private_dns_zone_group {
     name = "${azurerm_cosmosdb_account.cosmosdb.name}-dns-group"
     private_dns_zone_ids = [
-      "${data.terraform_remote_state.networking.outputs.rg_net00_id}/providers/Microsoft.Network/privateDnsZones/privatelink.documents.azure.com"
+      data.terraform_remote_state.networking.outputs.dns_zone_documents_id
     ]
   }
 }
@@ -351,6 +359,7 @@ resource "azapi_resource" "ai_search" {
   parent_id                 = azurerm_resource_group.rg-ai01.id
   location                  = azurerm_resource_group.rg-ai01.location
   schema_validation_enabled = true
+  tags                      = local.common_tags
 
   body = {
     sku = {
@@ -390,6 +399,7 @@ resource "azurerm_private_endpoint" "pe-aisearch" {
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location
   subnet_id           = data.terraform_remote_state.networking.outputs.private_endpoint_subnet00_id
+  tags                = local.common_tags
 
   private_service_connection {
     name                           = "${azapi_resource.ai_search.name}-private-link-service-connection"
@@ -403,7 +413,7 @@ resource "azurerm_private_endpoint" "pe-aisearch" {
   private_dns_zone_group {
     name = "${azapi_resource.ai_search.name}-dns-config"
     private_dns_zone_ids = [
-      "${data.terraform_remote_state.networking.outputs.rg_net00_id}/providers/Microsoft.Network/privateDnsZones/privatelink.search.windows.net"
+      data.terraform_remote_state.networking.outputs.dns_zone_search_id
     ]
   }
 }
@@ -465,12 +475,13 @@ resource "azurerm_role_assignment" "current_user_search_index" {
 ## Create the Foundry resource
 ##
 resource "azapi_resource" "foundry" {
-  type                      = "Microsoft.CognitiveServices/accounts@2025-10-01-preview"
-  name                      = "foundry${random_string.unique.result}"
-  parent_id                 = azurerm_resource_group.rg-ai01.id
-  location                  = azurerm_resource_group.rg-ai01.location
+  type      = "Microsoft.CognitiveServices/accounts@2025-10-01-preview"
+  name      = "foundry${random_string.unique.result}"
+  parent_id = azurerm_resource_group.rg-ai01.id
+  location  = azurerm_resource_group.rg-ai01.location
 
   schema_validation_enabled = false
+  tags                      = local.common_tags
 
   response_export_values = [
     "identity.principalId"
@@ -494,15 +505,15 @@ resource "azapi_resource" "foundry" {
       allowProjectManagement = true
 
       # Set custom subdomain name for DNS names created for this Foundry resource
-      customSubDomainName    = "foundry${random_string.unique.result}"
+      customSubDomainName = "foundry${random_string.unique.result}"
 
       # Network-related controls
       # Disable public access but allow Trusted Azure Services exception
       publicNetworkAccess = "Disabled"
       networkAcls = {
-        defaultAction         = "Deny"
-        virtualNetworkRules   = []
-        ipRules               = []
+        defaultAction       = "Deny"
+        virtualNetworkRules = []
+        ipRules             = []
       }
 
       # Enable VNet injection for Standard Agents
@@ -557,7 +568,7 @@ resource "azurerm_private_endpoint" "pe-foundry" {
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location
   subnet_id           = data.terraform_remote_state.networking.outputs.private_endpoint_subnet00_id
-
+  tags                = local.common_tags
 
   private_service_connection {
     name                           = "${azapi_resource.foundry.name}-private-link-service-connection"
@@ -571,9 +582,9 @@ resource "azurerm_private_endpoint" "pe-foundry" {
   private_dns_zone_group {
     name = "${azapi_resource.foundry.name}-dns-config"
     private_dns_zone_ids = [
-      "${data.terraform_remote_state.networking.outputs.rg_net00_id}/providers/Microsoft.Network/privateDnsZones/privatelink.cognitiveservices.azure.com",
-      "${data.terraform_remote_state.networking.outputs.rg_net00_id}/providers/Microsoft.Network/privateDnsZones/privatelink.services.ai.azure.com",
-      "${data.terraform_remote_state.networking.outputs.rg_net00_id}/providers/Microsoft.Network/privateDnsZones/privatelink.openai.azure.com"
+      data.terraform_remote_state.networking.outputs.dns_zone_cognitiveservices_id,
+      data.terraform_remote_state.networking.outputs.dns_zone_services_ai_id,
+      data.terraform_remote_state.networking.outputs.dns_zone_openai_id
     ]
   }
 }
@@ -589,8 +600,8 @@ resource "azapi_resource" "managed_network" {
   body = {
     properties = {
       managedNetwork = {
-        isolationMode      = "AllowInternetOutbound"
-        managedNetworkKind = "V2"
+        isolationMode       = "AllowInternetOutbound"
+        managedNetworkKind  = "V2"
         provisionNetworkNow = true
       }
     }
@@ -659,12 +670,13 @@ resource "azapi_resource" "foundry_project" {
     azurerm_private_endpoint.pe-foundry
   ]
 
-  type                      = "Microsoft.CognitiveServices/accounts/projects@2025-04-01-preview"
-  name                      = "project${random_string.unique.result}"
-  parent_id                 = azapi_resource.foundry.id
-  location                  = azurerm_resource_group.rg-ai01.location
+  type      = "Microsoft.CognitiveServices/accounts/projects@2025-04-01-preview"
+  name      = "project${random_string.unique.result}"
+  parent_id = azapi_resource.foundry.id
+  location  = azurerm_resource_group.rg-ai01.location
 
   schema_validation_enabled = false
+  tags                      = local.common_tags
 
   identity {
     type = "SystemAssigned"
@@ -695,9 +707,9 @@ resource "time_sleep" "wait_project_identities" {
 ## Create Foundry project connections
 ##
 resource "azapi_resource" "conn_cosmosdb" {
-  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-10-01-preview"
-  name                      = azurerm_cosmosdb_account.cosmosdb.name
-  parent_id                 = azapi_resource.foundry_project.id
+  type      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-10-01-preview"
+  name      = azurerm_cosmosdb_account.cosmosdb.name
+  parent_id = azapi_resource.foundry_project.id
 
   schema_validation_enabled = false
 
@@ -718,9 +730,9 @@ resource "azapi_resource" "conn_cosmosdb" {
 ## Create the Foundry project connection to Azure Storage Account
 ##
 resource "azapi_resource" "conn_storage" {
-  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-10-01-preview"
-  name                      = azurerm_storage_account.storage_account.name
-  parent_id                 = azapi_resource.foundry_project.id
+  type      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-10-01-preview"
+  name      = azurerm_storage_account.storage_account.name
+  parent_id = azapi_resource.foundry_project.id
 
   schema_validation_enabled = false
 
@@ -741,9 +753,9 @@ resource "azapi_resource" "conn_storage" {
 ## Create the Foundry project connection to AI Search
 ##
 resource "azapi_resource" "conn_aisearch" {
-  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-10-01-preview"
-  name                      = azapi_resource.ai_search.name
-  parent_id                 = azapi_resource.foundry_project.id
+  type      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-10-01-preview"
+  name      = azapi_resource.ai_search.name
+  parent_id = azapi_resource.foundry_project.id
 
   schema_validation_enabled = false
 
@@ -843,9 +855,9 @@ resource "time_sleep" "wait_outbound_rules" {
 ## Create the Foundry project capability host
 ##
 resource "azapi_resource" "foundry_project_capability_host" {
-  type                      = "Microsoft.CognitiveServices/accounts/projects/capabilityHosts@2025-04-01-preview"
-  name                      = "caphostproj"
-  parent_id                 = azapi_resource.foundry_project.id
+  type      = "Microsoft.CognitiveServices/accounts/projects/capabilityHosts@2025-04-01-preview"
+  name      = "caphostproj"
+  parent_id = azapi_resource.foundry_project.id
 
   schema_validation_enabled = false
 
@@ -868,7 +880,7 @@ resource "azapi_resource" "foundry_project_capability_host" {
     azapi_resource.conn_aisearch,
     azapi_resource.conn_cosmosdb,
     azapi_resource.conn_storage,
-      # Project role assignments must be complete (matching Bicep dependencies)
+    # Project role assignments must be complete (matching Bicep dependencies)
     azurerm_role_assignment.cosmosdb_operator_foundry_project,
     azurerm_role_assignment.cosmosdb_reader_foundry_project,
     azurerm_role_assignment.storage_blob_data_contributor_foundry_project,
@@ -953,10 +965,10 @@ resource "azurerm_role_assignment" "storage_blob_data_owner_foundry_project" {
 resource "azurerm_cosmosdb_sql_role_assignment" "project_cosmos_builtin_contributor" {
   resource_group_name = azurerm_resource_group.rg-ai01.name
   account_name        = azurerm_cosmosdb_account.cosmosdb.name
-  
+
   # Cosmos DB Built-in Data Contributor role
   role_definition_id = "${azurerm_cosmosdb_account.cosmosdb.id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002"
-  
+
   principal_id = azapi_resource.foundry_project.output.identity.principalId
   scope        = azurerm_cosmosdb_account.cosmosdb.id
 

@@ -2,11 +2,18 @@
 
 ## Project Overview
 
-This repo contains Azure infrastructure-as-code (Terraform) for demo/lab environments. It is organized as three independent Terraform root modules with a dependency chain:
+This repo contains Azure infrastructure-as-code (Terraform) for demo/lab environments. It follows a two-tier landing zone model:
 
-1. **`Networking/`** — Foundation layer. Deploys Azure Virtual WAN, virtual hubs, spoke VNets, and optional components (Azure Firewall, Private DNS, VPN Gateway, AI Landing Zone VNet). Must be applied first.
-2. **`Foundry-byoVnet/`** — Deploys Azure AI Foundry with private endpoints into a BYO VNet created by the Networking layer.
+**Platform Landing Zone:**
+
+1. **`Networking/`** — Shared networking foundation. Deploys Azure Virtual WAN, virtual hubs, spoke VNets, and optional components (Azure Firewall, Private DNS, AI Landing Zone VNet). Must be applied first. All application landing zones depend on this.
+
+**Application Landing Zones (optional):**
+
+2. **`Foundry-byoVnet/`** — Deploys Azure AI Foundry with private endpoints into a BYO VNet created by the platform landing zone.
 3. **`Foundry-managedVnet/`** — Deploys Azure AI Foundry with private endpoints in a Microsoft-managed VNet.
+
+Future modules follow the same application landing zone pattern: they plug into the platform via `terraform_remote_state` and can be deployed or destroyed independently.
 
 The Foundry modules depend on `Networking/` via `terraform_remote_state` (local backend, reads `../Networking/terraform.tfstate`). The Networking module must be applied with `create_AiLZ = true` before either Foundry module can be applied.
 
@@ -48,7 +55,6 @@ The Networking module uses boolean variables to toggle optional components. Defa
 | `create_AiLZ` | AI Landing Zone spoke VNet (required before Foundry modules) |
 | `add_firewall00` / `add_firewall01` | Azure Firewall per region |
 | `add_privateDNS00` / `add_privateDNS01` | Private DNS Resolver per region |
-| `add_s2s_VPN00` / `add_s2s_VPN01` | Site-to-Site VPN Gateway per region |
 
 ### Multi-region naming convention
 
