@@ -70,6 +70,33 @@ Application landing zones consume these outputs via `terraform_remote_state`. Th
 
 DNS zone outputs are null when `add_private_dns00 = false`.
 
+## Module Structure (for contributors)
+
+Internally, the Networking module uses a `modules/region-hub/` child module to avoid duplicating per-region resource blocks. The root module calls it twice:
+
+- `module.region0` — always created (region 0)
+- `module.region1` — conditional on `create_vhub01` (`count = var.create_vhub01 ? 1 : 0`)
+
+Each call maps flat root variables (with `00`/`01` suffixes) to the child module's generic inputs. The child module contains the hub, shared VNet, subnets, firewall, DNS resolver, and compute resources for a single region.
+
+**This doesn't change how you use the module.** Variables, outputs, and tfvars all work the same as before. The child module is an internal detail.
+
+```
+Networking/
+├── main.tf                     # RGs, Log Analytics, module calls
+├── vwan.tf                     # Virtual WAN
+├── keyvault.tf                 # Key Vault
+├── variables.tf                # All root variables (flat, per-region)
+├── outputs.tf                  # Platform-to-ALZ contract
+├── locals.tf
+├── config.tf
+└── modules/
+    └── region-hub/
+        ├── main.tf             # Per-region resources (hub, VNet, firewall, DNS, compute)
+        ├── variables.tf        # Generic region inputs
+        └── outputs.tf          # Region outputs (hub ID, subnet IDs, etc.)
+```
+
 ## Notes
 
 Azure Firewall is deployed with Routing Intent enabled for both Private and Internet traffic. The firewall policy allows any/any by default. Update firewall rules as needed for your tests.
