@@ -38,8 +38,8 @@ variable "kv_name" {
   type        = string
   default     = "kv00"
 }
-variable "resource_group_name_KV" {
-  description = "Resource Group Name"
+variable "resource_group_name_kv" {
+  description = "Resource Group Name for Key Vault"
   type        = string
   default     = "rg-kv00"
 }
@@ -50,7 +50,7 @@ variable "kv_secret_name" {
 }
 # Region 0 permanent resources
 variable "resource_group_name_net00" {
-  description = "Resource Group Name"
+  description = "Resource Group Name for Region 0 Networking"
   type        = string
   default     = "rg-net00"
 }
@@ -65,12 +65,17 @@ variable "azurerm_virtual_hub00_name" {
   default     = "vhub00"
 }
 variable "azurerm_vhub00_address_prefix" {
-  description = "value of the address prefix for the virtual hub"
+  description = "Address prefix for Virtual Hub 00"
   type        = string
   default     = "172.30.0.0/23"
+
+  validation {
+    condition     = can(cidrhost(var.azurerm_vhub00_address_prefix, 0))
+    error_message = "Must be a valid CIDR block."
+  }
 }
 variable "azurerm_vhub00_route_pref" {
-  description = "value of the route preference for the virtual hub"
+  description = "Route preference for Virtual Hub 00"
   type        = string
   default     = "ExpressRoute"
 }
@@ -80,12 +85,12 @@ variable "log_analytics_workspace_name" {
   default     = "law00"
 }
 variable "shared_vnet_name00" {
-  description = "Virtual Network name"
+  description = "Shared VNet name for Region 0"
   type        = string
   default     = "shared-vnet00"
 }
 variable "shared_vnet_address_space00" {
-  description = "Virtual Network address_space"
+  description = "Shared VNet address space for Region 0"
   type        = list(string)
   default     = ["172.20.0.0/20"]
 }
@@ -120,12 +125,12 @@ variable "app_subnet_address00" {
   default     = ["172.20.6.0/24"]
 }
 variable "dns_vnet_name00" {
-  description = "Virtual Network name"
+  description = "DNS resolver VNet name for Region 0"
   type        = string
   default     = "dns-vnet00"
 }
 variable "dns_vnet_address_space00" {
-  description = "Virtual Network address_space"
+  description = "DNS resolver VNet address space for Region 0"
   type        = list(string)
   default     = ["172.20.16.0/20"]
 }
@@ -170,9 +175,14 @@ variable "bastion_host_name00" {
   default     = "bastion-host00"
 }
 variable "bastion_host_sku00" {
-  description = "Bastion Host SKU"
+  description = "Bastion Host 00 SKU"
   type        = string
   default     = "Standard"
+
+  validation {
+    condition     = contains(["Basic", "Standard", "Developer"], var.bastion_host_sku00)
+    error_message = "Bastion SKU must be one of: Basic, Standard, Developer."
+  }
 }
 variable "bastion_subnet_address00" {
   description = "Virtual Network Bastion Subnet Address Spaces"
@@ -180,12 +190,12 @@ variable "bastion_subnet_address00" {
   default     = ["172.20.0.0/24"]
 }
 variable "vm00_nic_name" {
-  description = "Virtual Machine 01 NIC Name"
+  description = "Virtual Machine 00 NIC Name"
   type        = string
   default     = "vm00-nic"
 }
 variable "vm00_name" {
-  description = "Virtual Machine 01 Name"
+  description = "Virtual Machine 00 Name"
   type        = string
   default     = "vm00"
 }
@@ -199,48 +209,6 @@ variable "vm_admin_username" {
   type        = string
   default     = "adminuser"
 }
-# Region 0 conditional resources
-## AI LZ Conditional Variables for region 0
-variable "create_AiLZ" {
-  description = "Create the AI Landing Zone spoke VNet in each region"
-  type        = bool
-  default     = false
-}
-variable "ai_vnet_name00" {
-  description = "AI spoke VNet name for region 0"
-  type        = string
-  default     = "ai-vnet00"
-}
-variable "ai_vnet_address_space00" {
-  description = "AI spoke VNet address space for region 0"
-  type        = list(string)
-  default     = ["172.20.32.0/20"]
-}
-variable "azurerm_virtual_hub_connection_vhub00_to_ai00" {
-  description = "vHub00 to AI VNet00 connection name"
-  type        = string
-  default     = "vhub00-to-ai00"
-}
-variable "ai_foundry_subnet_name00" {
-  description = "Virtual Network AI Foundry Subnet Name"
-  type        = string
-  default     = "ai-foundry-subnet00"
-}
-variable "ai_foundry_subnet_address00" {
-  description = "AI foundry subnet address prefix for region 0"
-  type        = list(string)
-  default     = ["172.20.32.0/26"]
-}
-variable "private_endpoint_subnet_name00" {
-  description = "Virtual Network Private Endpoint Subnet Name"
-  type        = string
-  default     = "private-endpoint-subnet00"
-}
-variable "private_endpoint_subnet_address00" {
-  description = "Private endpoint subnet address prefix for region 0"
-  type        = list(string)
-  default     = ["172.20.33.0/24"]
-}
 ## Firewall variables for region 0
 variable "add_firewall00" {
   description = "Add Firewall 00"
@@ -248,42 +216,47 @@ variable "add_firewall00" {
   default     = false
 }
 variable "firewall_name00" {
-  description = "Firewall Name"
+  description = "Firewall 00 Name"
   type        = string
   default     = "firewall00"
 }
-variable "firewall_SkuName00" {
-  description = "Firewall SKU Name"
+variable "firewall_sku_name00" {
+  description = "Firewall 00 SKU Name"
   type        = string
   default     = "AZFW_Hub"
 }
-variable "firewall_SkuTier00" {
-  description = "Firewall SKU Tier"
+variable "firewall_sku_tier00" {
+  description = "Firewall 00 SKU Tier"
   type        = string
   default     = "Premium"
+
+  validation {
+    condition     = contains(["Standard", "Premium"], var.firewall_sku_tier00)
+    error_message = "Firewall SKU tier must be one of: Standard, Premium."
+  }
 }
 variable "firewall_policy_name00" {
-  description = "Name of the Firewall Policy"
+  description = "Firewall 00 Policy Name"
   type        = string
   default     = "firewall00-policy"
 }
 variable "firewall_policy_rcg_name00" {
-  description = "Name of the Firewall Policy Rule Collection Group"
+  description = "Firewall 00 Policy Rule Collection Group Name"
   type        = string
   default     = "policy00-firewall00-rcg"
 }
 variable "firewall_logs_name00" {
-  description = "Name of the Firewall Logs"
+  description = "Firewall 00 Diagnostic Logs Name"
   type        = string
   default     = "firewall00-logs"
 }
-variable "add_privateDNS00" {
+variable "add_private_dns00" {
   description = "Add Private DNS 00"
   type        = bool
   default     = false
 }
 variable "private_resolver_name00" {
-  description = "Private Resolver Name"
+  description = "Private DNS Resolver Name for Region 0"
   type        = string
   default     = "resolver00"
 }
@@ -294,7 +267,7 @@ variable "create_vhub01" {
   default     = false
 }
 variable "resource_group_name_net01" {
-  description = "Resource Group Name"
+  description = "Resource Group Name for Region 1 Networking"
   type        = string
   default     = "rg-net01"
 }
@@ -309,32 +282,37 @@ variable "azurerm_virtual_hub01_name" {
   default     = "vhub01"
 }
 variable "azurerm_vhub01_address_prefix" {
-  description = "value of the address prefix for the virtual hub"
+  description = "Address prefix for Virtual Hub 01"
   type        = string
   default     = "172.30.2.0/23"
+
+  validation {
+    condition     = can(cidrhost(var.azurerm_vhub01_address_prefix, 0))
+    error_message = "Must be a valid CIDR block."
+  }
 }
 variable "azurerm_vhub01_route_pref" {
-  description = "value of the route preference for the virtual hub"
+  description = "Route preference for Virtual Hub 01"
   type        = string
   default     = "ExpressRoute"
 }
 variable "shared_vnet_name01" {
-  description = "Virtual Network name"
+  description = "Shared VNet name for Region 1"
   type        = string
   default     = "shared-vnet01"
 }
 variable "dns_vnet_name01" {
-  description = "Virtual Network name"
+  description = "DNS resolver VNet name for Region 1"
   type        = string
   default     = "dns-vnet01"
 }
 variable "shared_vnet_address_space01" {
-  description = "Virtual Network address_space"
+  description = "Shared VNet address space for Region 1"
   type        = list(string)
   default     = ["172.21.0.0/20"]
 }
 variable "dns_vnet_address_space01" {
-  description = "Virtual Network address_space"
+  description = "DNS resolver VNet address space for Region 1"
   type        = list(string)
   default     = ["172.21.16.0/20"]
 }
@@ -372,42 +350,6 @@ variable "azurerm_virtual_hub_connection_vhub01_to_dns01" {
   description = "Virtual Hub Connection from vhub01 to dns vnet01"
   type        = string
   default     = "vhub01-to-dns01"
-}
-## AI LZ Conditional Variables for region 1
-variable "ai_vnet_name01" {
-  description = "AI spoke VNet name for region 1"
-  type        = string
-  default     = "ai-vnet01"
-}
-variable "ai_vnet_address_space01" {
-  description = "AI spoke VNet address space for region 1"
-  type        = list(string)
-  default     = ["172.21.32.0/20"]
-}
-variable "azurerm_virtual_hub_connection_vhub01_to_ai01" {
-  description = "vHub01 to AI VNet01 connection name"
-  type        = string
-  default     = "vhub01-to-ai01"
-}
-variable "ai_foundry_subnet_name01" {
-  description = "Virtual Network AI Foundry Subnet Name"
-  type        = string
-  default     = "ai-foundry-subnet01"
-}
-variable "ai_foundry_subnet_address01" {
-  description = "AI foundry subnet address prefix for region 1"
-  type        = list(string)
-  default     = ["172.21.32.0/24"]
-}
-variable "private_endpoint_subnet_name01" {
-  description = "Virtual Network Private Endpoint Subnet Name"
-  type        = string
-  default     = "private-endpoint-subnet01"
-}
-variable "private_endpoint_subnet_address01" {
-  description = "Private endpoint subnet address prefix for region 1"
-  type        = list(string)
-  default     = ["172.21.33.0/24"]
 }
 ## DNS conditional variables for region 1
 variable "resolver_inbound_subnet_name01" {
@@ -452,9 +394,14 @@ variable "bastion_host_name01" {
   default     = "bastion-host01"
 }
 variable "bastion_host_sku01" {
-  description = "Bastion Host SKU"
+  description = "Bastion Host 01 SKU"
   type        = string
   default     = "Standard"
+
+  validation {
+    condition     = contains(["Basic", "Standard", "Developer"], var.bastion_host_sku01)
+    error_message = "Bastion SKU must be one of: Basic, Standard, Developer."
+  }
 }
 variable "bastion_subnet_address01" {
   description = "Virtual Network Bastion Subnet Address Spaces"
@@ -467,42 +414,47 @@ variable "add_firewall01" {
   default     = false
 }
 variable "firewall_name01" {
-  description = "Firewall Name"
+  description = "Firewall 01 Name"
   type        = string
   default     = "firewall01"
 }
-variable "firewall_SkuName01" {
-  description = "Firewall SKU Name"
+variable "firewall_sku_name01" {
+  description = "Firewall 01 SKU Name"
   type        = string
   default     = "AZFW_Hub"
 }
-variable "firewall_SkuTier01" {
-  description = "Firewall SKU Tier"
+variable "firewall_sku_tier01" {
+  description = "Firewall 01 SKU Tier"
   type        = string
   default     = "Premium"
+
+  validation {
+    condition     = contains(["Standard", "Premium"], var.firewall_sku_tier01)
+    error_message = "Firewall SKU tier must be one of: Standard, Premium."
+  }
 }
 variable "firewall_policy_name01" {
-  description = "Name of the Firewall Policy"
+  description = "Firewall 01 Policy Name"
   type        = string
   default     = "firewall01-policy"
 }
 variable "firewall_logs_name01" {
-  description = "Name of the Firewall Logs"
+  description = "Firewall 01 Diagnostic Logs Name"
   type        = string
   default     = "firewall01-logs"
 }
 variable "firewall_policy_rcg_name01" {
-  description = "Name of the Firewall Policy Rule Collection Group"
+  description = "Firewall 01 Policy Rule Collection Group Name"
   type        = string
   default     = "firewall01-policy-rcg"
 }
-variable "add_privateDNS01" {
+variable "add_private_dns01" {
   description = "Add Private DNS 01"
   type        = bool
   default     = false
 }
 variable "private_resolver_name01" {
-  description = "Private Resolver Name"
+  description = "Private DNS Resolver Name for Region 1"
   type        = string
   default     = "resolver01"
 }

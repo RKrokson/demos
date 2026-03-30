@@ -22,9 +22,8 @@ shared_subnet_address01 = ["10.32.5.0/24"]
 app_subnet_address01 = ["10.32.6.0/24"]
 # Conditional Variables
 create_vhub01 = true
-create_AiLZ = true
-add_privateDNS00 = true
-add_privateDNS01 = true
+add_private_dns00 = true
+add_private_dns01 = true
 add_firewall00 = true
 add_firewall01 = true
 vm00_size= "Standard_B2s"

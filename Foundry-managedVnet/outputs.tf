@@ -3,13 +3,13 @@ output "resource_group_id" {
   value       = azurerm_resource_group.rg-ai01.id
 }
 
-output "foundry_id" {
-  description = "The ID of the Foundry account"
+output "ai_foundry_id" {
+  description = "The ID of the AI Foundry account"
   value       = azapi_resource.foundry.id
 }
 
-output "foundry_project_id" {
-  description = "The ID of the Foundry project"
+output "ai_foundry_project_id" {
+  description = "The ID of the AI Foundry project"
   value       = azapi_resource.foundry_project.id
 }
 

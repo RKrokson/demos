@@ -2,7 +2,10 @@ terraform {
   required_version = ">= 1.8.3"
   required_providers {
     azurerm = {
-      source  = "hashicorp/azurerm"
+      source = "hashicorp/azurerm"
+      # Wider range than Foundry modules (~> 4.26.0) is intentional —
+      # this platform module should accept any 4.x provider without
+      # forcing lockstep upgrades across all consumers.
       version = ">= 4.0, < 5.0"
     }
     random = {

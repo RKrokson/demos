@@ -5,12 +5,12 @@ output "resource_group_id" {
 
 output "ai_foundry_id" {
   description = "The ID of the AI Foundry account"
-  value       = azapi_resource.ai_foundry.id
+  value       = azapi_resource.foundry.id
 }
 
 output "ai_foundry_project_id" {
   description = "The ID of the AI Foundry project"
-  value       = azapi_resource.ai_foundry_project.id
+  value       = azapi_resource.foundry_project.id
 }
 
 output "storage_account_id" {
