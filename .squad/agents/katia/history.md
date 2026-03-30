@@ -41,3 +41,16 @@
   - **OBSERVATION (non-blocking):** Documentation files still reference old PascalCase variable names (`create_AiLZ`, `add_privateDNS00`) in: root README, Networking/README, both Foundry READMEs, copilot-instructions.md, adding-application-landing-zone.md. Users following README instructions would use stale variable names and get "variable not declared" errors. Mordecai should update docs to match renamed variables.
   - **Verdict:** PASS — Phase 2 Batch 2 code changes are correct and complete. Doc update needed for variable name consistency (assign to Mordecai).
 - **2026-03-30 (scribe-coordination):** Scribe wrote orchestration log entry for Phase 2 Batch 2 validation work. Decision #7 (ALZ VNet migration) and #8 (firewall control) merged into decisions.md. Ready for git commit. Non-blocking documentation sync issue flagged for Mordecai.
+- **2026-07-15 (alz-vnet-refactor-validation):** Full 11-check validation of Donut's ALZ VNet refactor. **All 11 checks PASS.**
+  - (1) `terraform fmt -check`: PASS all 3 modules — zero formatting drift.
+  - (2) `terraform validate`: PASS all 3 modules — managedVnet still has pre-existing `ignore_changes` warning (not refactor related).
+  - (3) create_ai_lz removal: PASS — zero matches for `create_ai_lz` or `create_AiLZ` in any Networking .tf file.
+  - (4) AI spoke resources in Foundry modules: PASS — both have networking.tf with VNet, 2 subnets (foundry + PE), hub connection, DNS servers, DNS policy link.
+  - (5) Non-overlapping CIDRs: PASS — byoVnet uses Block 2 (172.20.32.0/20), managedVnet uses Block 3 (172.20.48.0/20). Subnets carved within respective blocks. No overlap possible.
+  - (6) 4 new Networking outputs: PASS — `rg_net00_name` (unconditional), `add_firewall00` (passthrough), `dns_resolver_policy00_id` (conditional on `add_private_dns00`), `dns_inbound_endpoint00_ip` (conditional on `add_private_dns00`).
+  - (7) Remote state consumption: PASS — both Foundry modules reference all 4 new outputs correctly via `data.terraform_remote_state.networking.outputs.*`.
+  - (8) internet_security_enabled: PASS — both modules use `outputs.add_firewall00` on vHub connections.
+  - (9) NSGs: PASS — both modules have `pe_subnet_nsg` resource and `pe_subnet_nsg_assoc` association on private endpoint subnets.
+  - (10) docs/ip-addressing.md: PASS — exists with complete allocation table covering Region 0 and Region 1, rules, and vHub prefixes.
+  - (11) Networking/ai-spoke.tf: PASS — file deleted entirely (no stale file).
+  - **Verdict:** PASS — ALZ VNet refactor is clean, correct, and ready for merge. Phase 2 closes successfully.
