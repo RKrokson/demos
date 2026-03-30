@@ -45,12 +45,14 @@ The Networking module exposes resource group info, subnet IDs, hub IDs, Key Vaul
 
 Key outputs you will likely need:
 
-- `rg_net00_location` and `azure_region_0_abbr` for region and naming
-- `ai_foundry_subnet00_id` and `private_endpoint_subnet00_id` for subnet placement
-- `dns_zone_*` outputs for private endpoint DNS integration
+- `rg_net00_name`, `rg_net00_location`, and `azure_region_0_abbr` for resource group, region, and naming
+- `vhub00_id` for connecting your spoke VNet to the platform hub
+- `add_firewall00` to set `internet_security_enabled` on hub connections
+- `dns_resolver_policy00_id` and `dns_inbound_endpoint00_ip` for private DNS integration
+- `dns_zone_*` outputs for private endpoint DNS zone links
 - `key_vault_id` and `log_analytics_workspace_id` for shared services
 
-Most outputs are conditional. Subnet and DNS zone outputs return `null` when their toggle variable is `false` in the Networking module.
+Each ALZ module creates its own spoke VNet and subnets. DNS zone outputs return `null` when `add_private_dns00 = false` in the Networking module.
 
 ## Naming Conventions
 
@@ -132,7 +134,7 @@ Not all resources support tags. Skip subnets, hub connections, diagnostic settin
 
 ## Prerequisites for the Platform
 
-Before your ALZ module can run, the Networking module must be applied with the right toggles. At minimum you need `create_ai_lz = true` to get the AI spoke VNet. If your workload needs private DNS resolution, also set `add_private_dns00 = true`.
+Before your ALZ module can run, the Networking module must be applied. Your module should create its own spoke VNet and subnets. If your workload needs private DNS resolution, set `add_private_dns00 = true` in the Networking tfvars.
 
 Document these requirements in your module's README under Prerequisites.
 
@@ -148,7 +150,7 @@ One paragraph: what this module deploys and why.
 ## Prerequisites
 
 - All [platform landing zone prerequisites](../README.md#prerequisites)
-- Platform Landing Zone (`Networking/`) must be applied first with `create_ai_lz = true`
+- Platform Landing Zone (`Networking/`) must be applied first
 - [Any additional requirements specific to your workload]
 
 ## Quick Start

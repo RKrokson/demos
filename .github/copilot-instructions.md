@@ -6,16 +6,16 @@ This repo contains Azure infrastructure-as-code (Terraform) for demo/lab environ
 
 **Platform Landing Zone:**
 
-1. **`Networking/`** — Shared networking foundation. Deploys Azure Virtual WAN, virtual hubs, spoke VNets, and optional components (Azure Firewall, Private DNS, AI Landing Zone VNet). Must be applied first. All application landing zones depend on this.
+1. **`Networking/`** — Shared networking foundation. Deploys Azure Virtual WAN, virtual hubs, spoke VNets, and optional components (Azure Firewall, Private DNS). Must be applied first. All application landing zones depend on this.
 
 **Application Landing Zones (optional):**
 
-2. **`Foundry-byoVnet/`** — Deploys Azure AI Foundry with private endpoints into a BYO VNet created by the platform landing zone.
+2. **`Foundry-byoVnet/`** — Deploys Azure AI Foundry with private endpoints into its own spoke VNet (created by the module).
 3. **`Foundry-managedVnet/`** — Deploys Azure AI Foundry with private endpoints in a Microsoft-managed VNet.
 
 Future modules follow the same application landing zone pattern: they plug into the platform via `terraform_remote_state` and can be deployed or destroyed independently.
 
-The Foundry modules depend on `Networking/` via `terraform_remote_state` (local backend, reads `../Networking/terraform.tfstate`). The Networking module must be applied with `create_ai_lz = true` before either Foundry module can be applied.
+The Foundry modules depend on `Networking/` via `terraform_remote_state` (local backend, reads `../Networking/terraform.tfstate`). Each Foundry module creates its own spoke VNet and subnets. The Networking module must be applied before either Foundry module.
 
 ## Terraform Commands
 
@@ -52,7 +52,6 @@ The Networking module uses boolean variables to toggle optional components. Defa
 | Variable | Controls |
 |---|---|
 | `create_vhub01` | Second region (hub, VNets, VMs) |
-| `create_ai_lz` | AI Landing Zone spoke VNet (required before Foundry modules) |
 | `add_firewall00` / `add_firewall01` | Azure Firewall per region |
 | `add_private_dns00` / `add_private_dns01` | Private DNS Resolver per region |
 

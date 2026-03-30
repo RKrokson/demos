@@ -1,6 +1,6 @@
 # Application Landing Zone — AI Foundry (BYO VNet)
 
-This is an optional application landing zone. It deploys AI Foundry with AI Agent Service and private endpoints into a VNet created by the platform landing zone (Networking module). You do not need to deploy this to use the Networking module on its own.
+This is an optional application landing zone. It deploys AI Foundry with AI Agent Service and private endpoints into its own spoke VNet. The module creates the VNet, subnets, and hub connection. You do not need to deploy this to use the Networking module on its own.
 
 This module is based on the [PG-validated Terraform sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/15b-private-network-standard-agent-setup-byovnet), modified to pull network dependencies from the platform landing zone via `terraform_remote_state`.
 
@@ -13,7 +13,7 @@ The template follows the [documented architecture](https://learn.microsoft.com/e
 ## Prerequisites
 
 - All [platform landing zone prerequisites](../README.md#prerequisites)
-- Platform Landing Zone (`Networking/`) must be applied first with `create_ai_lz = true`
+- Platform Landing Zone (`Networking/`) must be applied first
 - Private DNS zones must be deployed (`add_private_dns00 = true` in Networking)
 - Azure region with AI Foundry support and sufficient quota
 
@@ -21,7 +21,7 @@ Foundry and its required resources deploy in your primary region only.
 
 ## Quick Start
 
-Make sure the Networking module is applied with `create_ai_lz = true` and `add_private_dns00 = true` first.
+Make sure the Networking module is applied with `add_private_dns00 = true` first.
 
 ```sh
 cd Foundry-byoVnet
@@ -35,6 +35,14 @@ terraform apply
 | Variable | Type | Default | Description |
 |---|---|---|---|
 | `resource_group_name_ai00` | `string` | `"rg-ai00"` | Resource Group Name |
+| `ai_vnet_name` | `string` | `"ai-vnet"` | AI spoke VNet name |
+| `ai_vnet_address_space` | `list(string)` | `["172.20.32.0/20"]` | AI spoke VNet address space |
+| `ai_foundry_subnet_name` | `string` | `"ai-foundry-subnet"` | Foundry workload subnet name |
+| `ai_foundry_subnet_address` | `list(string)` | `["172.20.32.0/26"]` | Foundry workload subnet address |
+| `private_endpoint_subnet_name` | `string` | `"private-endpoint-subnet"` | Private endpoint subnet name |
+| `private_endpoint_subnet_address` | `list(string)` | `["172.20.33.0/24"]` | Private endpoint subnet address |
+| `connect_to_vhub` | `bool` | `true` | Connect AI spoke VNet to platform vHub |
+| `enable_dns_link` | `bool` | `false` | Link VNet to platform DNS resolver policy |
 
 ## Outputs
 
