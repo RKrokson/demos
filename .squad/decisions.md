@@ -146,6 +146,58 @@ The two Foundry module output files use inconsistent naming for equivalent resou
 
 ---
 
+### 7. AI Landing Zone VNet Migration (Carl — Lead/Architect)
+
+**Status:** Approved  
+**Date:** 2026-03-30
+
+**Context:** AI Landing Zone resources (VNet, subnets, hub connection, DNS configs) currently live in Networking module but logically belong to each application landing zone.
+
+**Decision:** Move AI LZ VNet creation from Networking module into each Foundry module (Foundry-byoVnet, Foundry-managedVnet). Networking retains vHub, shared spokes, DNS zones, and firewall.
+
+**Scope:** 6 resource types move per region:
+- `azurerm_virtual_network` (ai_vnet00)
+- `azurerm_subnet` (ai_foundry_subnet00, private_endpoint_subnet00)
+- `azurerm_virtual_hub_connection` (vhub_connection00-to-ai)
+- `azurerm_virtual_network_dns_servers` (ai_vnet00_dns)
+- `azapi_resource` (dns_security_policy_ai_vnet00_link)
+
+**New Networking Outputs:**
+- `rg_net00_name` — Resource group name for VNet placement
+- `dns_resolver_policy00_id` — DNS resolver policy ID (if Private DNS enabled)
+- `dns_inbound_endpoint00_ip` — Inbound endpoint IP for custom DNS
+
+**New Variables per Foundry Module:** 8 variables for VNet/subnet config, plus `connect_to_vhub` and `enable_dns_link` toggles.
+
+**IP Addressing:** Non-overlapping defaults assigned:
+- **Foundry-byoVnet:** Block 2 (172.20.32.0/20) — keeps current Networking default
+- **Foundry-managedVnet:** Block 3 (172.20.48.0/20) — enables future co-deployment
+
+**Impact:**
+- Aligns with Decision #1 (Landing Zone Architecture)
+- Enables future simultaneous deployment of both Foundry modules without IP collision
+- Resolves Katia's count-guard bug #3 by removing conditional resources
+- Implementation assigned to Donut (Phase 3+)
+
+---
+
+### 8. Foundry AI Spoke Firewall Control (Donut — Infra Dev)
+
+**Status:** Implemented  
+**Date:** 2026-03-30
+
+**Decision:** Add `internet_security_enabled = var.add_firewallXX` toggle to AI spoke vHub connections in both Foundry modules.
+
+**Rationale:** Enables conditional control over whether Foundry workloads route through Azure Firewall or bypass inspection when firewall is deployed. Aligns with Phase 2 security hardening pattern (merged secure/unsecure connection pairs).
+
+**Implementation:**
+- Foundry-byoVnet/networking.tf: Added toggle to AI spoke connection
+- Foundry-managedVnet/networking.tf: Added toggle to AI spoke connection
+
+**Impact:** Backward compatible; no state changes required.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
