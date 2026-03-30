@@ -21,3 +21,12 @@
 - Neither Foundry README documents its Terraform variables or outputs.
 - Cleanup/destroy sequencing is scattered — byoVnet and managedVnet each have partial cleanup steps; no unified destroy guide exists.
 - **2026-03-29 (repo-revamp-plan):** Full team documentation review completed. 19 recommendations delivered covering README structure, landing zone framing, diagram normalization, and documentation completeness. Team consensus: README restructuring is primary doc work. All recommendations merged into squad decisions.md. **Key coordination:** Worked with Carl (architecture), Donut (code), Katia (validation) to align documentation with technical decisions. **Typo found:** `.tfvars.advance.example` should be `.tfvars.advanced.example`.
+- **Phase 1 docs delivered (3 tasks):**
+  - **1-readme-hub:** Root README rewritten as navigation hub. Removed duplicated module content. Added Landing Zone Model section with module index tables, Getting Started sequence, Destroy Order, and consolidated prereqs. Cost table kept (removed VPN line items). Removed all VPN references per Donut's code removal.
+  - **1-lz-framing:** All module READMEs renamed with landing zone titles. Networking = "Platform Landing Zone — Networking" with Downstream Dependencies section. Both Foundry modules = "Application Landing Zone" with optional framing. copilot-instructions.md updated with platform/app LZ terminology and "future modules follow the same pattern" note. VPN references removed from copilot-instructions conditional deployments table.
+  - **1-readme-prereqs:** Each module README now has its own Prerequisites section. Foundry modules link back to root prereqs and list additional requirements (create_AiLZ, add_privateDNS00, AI Foundry region support).
+  - Fixed "destory" → "destroy" typo in Foundry-managedVnet/README.md.
+  - Fixed "Cleanup step" → "Cleanup Steps" heading consistency across both Foundry READMEs.
+  - Referenced PG-validated sample repos in both Foundry READMEs with inline links.
+- Ryan mandated humanizer rules: no AI vocabulary, no promotional language, no rule of three, no em dashes overuse. Write like a senior engineer, not a marketing team.
+- **2026-03-30 (phase1-coordination):** Coordinated Phase 1 implementation with Donut (code). All VPN references removed from documentation (READMEs, copilot-instructions.md) per Donut's code removal. Decision inbox merged. All changes ready for git commit with message "squad: phase 1 implementation — VPN removal, bug fixes, tags, outputs, LZ framing".
