@@ -4,16 +4,29 @@ This is the shared networking foundation that all application landing zones in t
 
 ## What Gets Deployed
 
-The base deployment creates a Virtual WAN, a virtual hub, a spoke VNet, and a test VM. Boolean variables toggle optional components:
+The base deployment creates a Virtual WAN, a virtual hub, a spoke VNet, and a test VM. Boolean variables toggle optional components. All default to `false`.
 
-| Variable | What it adds |
-|---|---|
-| `create_vhub01` | Second region (hub, VNets, VMs) |
-| `create_AiLZ` | AI Landing Zone spoke VNet (required before any Foundry module) |
-| `add_firewall00` / `add_firewall01` | Azure Firewall per region |
-| `add_privateDNS00` / `add_privateDNS01` | Private DNS Resolver per region |
+### Conditional Variables
 
-All conditionals default to `false`.
+| Variable | Default | What It Enables |
+|---|---|---|
+| `create_vhub01` | `false` | Second region (hub, VNets, VMs) |
+| `create_ai_lz` | `false` | AI Landing Zone spoke VNet (required before any Foundry module) |
+| `add_firewall00` | `false` | Azure Firewall in region 0 |
+| `add_firewall01` | `false` | Azure Firewall in region 1 (requires `create_vhub01`) |
+| `add_private_dns00` | `false` | Private DNS Resolver in region 0 |
+| `add_private_dns01` | `false` | Private DNS Resolver in region 1 (requires `create_vhub01`) |
+
+## Quick Start
+
+```sh
+cd Networking
+terraform init
+terraform plan
+terraform apply
+```
+
+Create a `terraform.tfvars` file to enable optional components (see [Using the Conditionals](#using-the-conditionals) below).
 
 ## Prerequisites
 
@@ -24,7 +37,39 @@ All conditionals default to `false`.
 
 ## Downstream Dependencies
 
-Application landing zone modules (`Foundry-byoVnet/`, `Foundry-managedVnet/`) consume this module's outputs via `terraform_remote_state` (local backend, reads `./terraform.tfstate`). You must apply this module with `create_AiLZ = true` before deploying any Foundry module. If you need private DNS resolution for Foundry, also set `add_privateDNS00 = true`.
+Application landing zone modules (`Foundry-byoVnet/`, `Foundry-managedVnet/`) consume this module's outputs via `terraform_remote_state` (local backend, reads `./terraform.tfstate`). You must apply this module with `create_ai_lz = true` before deploying any Foundry module. If you need private DNS resolution for Foundry, also set `add_private_dns00 = true`.
+
+## Outputs — Platform-to-ALZ Contract
+
+Application landing zones consume these outputs via `terraform_remote_state`. This is the interface between the platform and ALZ layers.
+
+| Output Name | Description |
+|---|---|
+| `vm_admin_username` | Virtual Machine Admin Username |
+| `rg_net00_id` | The ID of the Networking Resource Group |
+| `rg_net00_location` | The location of the Networking Resource Group |
+| `azure_region_0_abbr` | The abbreviation of the Azure 0 region |
+| `ai_foundry_subnet00_id` | The ID of the AI Foundry Subnet 00 (null if `create_ai_lz = false`) |
+| `private_endpoint_subnet00_id` | The ID of the Private Endpoint Subnet 00 (null if `create_ai_lz = false`) |
+| `ai_foundry_subnet01_id` | The ID of the AI Foundry Subnet 01 (null if region 1 or AiLZ disabled) |
+| `private_endpoint_subnet01_id` | The ID of the Private Endpoint Subnet 01 (null if region 1 or AiLZ disabled) |
+| `vhub00_id` | The ID of Virtual Hub 00 |
+| `vhub01_id` | The ID of Virtual Hub 01 (null if `create_vhub01 = false`) |
+| `log_analytics_workspace_id` | The ID of the Log Analytics Workspace |
+| `key_vault_id` | The ID of Key Vault |
+| `key_vault_name` | The name of Key Vault |
+| `dns_zone_blob_id` | Private DNS Zone ID for `privatelink.blob.core.windows.net` |
+| `dns_zone_file_id` | Private DNS Zone ID for `privatelink.file.core.windows.net` |
+| `dns_zone_table_id` | Private DNS Zone ID for `privatelink.table.core.windows.net` |
+| `dns_zone_queue_id` | Private DNS Zone ID for `privatelink.queue.core.windows.net` |
+| `dns_zone_vaultcore_id` | Private DNS Zone ID for `privatelink.vaultcore.azure.net` |
+| `dns_zone_cognitiveservices_id` | Private DNS Zone ID for `privatelink.cognitiveservices.azure.com` |
+| `dns_zone_openai_id` | Private DNS Zone ID for `privatelink.openai.azure.com` |
+| `dns_zone_services_ai_id` | Private DNS Zone ID for `privatelink.services.ai.azure.com` |
+| `dns_zone_search_id` | Private DNS Zone ID for `privatelink.search.windows.net` |
+| `dns_zone_documents_id` | Private DNS Zone ID for `privatelink.documents.azure.com` |
+
+DNS zone outputs are null when `add_private_dns00 = false`.
 
 ## Notes
 
