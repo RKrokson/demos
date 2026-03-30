@@ -2,7 +2,7 @@
 
 This is an optional application landing zone. It deploys AI Foundry with AI Agent Service and private endpoints into a VNet created by the platform landing zone (Networking module). You do not need to deploy this to use the Networking module on its own.
 
-This module is based on the [PG-validated Terraform sample](https://github.com/azure-ai-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/15b-private-network-standard-agent-setup-byovnet), modified to pull network dependencies from the platform landing zone via `terraform_remote_state`.
+This module is based on the [PG-validated Terraform sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/15b-private-network-standard-agent-setup-byovnet), modified to pull network dependencies from the platform landing zone via `terraform_remote_state`.
 
 "Secure" refers to the use of private endpoints. The environment still allows API keys by default. Set `disableLocalAuth` to `True` in the Terraform code to require Entra-only auth.
 
@@ -13,11 +13,39 @@ The template follows the [documented architecture](https://learn.microsoft.com/e
 ## Prerequisites
 
 - All [platform landing zone prerequisites](../README.md#prerequisites)
-- Platform Landing Zone (`Networking/`) must be applied first with `create_AiLZ = true`
-- Private DNS zones must be deployed (`add_privateDNS00 = true` in Networking)
+- Platform Landing Zone (`Networking/`) must be applied first with `create_ai_lz = true`
+- Private DNS zones must be deployed (`add_private_dns00 = true` in Networking)
 - Azure region with AI Foundry support and sufficient quota
 
 Foundry and its required resources deploy in your primary region only.
+
+## Quick Start
+
+Make sure the Networking module is applied with `create_ai_lz = true` and `add_private_dns00 = true` first.
+
+```sh
+cd Foundry-byoVnet
+terraform init
+terraform plan
+terraform apply
+```
+
+## Variables
+
+| Variable | Type | Default | Description |
+|---|---|---|---|
+| `resource_group_name_ai00` | `string` | `"rg-ai00"` | Resource Group Name |
+
+## Outputs
+
+| Output Name | Description |
+|---|---|
+| `resource_group_id` | The ID of the AI Foundry resource group |
+| `ai_foundry_id` | The ID of the AI Foundry account |
+| `ai_foundry_project_id` | The ID of the AI Foundry project |
+| `storage_account_id` | The ID of the Storage Account |
+| `cosmosdb_account_id` | The ID of the Cosmos DB account |
+| `ai_search_id` | The ID of the AI Search service |
 
 ## Cleanup Steps
 

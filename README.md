@@ -6,6 +6,28 @@ Terraform modules for deploying Azure networking and AI Foundry lab environments
 
 This repo follows a two-tier landing zone pattern:
 
+```
+┌─────────────────────────────────────────────────────┐
+│          Application Landing Zones                  │
+│                                                     │
+│  ┌─────────────────┐    ┌───────────────────────┐   │
+│  │ Foundry-byoVnet │    │ Foundry-managedVnet   │   │
+│  └────────┬────────┘    └───────────┬───────────┘   │
+│           │                        │                │
+│           │  terraform_remote_state                 │
+│           │  (../Networking/terraform.tfstate)       │
+│           │                        │                │
+├───────────┼────────────────────────┼────────────────┤
+│           ▼                        ▼                │
+│            Platform Landing Zone                    │
+│                                                     │
+│  ┌────────────────────────────────────────────────┐  │
+│  │ Networking/                                    │  │
+│  │ vWAN · Hubs · VNets · Firewall · DNS           │  │
+│  └────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+```
+
 **Platform Landing Zone** — Shared networking foundation that all workloads depend on.
 
 | Folder | Layer | Description | Docs |
@@ -19,7 +41,7 @@ This repo follows a two-tier landing zone pattern:
 | `Foundry-byoVnet/` | Application | AI Foundry with private endpoints in a BYO VNet | [README](./Foundry-byoVnet/README.md) |
 | `Foundry-managedVnet/` | Application | AI Foundry with private endpoints in a Microsoft-managed VNet | [README](./Foundry-managedVnet/README.md) |
 
-Future modules will follow the same application landing zone pattern.
+Future modules will follow the same application landing zone pattern. See the [Adding a New Application Landing Zone](./docs/adding-application-landing-zone.md) guide.
 
 ## Prerequisites
 
@@ -45,7 +67,7 @@ Future modules will follow the same application landing zone pattern.
    terraform apply
    ```
 
-4. (Optional) Deploy an application landing zone. Make sure you applied the Networking module with `create_AiLZ = true` and `add_privateDNS00 = true` first.
+4. (Optional) Deploy an application landing zone. Make sure you applied the Networking module with `create_ai_lz = true` and `add_private_dns00 = true` first.
    ```sh
    cd ../Foundry-byoVnet   # or Foundry-managedVnet
    terraform init
@@ -59,9 +81,18 @@ See each module's README for configuration details and tfvars examples.
 
 Tear down in reverse order. Destroy application landing zones first, then the platform.
 
-1. `cd Foundry-byoVnet` (or `Foundry-managedVnet`) → `terraform destroy`
-2. Purge the soft-deleted AI Foundry resource. The subnet service association link will block Networking deletion until this is done. Wait ~10 minutes after purge.
-3. `cd ../Networking` → `terraform destroy`
+1. Destroy the Foundry module:
+   ```sh
+   cd Foundry-byoVnet   # or Foundry-managedVnet
+   terraform destroy
+   ```
+2. Purge the soft-deleted AI Foundry resource. The subnet service association link blocks Networking deletion until this is done. Wait about 10 minutes after purge.
+   - [Purge a deleted resource](https://learn.microsoft.com/en-us/azure/ai-services/recover-purge-resources?tabs=azure-cli#purge-a-deleted-resource)
+3. Destroy the platform:
+   ```sh
+   cd ../Networking
+   terraform destroy
+   ```
 
 See each module's README for detailed cleanup steps and troubleshooting.
 
