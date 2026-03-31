@@ -56,11 +56,11 @@ resource "azurerm_virtual_hub_connection" "vhub_connection_to_ai" {
   internet_security_enabled = data.terraform_remote_state.networking.outputs.add_firewall00
 }
 
-# Custom DNS servers on VNet (points at Private DNS Resolver inbound endpoint)
+# Custom DNS servers on VNet — uses firewall IP when deployed, otherwise resolver inbound endpoint
 resource "azurerm_virtual_network_dns_servers" "ai_vnet_dns" {
   count              = var.enable_dns_link ? 1 : 0
   virtual_network_id = azurerm_virtual_network.ai_vnet.id
-  dns_servers        = [data.terraform_remote_state.networking.outputs.dns_inbound_endpoint00_ip]
+  dns_servers        = data.terraform_remote_state.networking.outputs.add_firewall00 ? [data.terraform_remote_state.networking.outputs.firewall_private_ip00] : [data.terraform_remote_state.networking.outputs.dns_inbound_endpoint00_ip]
 }
 
 # Link VNet to DNS resolver policy

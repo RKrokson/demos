@@ -89,6 +89,11 @@ resource "azurerm_firewall_policy" "fw_policy" {
   resource_group_name = var.resource_group_name
   sku                 = var.firewall_sku_tier
   tags                = var.common_tags
+
+  dns {
+    proxy_enabled = true
+    servers       = var.add_private_dns ? [var.resolver_inbound_endpoint_address] : []
+  }
 }
 
 resource "azurerm_firewall" "fw" {
@@ -243,7 +248,7 @@ resource "azurerm_private_dns_resolver_inbound_endpoint" "resolver_inbound" {
 resource "azurerm_virtual_network_dns_servers" "shared_vnet_dns" {
   count              = var.add_private_dns ? 1 : 0
   virtual_network_id = azurerm_virtual_network.shared_vnet.id
-  dns_servers        = var.shared_vnet_dns_servers
+  dns_servers        = var.add_firewall ? [azurerm_firewall.fw[0].virtual_hub[0].private_ip_address] : [var.resolver_inbound_endpoint_address]
 
   depends_on = [
     azurerm_subnet.resolver_inbound_subnet[0],

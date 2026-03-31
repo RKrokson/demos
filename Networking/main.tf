@@ -73,7 +73,6 @@ module "region0" {
   resolver_outbound_subnet_name     = var.resolver_outbound_subnet_name00
   resolver_outbound_subnet_address  = var.resolver_outbound_subnet_address00
   private_resolver_name             = var.private_resolver_name00
-  shared_vnet_dns_servers           = var.shared_vnet00_dns
   dns_forwarder_ip                  = var.dns_forwarder_ip
 
   # Compute
@@ -137,7 +136,6 @@ module "region1" {
   resolver_outbound_subnet_name     = var.resolver_outbound_subnet_name01
   resolver_outbound_subnet_address  = var.resolver_outbound_subnet_address01
   private_resolver_name             = var.private_resolver_name01
-  shared_vnet_dns_servers           = var.shared_vnet01_dns
   dns_forwarder_ip                  = var.dns_forwarder_ip
 
   # Compute

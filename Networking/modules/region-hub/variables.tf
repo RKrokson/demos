@@ -228,11 +228,6 @@ variable "private_resolver_name" {
   default     = "resolver"
 }
 
-variable "shared_vnet_dns_servers" {
-  description = "Custom DNS server IPs to set on the shared VNet (typically the resolver inbound IP)"
-  type        = list(string)
-}
-
 variable "dns_forwarder_ip" {
   description = "IP address of the external DNS forwarder used in DNS resolver forwarding rules"
   type        = string
