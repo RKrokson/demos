@@ -100,3 +100,7 @@ output "dns_inbound_endpoint00_ip" {
   description = "The IP address of the DNS resolver inbound endpoint for region 0 (null if Private DNS is not deployed)"
   value       = module.region0.dns_inbound_endpoint_ip
 }
+output "firewall_private_ip00" {
+  description = "The private IP of the Azure Firewall in region 0 (null if firewall is not deployed)"
+  value       = module.region0.firewall_private_ip
+}

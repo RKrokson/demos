@@ -109,11 +109,6 @@ variable "azurerm_virtual_hub_connection_vhub00_to_shared00" {
   type        = string
   default     = "vhub00-to-shared00"
 }
-variable "shared_vnet00_dns" {
-  description = "Virtual Network DNS Servers"
-  type        = list(string)
-  default     = ["172.20.16.4"]
-}
 variable "shared_subnet_name00" {
   description = "Virtual Network Shared Subnet Name"
   type        = string
@@ -335,11 +330,6 @@ variable "dns_vnet_address_space01" {
   description = "DNS resolver VNet address space for Region 1"
   type        = list(string)
   default     = ["172.21.16.0/20"]
-}
-variable "shared_vnet01_dns" {
-  description = "Virtual Network DNS Servers"
-  type        = list(string)
-  default     = ["172.21.16.4"]
 }
 variable "shared_subnet_name01" {
   description = "Virtual Network Shared Subnet Name"
