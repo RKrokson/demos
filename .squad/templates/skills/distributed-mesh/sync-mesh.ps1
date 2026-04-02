@@ -34,7 +34,7 @@ if ($Init) {
         
         $summaryPath = "$squad/SUMMARY.md"
         if (-not (Test-Path $summaryPath)) {
-            "# $squad`n`n_No state published yet._" | Set-Content $summaryPath
+            "# $squad`n`n_No state published yet._" | Set-Content $summaryPath -Encoding utf8
             Write-Host "  ✓ Created $summaryPath"
         } else {
             Write-Host "  • $summaryPath exists (skipped)"
