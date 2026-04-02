@@ -82,9 +82,12 @@ foreach ($entry in $config.squads.PSObject.Properties | Where-Object { $_.Value.
 
     if (Test-Path "$target/.git") {
         Push-Location $target
-        git pull --rebase --quiet 2>$null
-        $pullExit = $LASTEXITCODE
-        Pop-Location
+        try {
+            git pull --rebase --quiet 2>$null
+            $pullExit = $LASTEXITCODE
+        } finally {
+            Pop-Location
+        }
         if ($pullExit -ne 0) { Write-Host "⚠ ${squad}: pull failed (using stale)" }
     } else {
         New-Item -ItemType Directory -Force -Path (Split-Path $target -Parent) | Out-Null
