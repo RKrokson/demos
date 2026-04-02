@@ -36,4 +36,4 @@ Each region uses a `/16` supernet divided into `/20` blocks. Region 0 uses `172.
 
 ## vHub Address Prefixes
 
-Virtual Hub address prefixes use a separate `10.30.x.x/23` range and do not conflict with spoke VNet addressing.
+Virtual Hub address prefixes use a separate `172.30.x.x/23` range and do not conflict with spoke VNet addressing.

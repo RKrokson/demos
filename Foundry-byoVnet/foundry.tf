@@ -54,7 +54,7 @@ resource "azapi_resource" "foundry" {
   }
 }
 
-## Create a deployment for OpenAI's GPT-4o in the AI Foundry resource
+## Create a deployment for OpenAI's GPT-5.4 (2026-03-05) in the AI Foundry resource
 ##
 resource "azurerm_cognitive_deployment" "aifoundry_deployment_gpt_4o" {
   name                 = var.gpt_model_deployment_name

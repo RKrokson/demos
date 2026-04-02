@@ -43,6 +43,13 @@ terraform apply
 | `private_endpoint_subnet_address` | `list(string)` | `["172.20.33.0/24"]`        | Private endpoint subnet address           |
 | `connect_to_vhub`                 | `bool`         | `true`                      | Connect AI spoke VNet to platform vHub    |
 | `enable_dns_link`                 | `bool`         | `false`                     | Link VNet to platform DNS resolver policy |
+| `gpt_model_deployment_name`       | `string`       | `"gpt-5.4"`                 | Name of the GPT model deployment          |
+| `gpt_model_name`                  | `string`       | `"gpt-5.4"`                 | GPT model name                            |
+| `gpt_model_version`               | `string`       | `"2026-03-05"`              | GPT model version                         |
+| `gpt_model_sku_name`              | `string`       | `"GlobalStandard"`          | SKU name for the GPT model deployment     |
+| `gpt_model_capacity`              | `number`       | `1`                         | Capacity units for the GPT deployment     |
+| `ai_search_sku`                   | `string`       | `"standard"`                | SKU for the AI Search service             |
+| `foundry_sku`                     | `string`       | `"S0"`                      | SKU for the AI Foundry account            |
 
 ## Outputs
 
