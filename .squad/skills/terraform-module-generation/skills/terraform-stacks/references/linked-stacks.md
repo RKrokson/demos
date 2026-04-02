@@ -6,7 +6,7 @@ Complete reference for linking Terraform Stacks together using published outputs
 
 Exports outputs from a Stack for consumption by other Stacks (linked Stacks).
 
-###Syntax
+### Syntax
 
 ```hcl
 publish_output "<output_name>" {
