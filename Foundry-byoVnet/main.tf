@@ -22,6 +22,15 @@ data "terraform_remote_state" "networking" {
   }
 }
 
+# Precondition: Private DNS must be deployed in the Networking module
+# The Foundry ALZ requires DNS zone IDs and resolver policy for private endpoint resolution
+check "dns_prerequisite" {
+  assert {
+    condition     = data.terraform_remote_state.networking.outputs.dns_server_ip00 != null
+    error_message = "Private DNS must be enabled in the Networking module (add_private_dns00 = true) before deploying this landing zone. DNS zones and resolver are required for private endpoint resolution."
+  }
+}
+
 ## Create a resource group for AI Foundry resources
 ##
 resource "azurerm_resource_group" "rg-ai00" {

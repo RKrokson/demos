@@ -111,7 +111,7 @@ resource "azurerm_private_endpoint" "pe-foundry" {
   }
 }
 
-## Create a deployment for OpenAI's GPT-4o in the Foundry resource
+## Create a deployment for OpenAI's GPT-5.4 (2026-03-05) in the Foundry resource
 ##
 resource "azurerm_cognitive_deployment" "foundry_deployment_gpt_4o" {
   name                 = var.gpt_model_deployment_name

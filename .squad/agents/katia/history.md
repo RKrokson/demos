@@ -90,3 +90,16 @@
   - **DNS verification required:** `enable_dns_link` must be `true` for Container Apps to resolve private DNS.
   - **Workarounds rejected:** `network_acl_bypass` and `public_network_access_enabled = true` on Cosmos DB are NOT in the reference template and weaken security.
   - Full findings written to `.squad/decisions/inbox/katia-byovnet-limitations.md`.
+- **2026-07-15 (pre-push-validation):** Final 6-check validation before pushing squads branch. **All 6 checks PASS (2 with observations).**
+  - (1) Output-to-input contract: PASS — All 15 Networking outputs consumed by Foundry modules exist with correct types. Unique outputs per module: byoVnet uses 12, managedVnet uses 15 (adds file/table/queue DNS zones). `rg_net00_name` is defined but not consumed (reserved for future use, not a bug).
+  - (2) Variable defaults: PASS — All variables across all 3 modules have sensible defaults. No required variables missing from .example files. All boolean toggles default to `false`.
+  - (3) .gitignore: PASS — `*.tfstate`, `*.tfstate.*`, `**/.terraform/*`, `*.tfvars` all properly ignored. Verified zero state files, zero tfvars files tracked in git. `.terraform.lock.hcl` files correctly committed (reproducible builds).
+  - (4) Example files: PASS — All 3 modules have terraform.tfvars.example. Networking also has terraform.tfvars.advanced.example covering all overridable settings. Both Foundry examples include prerequisite note ("Requires Networking module deployed first").
+  - (5) Edge case — Foundry without Networking: PASS — terraform_remote_state fails with clear "no state file found" error. Example files document the dependency. Error is self-explanatory.
+  - (6) File structure: PASS — No stale .tf files. Child module clean (3 files). docs/ has 4 design docs including nat-gateway-design.md (Proposed status, legitimate content).
+  - `terraform fmt -check`: PASS — zero drift across all 3 modules (recursive).
+  - `terraform validate`: PASS — all 3 modules valid. Foundry-managedVnet has pre-existing `ignore_changes` warning (provider-side, not actionable).
+  - **OBSERVATION (non-blocking, MEDIUM):** Both Foundry modules consume `dns_resolver_policy00_id`, `dns_server_ip00`, and all DNS zone outputs unconditionally. These outputs are null when Networking is deployed without `add_private_dns00 = true`. Using null as `parent_id` for the DNS policy VNet link or null IDs in `private_dns_zone_ids` lists will cause cryptic crashes at plan time. Practically, Foundry modules require private DNS to function (PE resolution), so this is a user config error — but a count guard or precondition block would improve UX.
+  - **OBSERVATION (non-blocking, LOW):** Both Foundry modules use `time_sleep` but don't declare `hashicorp/time` in required_providers. Works via implicit resolution (lock file has it), but the provider version is not pinned.
+  - **OBSERVATION (non-blocking, INFO):** 4 uncommitted README/doc changes present in working tree (Networking/README.md, both Foundry READMEs, docs/ip-addressing.md with correct vHub prefix fix 10.30→172.30). These should be committed before push.
+  - **Verdict:** PASS — Squads branch is clean and ready to push. No blocking issues. Two non-blocking observations for future improvement (DNS null guards, time provider pin).

@@ -67,6 +67,8 @@ Application landing zones consume these outputs via `terraform_remote_state`. Th
 | `dns_zone_services_ai_id`       | Private DNS Zone ID for `privatelink.services.ai.azure.com`                |
 | `dns_zone_search_id`            | Private DNS Zone ID for `privatelink.search.windows.net`                   |
 | `dns_zone_documents_id`         | Private DNS Zone ID for `privatelink.documents.azure.com`                  |
+| `firewall_private_ip00`         | The private IP of Azure Firewall in region 0 (null if firewall not deployed) |
+| `dns_server_ip00`               | DNS server IP for spoke VNets — firewall IP when deployed, otherwise DNS resolver inbound IP |
 
 DNS zone outputs are null when `add_private_dns00 = false`.
 

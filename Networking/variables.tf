@@ -388,11 +388,6 @@ variable "resolver_outbound_subnet_address01" {
   default     = ["172.21.16.16/28"]
 }
 ## Bastion conditional variables for region 1
-variable "bastion_subnet_name01" {
-  description = "Virtual Network Bastion Subnet Name"
-  type        = string
-  default     = "AzureBastionSubnet"
-}
 variable "bastion_pip_name01" {
   description = "Bastion Public IP Name"
   type        = string

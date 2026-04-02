@@ -46,17 +46,24 @@ terraform apply
 | `private_endpoint_subnet_address` | `list(string)` | `["172.20.49.0/24"]`        | Private endpoint subnet address           |
 | `connect_to_vhub`                 | `bool`         | `true`                      | Connect AI spoke VNet to platform vHub    |
 | `enable_dns_link`                 | `bool`         | `false`                     | Link VNet to platform DNS resolver policy |
+| `gpt_model_deployment_name`       | `string`       | `"gpt-5.4"`                 | Name of the GPT model deployment          |
+| `gpt_model_name`                  | `string`       | `"gpt-5.4"`                 | GPT model name                            |
+| `gpt_model_version`               | `string`       | `"2026-03-05"`              | GPT model version                         |
+| `gpt_model_sku_name`              | `string`       | `"GlobalStandard"`          | SKU name for the GPT model deployment     |
+| `gpt_model_capacity`              | `number`       | `1`                         | Capacity units for the GPT deployment     |
+| `ai_search_sku`                   | `string`       | `"standard"`                | SKU for the AI Search service             |
+| `foundry_sku`                     | `string`       | `"S0"`                      | SKU for the AI Foundry account            |
 
 ## Outputs
 
-| Output Name           | Description                          |
-| --------------------- | ------------------------------------ |
-| `resource_group_id`   | The ID of the Foundry resource group |
-| `foundry_id`          | The ID of the Foundry account        |
-| `foundry_project_id`  | The ID of the Foundry project        |
-| `storage_account_id`  | The ID of the Storage Account        |
-| `cosmosdb_account_id` | The ID of the Cosmos DB account      |
-| `ai_search_id`        | The ID of the AI Search service      |
+| Output Name             | Description                          |
+| ----------------------- | ------------------------------------ |
+| `resource_group_id`     | The ID of the Foundry resource group |
+| `ai_foundry_id`         | The ID of the AI Foundry account     |
+| `ai_foundry_project_id` | The ID of the AI Foundry project     |
+| `storage_account_id`    | The ID of the Storage Account        |
+| `cosmosdb_account_id`   | The ID of the Cosmos DB account      |
+| `ai_search_id`          | The ID of the AI Search service      |
 
 ## Cleanup Steps
 
