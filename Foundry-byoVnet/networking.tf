@@ -28,10 +28,11 @@ resource "azurerm_subnet" "ai_foundry_subnet" {
 
 # Private endpoint subnet
 resource "azurerm_subnet" "private_endpoint_subnet" {
-  name                 = "${var.private_endpoint_subnet_name}-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}"
-  resource_group_name  = azurerm_resource_group.rg-ai00.name
-  virtual_network_name = azurerm_virtual_network.ai_vnet.name
-  address_prefixes     = var.private_endpoint_subnet_address
+  name                            = "${var.private_endpoint_subnet_name}-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}"
+  resource_group_name             = azurerm_resource_group.rg-ai00.name
+  virtual_network_name            = azurerm_virtual_network.ai_vnet.name
+  address_prefixes                = var.private_endpoint_subnet_address
+  default_outbound_access_enabled = !data.terraform_remote_state.networking.outputs.add_firewall00
 }
 
 # NSG for private endpoint subnet (default-deny inbound)
@@ -49,23 +50,20 @@ resource "azurerm_subnet_network_security_group_association" "pe_subnet_nsg_asso
 
 # Connect AI spoke VNet to vHub
 resource "azurerm_virtual_hub_connection" "vhub_connection_to_ai" {
-  count                     = var.connect_to_vhub ? 1 : 0
   name                      = "vhub00-to-${var.ai_vnet_name}-${random_string.unique.result}"
   virtual_hub_id            = data.terraform_remote_state.networking.outputs.vhub00_id
   remote_virtual_network_id = azurerm_virtual_network.ai_vnet.id
   internet_security_enabled = data.terraform_remote_state.networking.outputs.add_firewall00
 }
 
-# Custom DNS servers on VNet — uses firewall IP when deployed, otherwise resolver inbound endpoint
+# Custom DNS servers on VNet — platform decides the IP (firewall or resolver)
 resource "azurerm_virtual_network_dns_servers" "ai_vnet_dns" {
-  count              = var.enable_dns_link ? 1 : 0
   virtual_network_id = azurerm_virtual_network.ai_vnet.id
-  dns_servers        = data.terraform_remote_state.networking.outputs.add_firewall00 ? [data.terraform_remote_state.networking.outputs.firewall_private_ip00] : [data.terraform_remote_state.networking.outputs.dns_inbound_endpoint00_ip]
+  dns_servers        = [data.terraform_remote_state.networking.outputs.dns_server_ip00]
 }
 
 # Link VNet to DNS resolver policy
 resource "azapi_resource" "dns_security_policy_ai_vnet_link" {
-  count     = var.enable_dns_link ? 1 : 0
   type      = "Microsoft.Network/dnsResolverPolicies/virtualNetworkLinks@2023-07-01-preview"
   name      = "vnet-link-to-dns-policy-${var.ai_vnet_name}-${random_string.unique.result}"
   parent_id = data.terraform_remote_state.networking.outputs.dns_resolver_policy00_id

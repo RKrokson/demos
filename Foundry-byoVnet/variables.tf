@@ -37,32 +37,21 @@ variable "private_endpoint_subnet_address" {
   type        = list(string)
   default     = ["172.20.33.0/24"]
 }
-variable "connect_to_vhub" {
-  description = "Whether to connect the AI spoke VNet to the platform vHub"
-  type        = bool
-  default     = true
-}
-variable "enable_dns_link" {
-  description = "Whether to link the AI spoke VNet to the platform DNS resolver policy (requires Private DNS deployed in Networking)"
-  type        = bool
-  default     = false
-}
-
 ## GPT model deployment variables
 variable "gpt_model_deployment_name" {
   description = "Name of the GPT model deployment in AI Foundry"
   type        = string
-  default     = "gpt-4o"
+  default     = "gpt-5.4"
 }
 variable "gpt_model_name" {
   description = "GPT model name"
   type        = string
-  default     = "gpt-4o"
+  default     = "gpt-5.4"
 }
 variable "gpt_model_version" {
   description = "GPT model version"
   type        = string
-  default     = "2024-11-20"
+  default     = "2026-03-05"
 }
 variable "gpt_model_sku_name" {
   description = "SKU name for the GPT model deployment"

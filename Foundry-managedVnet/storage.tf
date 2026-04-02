@@ -38,6 +38,10 @@ resource "azurerm_storage_account" "storage_account" {
 
 # Private Endpoint for Blob
 resource "azurerm_private_endpoint" "pe-storage-blob" {
+  # Sequential PE creation required — parallel creation causes subnet update races
+  # and account provisioning timing issues on fresh deploys. PG-validated pattern.
+  depends_on = [azurerm_private_endpoint.pe-cosmosdb]
+
   name                = "${azurerm_storage_account.storage_account.name}-pe-blob"
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location
@@ -62,6 +66,8 @@ resource "azurerm_private_endpoint" "pe-storage-blob" {
 
 # Private Endpoint for File
 resource "azurerm_private_endpoint" "pe-storage_file" {
+  depends_on = [azurerm_private_endpoint.pe-storage-blob]
+
   name                = "${azurerm_storage_account.storage_account.name}-pe-file"
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location
@@ -85,6 +91,8 @@ resource "azurerm_private_endpoint" "pe-storage_file" {
 
 # Private Endpoint for Table
 resource "azurerm_private_endpoint" "pe-storage_table" {
+  depends_on = [azurerm_private_endpoint.pe-storage_file]
+
   name                = "${azurerm_storage_account.storage_account.name}-pe-table"
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location
@@ -108,6 +116,8 @@ resource "azurerm_private_endpoint" "pe-storage_table" {
 
 # Private Endpoint for Queue
 resource "azurerm_private_endpoint" "pe-storage_queue" {
+  depends_on = [azurerm_private_endpoint.pe-storage_table]
+
   name                = "${azurerm_storage_account.storage_account.name}-pe-queue"
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location

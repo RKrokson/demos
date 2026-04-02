@@ -53,17 +53,19 @@ resource "azurerm_virtual_network" "shared_vnet" {
 }
 
 resource "azurerm_subnet" "shared_subnet" {
-  name                 = "${var.shared_subnet_name}-${var.shared_vnet_name}-${var.region_abbr}"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = azurerm_virtual_network.shared_vnet.name
-  address_prefixes     = var.shared_subnet_address
+  name                            = "${var.shared_subnet_name}-${var.shared_vnet_name}-${var.region_abbr}"
+  resource_group_name             = var.resource_group_name
+  virtual_network_name            = azurerm_virtual_network.shared_vnet.name
+  address_prefixes                = var.shared_subnet_address
+  default_outbound_access_enabled = !var.add_firewall
 }
 
 resource "azurerm_subnet" "app_subnet" {
-  name                 = "${var.app_subnet_name}-${var.shared_vnet_name}-${var.region_abbr}"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = azurerm_virtual_network.shared_vnet.name
-  address_prefixes     = var.app_subnet_address
+  name                            = "${var.app_subnet_name}-${var.shared_vnet_name}-${var.region_abbr}"
+  resource_group_name             = var.resource_group_name
+  virtual_network_name            = azurerm_virtual_network.shared_vnet.name
+  address_prefixes                = var.app_subnet_address
+  default_outbound_access_enabled = !var.add_firewall
 }
 
 resource "azurerm_subnet" "bastion_subnet" {
