@@ -22,8 +22,9 @@ resource "azapi_resource" "foundry" {
 
     properties = {
 
-      # Require Entra ID (RBAC) authentication — local API key auth is disabled
-      disableLocalAuth = true
+      # Must remain false for BYO VNet — the Foundry Agent proxy requires local auth
+      # for internal communication. See PG reference: 15b-private-network-standard-agent-setup-byovnet
+      disableLocalAuth = false
 
       # Specifies that this is an AI Foundry resource
       allowProjectManagement = true
@@ -34,8 +35,11 @@ resource "azapi_resource" "foundry" {
       # Network-related controls
       # Disable public access but allow Trusted Azure Services exception
       publicNetworkAccess = "Disabled"
+      # defaultAction must be "Allow" with publicNetworkAccess "Disabled" — this combo
+      # blocks external callers while preserving internal first-party service access
+      # required by the Foundry Agent proxy. See PG reference: 15b-private-network-standard-agent-setup-byovnet
       networkAcls = {
-        defaultAction = "Deny"
+        defaultAction = "Allow"
       }
 
       # Enable VNet injection for Standard Agents
@@ -71,6 +75,8 @@ resource "azurerm_cognitive_deployment" "aifoundry_deployment_gpt_4o" {
 ## Create Private Endpoint for AI Foundry (Cognitive Services)
 ##
 resource "azurerm_private_endpoint" "pe-aifoundry" {
+  depends_on = [azurerm_private_endpoint.pe-aisearch]
+
   name                = "${azapi_resource.foundry.name}-private-endpoint"
   resource_group_name = azurerm_resource_group.rg-ai00.name
   location            = azurerm_resource_group.rg-ai00.location

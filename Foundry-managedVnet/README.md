@@ -1,4 +1,7 @@
-# Application Landing Zone — AI Foundry (Managed VNet)
+# Application Landing Zone — AI Foundry (Managed VNet) - preview
+
+> [!WARNING]
+> **This deployment is a work in progress.** It's in preview and may not be in a working state at any given time. Expect breaking changes, incomplete features, or failed applies. Use it to experiment, not to depend on.
 
 This is an optional application landing zone. It deploys AI Foundry with AI Agent Service and private endpoints in a Microsoft-managed VNet. You do not need to deploy this to use the Networking module on its own.
 
@@ -32,28 +35,28 @@ terraform apply
 
 ## Variables
 
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `resource_group_name_ai01` | `string` | `"rg-ai01"` | Resource Group Name |
-| `ai_vnet_name` | `string` | `"ai-vnet"` | AI spoke VNet name |
-| `ai_vnet_address_space` | `list(string)` | `["172.20.48.0/20"]` | AI spoke VNet address space |
-| `ai_foundry_subnet_name` | `string` | `"ai-foundry-subnet"` | Foundry workload subnet name |
-| `ai_foundry_subnet_address` | `list(string)` | `["172.20.48.0/26"]` | Foundry workload subnet address |
-| `private_endpoint_subnet_name` | `string` | `"private-endpoint-subnet"` | Private endpoint subnet name |
-| `private_endpoint_subnet_address` | `list(string)` | `["172.20.49.0/24"]` | Private endpoint subnet address |
-| `connect_to_vhub` | `bool` | `true` | Connect AI spoke VNet to platform vHub |
-| `enable_dns_link` | `bool` | `false` | Link VNet to platform DNS resolver policy |
+| Variable                          | Type           | Default                     | Description                               |
+| --------------------------------- | -------------- | --------------------------- | ----------------------------------------- |
+| `resource_group_name_ai01`        | `string`       | `"rg-ai01"`                 | Resource Group Name                       |
+| `ai_vnet_name`                    | `string`       | `"ai-vnet"`                 | AI spoke VNet name                        |
+| `ai_vnet_address_space`           | `list(string)` | `["172.20.48.0/20"]`        | AI spoke VNet address space               |
+| `ai_foundry_subnet_name`          | `string`       | `"ai-foundry-subnet"`       | Foundry workload subnet name              |
+| `ai_foundry_subnet_address`       | `list(string)` | `["172.20.48.0/26"]`        | Foundry workload subnet address           |
+| `private_endpoint_subnet_name`    | `string`       | `"private-endpoint-subnet"` | Private endpoint subnet name              |
+| `private_endpoint_subnet_address` | `list(string)` | `["172.20.49.0/24"]`        | Private endpoint subnet address           |
+| `connect_to_vhub`                 | `bool`         | `true`                      | Connect AI spoke VNet to platform vHub    |
+| `enable_dns_link`                 | `bool`         | `false`                     | Link VNet to platform DNS resolver policy |
 
 ## Outputs
 
-| Output Name | Description |
-|---|---|
-| `resource_group_id` | The ID of the Foundry resource group |
-| `foundry_id` | The ID of the Foundry account |
-| `foundry_project_id` | The ID of the Foundry project |
-| `storage_account_id` | The ID of the Storage Account |
-| `cosmosdb_account_id` | The ID of the Cosmos DB account |
-| `ai_search_id` | The ID of the AI Search service |
+| Output Name           | Description                          |
+| --------------------- | ------------------------------------ |
+| `resource_group_id`   | The ID of the Foundry resource group |
+| `foundry_id`          | The ID of the Foundry account        |
+| `foundry_project_id`  | The ID of the Foundry project        |
+| `storage_account_id`  | The ID of the Storage Account        |
+| `cosmosdb_account_id` | The ID of the Cosmos DB account      |
+| `ai_search_id`        | The ID of the AI Search service      |
 
 ## Cleanup Steps
 

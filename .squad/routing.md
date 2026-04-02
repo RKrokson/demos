@@ -11,6 +11,7 @@ How to decide who handles what.
 | Code review | Carl | Review Terraform changes, check best practices, approve architecture |
 | Documentation | Mordecai | README updates, copilot-instructions, landing zone onboarding guides |
 | Validation | Katia | terraform validate, plan review, drift detection, edge cases, security checks |
+| Cloud security | SystemAI | Security review, threat assessment, Azure security posture, IAM, networking security |
 | Best practices | Carl + Donut | Terraform & Azure best practices — Carl decides, Donut implements |
 | Landing zone extensions | Carl | Strategy and design for new optional application landing zones |
 | Scope & priorities | Carl | What to build next, trade-offs, decisions |

@@ -16,6 +16,7 @@
 | Donut | Infra Dev | `.squad/agents/donut/charter.md` | ⚙️ Active |
 | Mordecai | Docs | `.squad/agents/mordecai/charter.md` | 📝 Active |
 | Katia | Validator | `.squad/agents/katia/charter.md` | 🧪 Active |
+| SystemAI | Cloud Security | `.squad/agents/systemai/charter.md` | 🔒 Active |
 | Scribe | Session Logger | `.squad/agents/scribe/charter.md` | 📋 Active |
 | Ralph | Work Monitor | — | 🔄 Monitor |
 

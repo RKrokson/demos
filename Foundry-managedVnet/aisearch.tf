@@ -27,11 +27,7 @@ resource "azapi_resource" "ai_search" {
 
       # Identity-related controls
       disableLocalAuth = true
-      authOptions = {
-        aadOrApiKey = {
-          aadAuthFailureMode = "http401WithBearerChallenge"
-        }
-      }
+
       # Networking-related controls
       publicNetworkAccess = "disabled"
       networkRuleSet = {
@@ -42,6 +38,8 @@ resource "azapi_resource" "ai_search" {
 }
 
 resource "azurerm_private_endpoint" "pe-aisearch" {
+  depends_on = [azurerm_private_endpoint.pe-storage_queue]
+
   name                = "${azapi_resource.ai_search.name}-private-endpoint"
   resource_group_name = azurerm_resource_group.rg-ai01.name
   location            = azurerm_resource_group.rg-ai01.location

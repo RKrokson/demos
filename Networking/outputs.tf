@@ -104,3 +104,7 @@ output "firewall_private_ip00" {
   description = "The private IP of the Azure Firewall in region 0 (null if firewall is not deployed)"
   value       = module.region0.firewall_private_ip
 }
+output "dns_server_ip00" {
+  description = "The DNS server IP for spoke VNets in region 0 — firewall IP when deployed (DNS proxy), otherwise DNS resolver inbound endpoint IP"
+  value       = var.add_firewall00 ? module.region0.firewall_private_ip : module.region0.dns_inbound_endpoint_ip
+}

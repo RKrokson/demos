@@ -30,6 +30,10 @@ resource "azurerm_storage_account" "storage_account" {
 ## Create Private Endpoint for storage
 ##
 resource "azurerm_private_endpoint" "pe-storage" {
+  # Sequential PE creation required — parallel creation causes subnet update races
+  # and account provisioning timing issues on fresh deploys. PG-validated pattern.
+  depends_on = [azurerm_private_endpoint.pe-cosmosdb]
+
   name                = "${azurerm_storage_account.storage_account.name}-private-endpoint"
   resource_group_name = azurerm_resource_group.rg-ai00.name
   location            = azurerm_resource_group.rg-ai00.location

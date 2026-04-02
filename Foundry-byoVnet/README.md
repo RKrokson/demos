@@ -2,7 +2,7 @@
 
 This is an optional application landing zone. It deploys AI Foundry with AI Agent Service and private endpoints into its own spoke VNet. The module creates the VNet, subnets, and hub connection. You do not need to deploy this to use the Networking module on its own.
 
-This module is based on the [PG-validated Terraform sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/15b-private-network-standard-agent-setup-byovnet), modified to pull network dependencies from the platform landing zone via `terraform_remote_state`.
+This module is based on the [validated Terraform sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/15b-private-network-standard-agent-setup-byovnet), modified to pull network dependencies from the platform landing zone via `terraform_remote_state`.
 
 "Secure" refers to the use of private endpoints. Local auth (API keys) is disabled on AI Search and Cognitive Services (`disableLocalAuth = true`). All access requires Entra ID authentication.
 
@@ -32,28 +32,28 @@ terraform apply
 
 ## Variables
 
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `resource_group_name_ai00` | `string` | `"rg-ai00"` | Resource Group Name |
-| `ai_vnet_name` | `string` | `"ai-vnet"` | AI spoke VNet name |
-| `ai_vnet_address_space` | `list(string)` | `["172.20.32.0/20"]` | AI spoke VNet address space |
-| `ai_foundry_subnet_name` | `string` | `"ai-foundry-subnet"` | Foundry workload subnet name |
-| `ai_foundry_subnet_address` | `list(string)` | `["172.20.32.0/26"]` | Foundry workload subnet address |
-| `private_endpoint_subnet_name` | `string` | `"private-endpoint-subnet"` | Private endpoint subnet name |
-| `private_endpoint_subnet_address` | `list(string)` | `["172.20.33.0/24"]` | Private endpoint subnet address |
-| `connect_to_vhub` | `bool` | `true` | Connect AI spoke VNet to platform vHub |
-| `enable_dns_link` | `bool` | `false` | Link VNet to platform DNS resolver policy |
+| Variable                          | Type           | Default                     | Description                               |
+| --------------------------------- | -------------- | --------------------------- | ----------------------------------------- |
+| `resource_group_name_ai00`        | `string`       | `"rg-ai00"`                 | Resource Group Name                       |
+| `ai_vnet_name`                    | `string`       | `"ai-vnet"`                 | AI spoke VNet name                        |
+| `ai_vnet_address_space`           | `list(string)` | `["172.20.32.0/20"]`        | AI spoke VNet address space               |
+| `ai_foundry_subnet_name`          | `string`       | `"ai-foundry-subnet"`       | Foundry workload subnet name              |
+| `ai_foundry_subnet_address`       | `list(string)` | `["172.20.32.0/26"]`        | Foundry workload subnet address           |
+| `private_endpoint_subnet_name`    | `string`       | `"private-endpoint-subnet"` | Private endpoint subnet name              |
+| `private_endpoint_subnet_address` | `list(string)` | `["172.20.33.0/24"]`        | Private endpoint subnet address           |
+| `connect_to_vhub`                 | `bool`         | `true`                      | Connect AI spoke VNet to platform vHub    |
+| `enable_dns_link`                 | `bool`         | `false`                     | Link VNet to platform DNS resolver policy |
 
 ## Outputs
 
-| Output Name | Description |
-|---|---|
-| `resource_group_id` | The ID of the AI Foundry resource group |
-| `ai_foundry_id` | The ID of the AI Foundry account |
-| `ai_foundry_project_id` | The ID of the AI Foundry project |
-| `storage_account_id` | The ID of the Storage Account |
-| `cosmosdb_account_id` | The ID of the Cosmos DB account |
-| `ai_search_id` | The ID of the AI Search service |
+| Output Name             | Description                             |
+| ----------------------- | --------------------------------------- |
+| `resource_group_id`     | The ID of the AI Foundry resource group |
+| `ai_foundry_id`         | The ID of the AI Foundry account        |
+| `ai_foundry_project_id` | The ID of the AI Foundry project        |
+| `storage_account_id`    | The ID of the Storage Account           |
+| `cosmosdb_account_id`   | The ID of the Cosmos DB account         |
+| `ai_search_id`          | The ID of the AI Search service         |
 
 ## Cleanup Steps
 

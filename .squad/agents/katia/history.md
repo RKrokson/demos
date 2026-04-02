@@ -83,3 +83,10 @@
   - **Architecture note:** The child module includes `required_providers` block for azurerm and azapi (source only, no version constraints) — correct pattern for child modules that inherit provider config from root.
   - **Validation blocks preserved:** Hub CIDR validation, firewall SKU tier validation, and bastion SKU validation all present in child module variables.tf.
   - **Verdict:** PASS — Region child module implementation is clean, correct, and well-structured. No duplicate resources, proper output chaining, tags applied everywhere, and conditionals use module-scoped variables.
+- **2026-07-15 (byovnet-403-research):** Researched Agents blade 403 from Cosmos DB in BYO VNet deployment. Key findings:
+  - **Public endpoints are NOT required** — official docs and reference template (15b) confirm fully-private architecture with `public_network_access_enabled = false` and no `network_acl_bypass` on Cosmos DB.
+  - **Root cause identified:** Our module sets `networkAcls.defaultAction = "Deny"` on the Foundry resource (`foundry.tf:38`), but the reference template uses `"Allow"`. This blocks trusted Azure services from bypassing network rules on the Foundry resource, preventing the agent platform from functioning.
+  - **Secondary difference:** `disableLocalAuth = true` on Foundry resource vs `false` in reference. Lower-probability cause.
+  - **DNS verification required:** `enable_dns_link` must be `true` for Container Apps to resolve private DNS.
+  - **Workarounds rejected:** `network_acl_bypass` and `public_network_access_enabled = true` on Cosmos DB are NOT in the reference template and weaken security.
+  - Full findings written to `.squad/decisions/inbox/katia-byovnet-limitations.md`.
