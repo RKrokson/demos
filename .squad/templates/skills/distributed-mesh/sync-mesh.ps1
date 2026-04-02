@@ -81,8 +81,11 @@ foreach ($entry in $config.squads.PSObject.Properties | Where-Object { $_.Value.
     $target = $entry.Value.sync_to
 
     if (Test-Path "$target/.git") {
-        git -C $target pull --rebase --quiet 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Host "⚠ ${squad}: pull failed (using stale)" }
+        Push-Location $target
+        git pull --rebase --quiet 2>$null
+        $pullExit = $LASTEXITCODE
+        Pop-Location
+        if ($pullExit -ne 0) { Write-Host "⚠ ${squad}: pull failed (using stale)" }
     } else {
         New-Item -ItemType Directory -Force -Path (Split-Path $target -Parent) | Out-Null
         git clone --quiet --depth 1 --branch $ref $source $target 2>$null
