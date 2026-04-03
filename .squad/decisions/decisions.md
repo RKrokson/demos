@@ -500,3 +500,194 @@ Added both as child module variables with defaults matching the root-level defau
 ### Impact
 
 No user-facing changes. The child module variable interface is slightly larger than Carl's design specified, but functionally necessary. No new root-level variables added.
+
+---
+
+## Decision: README Polish — Variable Tables & Scannable Formatting (2026-04-02)
+
+**Decided By:** Mordecai (Documentation)  
+**Status:** Implemented  
+
+### Problem
+
+Ryan requested: "Do another review of the READMEs for polish and jazz hands. Don't put anyone to sleep."
+
+Specific feedback:
+- Variable tables bloated with 13-16 rows, duplicating information in `variables.tf`
+- READMEs are reference docs, not entry points
+- Prose too verbose, passive voice, repetition
+
+### Decision
+
+**Three-part approach to READMEs:**
+
+1. **Variables: 5-var spotlight, not exhaustive lists**
+   - Highlight only the 3-5 most important variables
+   - Point readers to `variables.tf` for the complete reference
+   - Removed all 13-16 row variable tables from all 4 READMEs
+   - Focused on VNet ranges, resource group names, toggles — the config that matters on day 1
+
+2. **Outputs: Essential reference only**
+   - Collapsed 20-row outputs table in Networking to 6-row "quick reference"
+   - Pointed to full list in `outputs.tf`
+   - Both Foundry modules simplified similarly
+
+3. **Prose: Scannable, active voice**
+   - Replaced verbose section intros with concise single sentences
+   - Cut redundant explanations (e.g., "must apply first" repeated verbatim)
+   - Merged cleanup/troubleshooting into unified, actionable sections
+   - **Gotchas moved to front** (soft-delete warning in bold) with link
+
+### Rationale
+
+- READMEs are entry points, not source-of-truth docs
+- Terraform variable blocks already document types, defaults, descriptions
+- First-time users need: "What does this do?", "How do I deploy it?", "What breaks?"
+- Not: "Here are all 13 variables in a table"
+- Variables that change are in `.tfvars` examples, not README tables
+
+### Changes Across All READMEs
+
+| Module | Before | After | Metric |
+|--------|--------|-------|--------|
+| Root README | Verbose Getting Started | Streamlined 3-step flow | -50% prose |
+| Networking | 6 variable tables, 20-row outputs, 6 tfvars examples | 1-row toggle summary, focused outputs, 3 example blocks | -40% lines |
+| Foundry-byoVnet | 16-row variables, verbose cleanup | 5-var spotlight, bold gotcha + link | -45% lines |
+| Foundry-managedVnet | 16-row variables, verbose cleanup | 5-var spotlight, bold gotcha + link | -45% lines |
+
+### Implementation Details
+
+- All `variables.tf` files remain unchanged (they are still authoritative)
+- No variable behavior changed — just what READMEs surface
+- Cleanup sections now lead with "⚠️ Gotcha:" in bold
+- Quick Start sections now use `init && apply` (chained commands)
+- Prose tightened: "must be applied first" → "applied first" (cut passive structure)
+
+### Key Insight
+
+**Variable tables belong in variables.tf, not READMEs.**
+
+READMEs answer:
+- What does this deploy?
+- How do I get started?
+- What breaks and how do I fix it?
+- Which 5 variables should I care about?
+
+Terraform blocks answer:
+- What is every variable and its type?
+- What is the default?
+- What is the description?
+
+This decision aligns documentation layers properly.
+
+### Future Impact
+
+- New application landing zones should follow this 5-var highlight model
+- copilot-instructions.md stays current (already follows this pattern for Networking toggles)
+- Adding a new conditional feature: document in toggle table only, let variables.tf cover the rest
+
+---
+
+## README Accuracy Review — April 2026 (2026-04-03)
+
+**Reviewer:** Carl (Lead/Architect)  
+**Date:** 2026-04-03  
+**Status:** APPROVED & IMPLEMENTED
+
+### Findings
+
+#### 1. CRITICAL: Variables Table Documentation Gap — FIXED
+
+**Issue:** Both Foundry module READMEs documented two variables that do **not exist** in variables.tf:
+- `connect_to_vhub` (bool, default `true`)
+- `enable_dns_link` (bool, default `false`)
+
+**Root Cause:** These variables were planned in Decision #7 (AI Landing Zone VNet Migration) when designing the ALZ VNet move from Networking into the Foundry modules. The READMEs were written to document the desired end state, but the implementation hasn't been completed yet.
+
+**Resolution:** Removed these two lines from both README variable tables:
+- Foundry-byoVnet/README.md: Removed lines 44-45
+- Foundry-managedVnet/README.md: Removed lines 44-45
+
+Variable tables now accurately reflect only the 12 variables that exist in each module's variables.tf.
+
+#### 2. DNS Prerequisites — Verified Accurate
+
+**Finding:** Both Foundry modules document that Private DNS zones must be deployed (`add_private_dns00 = true`). This is **CORRECT**.
+
+Both modules unconditionally consume DNS zone IDs from Networking's terraform_remote_state (e.g., `dns_zone_cognitiveservices_id`, `dns_zone_search_id`, `dns_zone_documents_id`). The Foundry-managedVnet/main.tf includes a validation block that explicitly requires DNS to be enabled.
+
+#### 3. IP Addressing — Verified Accurate
+
+**Finding:** Networking/README.md CIDR allocation tables match docs/ip-addressing.md and are **CORRECT**.
+
+- Region 0, Block 2 (172.20.32.0/20): Foundry-byoVnet ✓
+- Region 0, Block 3 (172.20.48.0/20): Foundry-managedVnet ✓
+- Region 1 Blocks 2-3: Reserved for future Foundry deployments ✓
+
+Foundry module default values match allocation. Both modules can be deployed simultaneously without CIDR collision.
+
+#### 4. Deploy/Destroy Order — Verified Accurate
+
+**Finding:** Root README deploy/destroy sequencing is **CORRECT**.
+
+Deploy order: Platform first (Networking), then optional app landing zones (Foundry modules).
+Destroy order: Reverse. Includes critical step to purge soft-deleted AI Foundry resources before destroying Networking (required because subnet service association link blocks deletion).
+
+#### 5. Cost Estimates — Reasonable and Acceptable
+
+**Finding:** Root README cost estimates are illustrative ballpark figures for **single region without optional components** and are **REASONABLE**.
+
+- Azure vWAN: $6/day ($182.50/month) ✓
+- Azure Firewall Premium: $42/day ($1,277.50/month) ✓
+- VM Standard_B2s Windows: $1.19/day ($36.21/month) ✓
+
+These are intentionally generic for a POC/lab environment. Foundry modules (AI Foundry, Cognitive Services, Search, Cosmos DB, Storage) have separate costs not listed here.
+
+#### 6. Provider Versions — Verified Accurate
+
+**Finding:** All provider versions declared in config.tf files match documented strategy and are **CORRECT**.
+
+- Networking: `azurerm >= 4.0, < 5.0`, `azapi >= 2.0, < 3.0`, `random ~> 3.5` ✓
+- Foundry-byoVnet: `azurerm ~> 4.26.0`, `azapi ~> 2.3.0`, `random ~> 3.5` ✓
+- Foundry-managedVnet: `azurerm ~> 4.26.0`, `azapi ~> 2.3.0`, `random ~> 3.5` ✓
+
+#### 7. Architecture Descriptions — Verified Accurate
+
+**Finding:** All landing zone architecture descriptions align with Decision #1 and are **CORRECT**.
+
+- Root README: Clearly frames Networking as platform LZ and Foundry modules as optional app LZs ✓
+- Networking README: Describes platform role (vWAN, hubs, shared connectivity) ✓
+- Foundry READMEs: Describe app LZ role (workload-specific resources, AI Foundry setup) ✓
+- Child module pattern documented for contributors ✓
+
+#### 8. Gotchas & Edge Cases
+
+**Documented Gotchas:**
+1. Foundry soft-delete and purge requirement — documented in root README destroy steps ✓
+2. Azure DHCP lease renewal for custom DNS on VMs — documented in Networking README ✓
+3. Private DNS zone exceptions — documented in Networking README ✓
+
+### Summary
+
+All four READMEs are **architecturally accurate** with the exception of the documented variables that don't exist. This gap has been fixed. No architectural inaccuracies discovered in descriptions, provider versions, IP addressing, cost estimates, prerequisites, or sequencing guidance.
+
+---
+
+## Copilot Directive: README Variables & Engagement (2026-04-03T18:40Z)
+
+**By:** Ryan Krokson (via Copilot)  
+**Status:** ACTIVE GUIDELINE
+
+### Direction
+
+READMEs should **not list all variables** — expect people to check `variables.tf` for that. Keep READMEs polished, engaging, not sleep-inducing.
+
+### Rationale
+
+Variables that change are documented in `variables.tf` with types, defaults, and descriptions. READMEs should focus on user experience: "What?", "How?", "What breaks?" — not exhaustive reference material.
+
+### Implementation
+
+- Highlight 3-5 key variables per module (those that typically require customization on day 1)
+- Point readers to `variables.tf` for complete reference
+- Apply to existing READMEs (completed April 2026) and all future modules
