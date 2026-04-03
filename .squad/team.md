@@ -31,7 +31,7 @@
 
 ## Issue Source
 
-- **Repository:** rkrokson/demos
+- **Repository:** RKrokson/azure-network-platform
 - **Branch:** squads
 - **Connected:** 2026-03-27
 - **Filters:** All open issues

@@ -1,6 +1,6 @@
-# Azure Demo Lab — Infrastructure as Code
+# Azure Network Platform — Landing Zones with Terraform
 
-Terraform modules for deploying Azure networking and AI Foundry lab environments. This repo is for demos and testing, not production.
+Terraform for deploying Azure networking and AI Foundry lab environments. This repo is for POCs and testing, not production.
 
 ## Landing Zone Model
 
@@ -30,15 +30,15 @@ This repo follows a two-tier landing zone pattern:
 
 **Platform Landing Zone** — Shared networking foundation that all workloads depend on.
 
-| Folder | Layer | Description | Docs |
-|---|---|---|---|
+| Folder        | Layer    | Description                                                             | Docs                             |
+| ------------- | -------- | ----------------------------------------------------------------------- | -------------------------------- |
 | `Networking/` | Platform | Azure Virtual WAN, hubs, spoke VNets, optional Firewall and Private DNS | [README](./Networking/README.md) |
 
 **Application Landing Zones** — Optional workloads that plug into the platform. Deploy one or both Foundry modules. Each creates its own spoke VNet with a dedicated address range, so there are no CIDR conflicts. Running both at the same time has not been fully tested.
 
-| Folder | Layer | Description | Docs |
-|---|---|---|---|
-| `Foundry-byoVnet/` | Application | AI Foundry with private endpoints in a BYO VNet | [README](./Foundry-byoVnet/README.md) |
+| Folder                 | Layer       | Description                                                   | Docs                                      |
+| ---------------------- | ----------- | ------------------------------------------------------------- | ----------------------------------------- |
+| `Foundry-byoVnet/`     | Application | AI Foundry with private endpoints in a BYO VNet               | [README](./Foundry-byoVnet/README.md)     |
 | `Foundry-managedVnet/` | Application | AI Foundry with private endpoints in a Microsoft-managed VNet | [README](./Foundry-managedVnet/README.md) |
 
 Future modules will follow the same application landing zone pattern. See the [Adding a New Application Landing Zone](./docs/adding-application-landing-zone.md) guide.
@@ -55,11 +55,13 @@ Future modules will follow the same application landing zone pattern. See the [A
 1. Clone the repo and cd into it.
 
 2. Set your subscription:
+
    ```powershell
    .\setSubscription.ps1
    ```
 
 3. Deploy the platform landing zone:
+
    ```sh
    cd Networking
    terraform init
@@ -102,11 +104,11 @@ This is for demos and labs. Deploy and delete as needed. Don't leave resources r
 
 Rough estimate using Central US, single region:
 
-| Resource | Daily (24h) | Monthly (730h) |
-|---|---|---|
-| Azure vWAN | $6 | $182.50 |
-| Azure Firewall Premium | $42 | $1,277.50 |
-| VM (Standard_B2s w/ Windows) | $1.19 | $36.21 |
+| Resource                     | Daily (24h) | Monthly (730h) |
+| ---------------------------- | ----------- | -------------- |
+| Azure vWAN                   | $6          | $182.50        |
+| Azure Firewall Premium       | $42         | $1,277.50      |
+| VM (Standard_B2s w/ Windows) | $1.19       | $36.21         |
 
 ## Disclaimer
 
