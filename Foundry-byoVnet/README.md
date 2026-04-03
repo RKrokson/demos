@@ -13,69 +13,46 @@ The template follows the [documented architecture](https://learn.microsoft.com/e
 ## Prerequisites
 
 - All [platform landing zone prerequisites](../README.md#prerequisites)
-- Platform Landing Zone (`Networking/`) must be applied first
-- Private DNS zones must be deployed (`add_private_dns00 = true` in Networking)
-- Azure region with AI Foundry support and sufficient quota
-
-Foundry and its required resources deploy in your primary region only.
+- Platform Landing Zone (`Networking/`) applied first
+- Private DNS zones enabled (`add_private_dns00 = true` in Networking)
+- Azure region with AI Foundry support and quota
 
 ## Quick Start
 
-Make sure the Networking module is applied with `add_private_dns00 = true` first.
-
 ```sh
 cd Foundry-byoVnet
-terraform init
-terraform plan
-terraform apply
+terraform init && terraform apply
 ```
+
+**Prerequisites:** Networking module must be applied first with `add_private_dns00 = true`.
 
 ## Variables
 
-| Variable                          | Type           | Default                     | Description                               |
-| --------------------------------- | -------------- | --------------------------- | ----------------------------------------- |
-| `resource_group_name_ai00`        | `string`       | `"rg-ai00"`                 | Resource Group Name                       |
-| `ai_vnet_name`                    | `string`       | `"ai-vnet"`                 | AI spoke VNet name                        |
-| `ai_vnet_address_space`           | `list(string)` | `["172.20.32.0/20"]`        | AI spoke VNet address space               |
-| `ai_foundry_subnet_name`          | `string`       | `"ai-foundry-subnet"`       | Foundry workload subnet name              |
-| `ai_foundry_subnet_address`       | `list(string)` | `["172.20.32.0/26"]`        | Foundry workload subnet address           |
-| `private_endpoint_subnet_name`    | `string`       | `"private-endpoint-subnet"` | Private endpoint subnet name              |
-| `private_endpoint_subnet_address` | `list(string)` | `["172.20.33.0/24"]`        | Private endpoint subnet address           |
-| `connect_to_vhub`                 | `bool`         | `true`                      | Connect AI spoke VNet to platform vHub    |
-| `enable_dns_link`                 | `bool`         | `false`                     | Link VNet to platform DNS resolver policy |
-| `gpt_model_deployment_name`       | `string`       | `"gpt-5.4"`                 | Name of the GPT model deployment          |
-| `gpt_model_name`                  | `string`       | `"gpt-5.4"`                 | GPT model name                            |
-| `gpt_model_version`               | `string`       | `"2026-03-05"`              | GPT model version                         |
-| `gpt_model_sku_name`              | `string`       | `"GlobalStandard"`          | SKU name for the GPT model deployment     |
-| `gpt_model_capacity`              | `number`       | `1`                         | Capacity units for the GPT deployment     |
-| `ai_search_sku`                   | `string`       | `"standard"`                | SKU for the AI Search service             |
-| `foundry_sku`                     | `string`       | `"S0"`                      | SKU for the AI Foundry account            |
+This module creates its own VNet with subnets and hub connection. Customize networking and deployment names, or use defaults.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `resource_group_name_ai00` | `"rg-ai00"` | Resource group name |
+| `ai_vnet_address_space` | `["172.20.32.0/20"]` | VNet address range |
+| `ai_foundry_subnet_address` | `["172.20.32.0/26"]` | Foundry workload subnet |
+| `connect_to_vhub` | `true` | Connect to platform hub |
+| `enable_dns_link` | `false` | Link to platform DNS resolver |
+
+For GPT deployment names, SKUs, and other service config, see `variables.tf`.
 
 ## Outputs
 
-| Output Name             | Description                             |
-| ----------------------- | --------------------------------------- |
-| `resource_group_id`     | The ID of the AI Foundry resource group |
-| `ai_foundry_id`         | The ID of the AI Foundry account        |
-| `ai_foundry_project_id` | The ID of the AI Foundry project        |
-| `storage_account_id`    | The ID of the Storage Account           |
-| `cosmosdb_account_id`   | The ID of the Cosmos DB account         |
-| `ai_search_id`          | The ID of the AI Search service         |
+| Output | Purpose |
+|--------|---------|
+| `resource_group_id` | Resource group ID |
+| `ai_foundry_id` | AI Foundry account ID |
+| `ai_foundry_project_id` | AI Foundry project ID |
+| `storage_account_id` | Storage account ID |
+| `cosmosdb_account_id` | Cosmos DB account ID |
+| `ai_search_id` | AI Search service ID |
 
-## Cleanup Steps
+## Cleanup
 
-### Purge AI Foundry deleted item
+⚠️ **Soft-delete gotcha:** After `terraform destroy`, Foundry enters soft-delete state with a `serviceassociationlink` to the AI subnet. You must purge it before destroying Networking, or the subnet delete will fail. Wait ~10 minutes after purge completes.
 
-After you run terraform destroy you'll still have Foundry in a soft delete state. You need to purge this first before you can run terraform destroy on the network foundation. The Foundry resource will retain the 'serviceassociationlink' to the AI subnet. This is documented below. Around 10+ minutes you should be able to destroy the network foundation.
-
-- Purge a deleted resource - https://learn.microsoft.com/en-us/azure/ai-services/recover-purge-resources?tabs=azure-cli#purge-a-deleted-resource
-
-## Troubleshooting
-
-I've run into a couple quota related issues during model deployments. This may help if you run into errors.
-
-- "The subscription does not have QuotaId/Feature required by SKU 'S0' from kind 'OpenAI' or contains blocked QuotaId/Feature."
-  - Double check that you're using a supported region and have quota. You can check the region availability table in the doc below. You can also check your quota in your AI Foundry Management Center.
-  - Region availability table - https://learn.microsoft.com/en-us/azure/ai-foundry/openai/concepts/models?tabs=global-standard%2Cstandard-chat-completions#model-summary-table-and-region-availability
-- InsufficientQuota error "This operation require 10 new capacity in quota Tokens Per Minute (thousands) - gpt-4o, which is bigger than the current available capacity 0. The current quota usage is 30 and the quota limit is 30 for quota Tokens Per Minute (thousands) - gpt-4o."
-  - You have quota but it's completely consumed by your other deployments. Delete another deployment or reduce the capacity you've assigned to it.
+- [Purge a deleted resource](https://learn.microsoft.com/en-us/azure/ai-services/recover-purge-resources?tabs=azure-cli#purge-a-deleted-resource)

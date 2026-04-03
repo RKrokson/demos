@@ -1,6 +1,6 @@
 # Azure Network Platform — Landing Zones with Terraform
 
-Terraform for deploying Azure networking and AI Foundry lab environments. This repo is for POCs and testing, not production.
+Terraform for deploying an Azure networking landing zone and optional application landing zones. This repo is for POCs and testing, not production.
 
 ## Landing Zone Model
 
@@ -35,48 +35,45 @@ Future modules will follow the same application landing zone pattern. See the [A
 1. Clone the repo and cd into it.
 
 2. Set your subscription:
-
    ```powershell
    .\setSubscription.ps1
    ```
 
-3. Deploy the platform landing zone:
-
+3. Deploy the **platform landing zone**:
    ```sh
    cd Networking
-   terraform init
-   terraform plan
-   terraform apply
+   terraform init && terraform apply
    ```
 
-4. (Optional) Deploy an application landing zone. Each Foundry module creates its own spoke VNet. If you need private DNS resolution, set `add_private_dns00 = true` in your Networking tfvars and re-apply before deploying a Foundry module.
+4. (Optional) Deploy an **application landing zone**. Each Foundry module is independent:
    ```sh
-   cd ../Foundry-byoVnet   # or Foundry-managedVnet
-   terraform init
-   terraform plan
-   terraform apply
+   cd ../Foundry-byoVnet   # or ../Foundry-managedVnet
+   terraform init && terraform apply
    ```
+   **Note:** Both Foundry modules need `add_private_dns00 = true` in Networking's tfvars to enable private DNS resolution.
 
-See each module's README for configuration details and tfvars examples.
+See each module's README for details.
 
 ## Destroy Order
 
-Tear down in reverse order. Destroy application landing zones first, then the platform.
+⚠️ **Destroy application landing zones first, then the platform.**
 
-1. Destroy the Foundry module:
+1. Destroy a Foundry module:
    ```sh
    cd Foundry-byoVnet   # or Foundry-managedVnet
    terraform destroy
    ```
-2. Purge the soft-deleted AI Foundry resource. The subnet service association link blocks Networking deletion until this is done. Wait about 10 minutes after purge.
+
+2. **Purge the soft-deleted AI Foundry resource.** The subnet service association link blocks Networking deletion until this is done. Wait ~10 minutes after purge completes.
    - [Purge a deleted resource](https://learn.microsoft.com/en-us/azure/ai-services/recover-purge-resources?tabs=azure-cli#purge-a-deleted-resource)
+
 3. Destroy the platform:
    ```sh
    cd ../Networking
    terraform destroy
    ```
 
-See each module's README for detailed cleanup steps and troubleshooting.
+See each module's README for details.
 
 ## Cost Estimates
 
