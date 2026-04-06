@@ -103,3 +103,19 @@
   - **OBSERVATION (non-blocking, LOW):** Both Foundry modules use `time_sleep` but don't declare `hashicorp/time` in required_providers. Works via implicit resolution (lock file has it), but the provider version is not pinned.
   - **OBSERVATION (non-blocking, INFO):** 4 uncommitted README/doc changes present in working tree (Networking/README.md, both Foundry READMEs, docs/ip-addressing.md with correct vHub prefix fix 10.30→172.30). These should be committed before push.
   - **Verdict:** PASS — Squads branch is clean and ready to push. No blocking issues. Two non-blocking observations for future improvement (DNS null guards, time provider pin).
+- **2026-04-06 (aca-byovnet-validation):** Full 38-check validation of Donut's ContainerApps-byoVnet module. **All 38 checks PASS. APPROVED.**
+  - (1-4) Baseline: `terraform fmt -check` and `terraform validate` PASS on both ContainerApps-byoVnet and Networking modules.
+  - (5-9) Variables: All 13 variables have descriptions and sensible defaults. Block 4 (172.20.64.0/20) non-overlapping. ACA subnet /27 correct for workload profiles. IP doc updated.
+  - (10-13) Conditionals: `add_dedicated_workload_profile` toggle uses correct dynamic block pattern. No invalid count-guard combos. Firewall/no-firewall handled. DNS prerequisite uses `check` blocks (warnings, matches Foundry pattern).
+  - (14-16) Dependencies: terraform_remote_state correct. All 7 consumed Networking outputs verified. New `dns_vnet00_id` output chains correctly through child module.
+  - (17-19) Naming: All resources follow `{name}-{region_abbr}-{suffix}` convention. ACR adapts for alphanumeric constraint.
+  - (20-24) Pattern consistency: networking.tf mirrors Foundry-byoVnet exactly. Tags, providers, remote state all match.
+  - (25-28) Edge cases: Subnet delegation correct. /27 sufficient for initial deploy. ACA DNS zone uses computed default_domain correctly.
+  - (29-31) tfvars.example: Complete with prerequisite note.
+  - (32-38) Security: ACR admin disabled, public access disabled, PE + DNS configured, managed identity with AcrPull, internal-only container app, NSG on PE subnet.
+  - **OBSERVATION (non-blocking, MEDIUM):** `check` blocks are warnings, not errors — DNS prerequisite doesn't block plan on null outputs. Pre-existing pattern from Foundry-byoVnet.
+  - **OBSERVATION (non-blocking, LOW):** No `acr_sku` validation block to enforce Premium for private endpoints.
+  - **OBSERVATION (non-blocking, LOW):** ACR DNS zone created per-module (Decision #15 — "centralize then" if future modules need ACR).
+  - **OBSERVATION (non-blocking, INFO):** Sample app validates ACA environment but not private ACR pull path (intentional per Decision #15).
+  - **OBSERVATION (non-blocking, INFO):** /27 ACA subnet is 27 usable IPs — sufficient for lab, may need /26 for production-scale D4 profiles.
+  - **Verdict:** APPROVE — Module follows all established patterns, naming conventions, tagging standards, and security practices. New Networking output backward compatible. Full findings in `.squad/decisions/inbox/katia-aca-validation.md`.
