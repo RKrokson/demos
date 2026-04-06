@@ -41,3 +41,13 @@ Completed proactive security requirements assessment for a new Azure Container A
 - **Comprehensive 441-line security requirements assessment** filed to `.squad/decisions/inbox/systemai-aca-security-requirements.md` (archived in orchestration-log).
 - Concurrent work with Carl's architecture design; both merged into `decisions.md` Decision #11 (ACA ALZ Architecture).
 - **Status:** APPROVED FOR IMPLEMENTATION — Security assessment complete, no blocking findings.
+
+### 2025-07-27 — ACA ContainerApps-byoVnet Code Review
+
+Completed security code review of Donut's ContainerApps-byoVnet implementation (11 .tf files) against original ACA security requirements.
+
+- **Verdict: APPROVE** — No critical or medium findings. Zero drift from security requirements.
+- **All 24 security controls verified:** Internal-only LB, user-assigned MI + AcrPull, no NSG on delegated subnet, NSG on PE subnet, ACR admin disabled, ACR public access disabled, private endpoint with correct subresource, DNS zones with dual VNet links, wildcard A record, vHub internet_security tracking firewall state, custom DNS, DNS resolver policy link, no hardcoded secrets, no public IPs.
+- **1 low finding:** 5 DNS helper resources (4 VNet links, 1 A record) missing `tags = local.common_tags`. Governance hygiene only, no security impact.
+- **Strong patterns:** Zero public attack surface, conditional firewall integration, DNS prerequisite check block, clean module separation.
+- Review filed to `.squad/decisions/inbox/systemai-aca-code-review.md`.

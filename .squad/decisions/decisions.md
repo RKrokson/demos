@@ -649,6 +649,50 @@ All 24 controls met without deviation:
 - Private endpoint with correct `registry` subresource
 - `privatelink.azurecr.io` DNS zone created
 
+---
+
+## ACR DNS Zone Ownership Conflict — ContainerApps-byoVnet (2026-04-06)
+
+**Owner:** Donut (Infra Dev)  
+**Status:** RESOLVED
+
+### Problem
+
+During ContainerApps-byoVnet deployment, private DNS zone conflict:
+- Networking module (AVM-managed) owns `privatelink.azurecr.io`
+- ContainerApps-byoVnet tried to create duplicate zone for ACR private endpoint
+- Azure rejects linking same VNet to two zones with identical name
+
+### Impact
+
+- 23/24 resources deployed (environment functional)
+- ACR PE DNS records isolated in ACA module's zone (linked to ACA VNet only)
+- Centralized DNS resolver uses Networking's zone (no ACR PE records)
+- ACR pulls through resolver path fail
+
+### Decision
+
+Consume Networking's shared DNS zone instead of creating duplicate:
+1. Networking exports `dns_zone_acr_id` output (AVM zone reference)
+2. ContainerApps-byoVnet references zone via `terraform_remote_state`
+3. ACR PE DNS zone group linked to Networking's centralized zone
+4. Removes duplicate zone and VNet links from ACA module
+
+### Implementation
+
+- Added `dns_zone_acr_id` output to Networking/outputs.tf
+- Removed duplicate `privatelink.azurecr.io` zone from ContainerApps-byoVnet/acr.tf
+- Repointed ACR PE DNS zone group to Networking zone
+- Manual cleanup: Deleted PE DNS zone group via CLI, removed ghost VNet link via REST API
+- Final state: 24/24 resources deployed, terraform plan shows no drift
+
+### Reference Deployment
+
+- ACA Environment: 172.20.64.18
+- ACR: acr9004.azurecr.io
+- Suffix: 9004, RG: rg-aca00-sece-9004
+- Pattern: Spoke VNets now share platform DNS zones (established for future modules)
+
 **Identity & RBAC (2/2 ✅):**
 - User-assigned managed identity for ACR pulls
 - AcrPull role (least-privilege)
