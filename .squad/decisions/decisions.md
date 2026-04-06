@@ -691,3 +691,156 @@ Variables that change are documented in `variables.tf` with types, defaults, and
 - Highlight 3-5 key variables per module (those that typically require customization on day 1)
 - Point readers to `variables.tf` for complete reference
 - Apply to existing READMEs (completed April 2026) and all future modules
+
+---
+
+## Decision: Azure Container Apps (ACA) Application Landing Zone Architecture — April 2026
+
+**Authors:** Carl (Lead/Architect) + SystemAI (Cloud Security Reviewer)  
+**Date:** 2026-04-06T15:49:00Z (UTC)  
+**Status:** PROPOSED — Awaiting Ryan's architecture review
+
+### Overview
+
+Design a new Application Landing Zone for Azure Container Apps (ACA) following the existing two-tier model (Networking platform LZ + optional app LZs). The ACA ALZ will support workload profiles (dedicated compute), internal-only ingress, and BYO VNet architecture connected via vWAN spoke — same pattern as Foundry-byoVnet.
+
+### Architecture Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Module Location** | `ContainerApps/` (top-level directory) | Follows workload identity naming convention; clear separation from platform LZ |
+| **IP Block Allocation** | Block 4: `172.20.64.0/20` | Per `docs/ip-addressing.md` allocation scheme; avoids Foundry blocks 2-3 |
+| **Infrastructure Subnet** | `172.20.64.0/27` (minimum) | Azure requirement for workload profiles; 18 usable IPs, 9 max dedicated nodes; lab-appropriate per Ryan's "minimal" requirement; users can override up to `/23` for scaling |
+| **Subnet Delegation** | `Microsoft.App/environments` | Same delegation type as Foundry-byoVnet; no conflict (separate VNets) |
+| **Internal-Only Mode** | `internal_load_balancer_enabled = true` | Ryan's requirement: no public ingress; internal VIP only |
+| **Workload Profiles** | Consumption always + optional D4 dedicated | Consumption matches Foundry pattern; optional dedicated via boolean toggle |
+| **DNS Architecture** | Private zone created by ACA module, linked to both ACA VNet + platform dns_vnet | ACA generates environment-specific domain at creation (e.g., `happy-tree-123.swedencentral.azurecontainerapps.io`). Zone name cannot be pre-created in Networking. Zone must be linked to dns_vnet for centralized DNS resolver access across spokes. |
+| **Firewall Toggling** | `internet_security_enabled = data.terraform_remote_state.networking.outputs.add_firewall00` | Mirrors Decision #8 (Foundry AI Spoke Firewall Control); conditional based on platform firewall deployment |
+| **NSG on Delegated Subnet** | Not included in architecture | ACA manages its own networking within delegated subnet; generic NSG would require ACA-specific allow rules (ports 31080/31443 for edge proxy, 30000-32767 for LB probes, MCR/AzureMonitor/AAD outbound). NSG rules documented in SystemAI's security assessment for implementation phase. Same pattern as Foundry-byoVnet (no NSG on delegated subnet). |
+| **File Structure** | 8 files per Foundry template | config.tf, locals.tf, main.tf, variables.tf, outputs.tf, networking.tf, container-apps.tf, terraform.tfvars.example, README.md |
+| **Provider Versions** | azurerm ~> 4.26.0, azapi ~> 2.3.0, random ~> 3.5 | Same pinning strategy as Foundry modules; azapi required for DNS resolver policy VNet link resource (preview API) |
+
+### New Networking Output Required
+
+**`dns_vnet00_id`** — The resource ID of the DNS VNet in Region 0.
+
+**Why:** The ACA environment's private DNS zone must be linked to the centralized DNS VNet (dns_vnet) so the platform's DNS resolver can resolve ACA app FQDNs from any spoke. Without this link, centralized DNS resolution fails.
+
+**Implementation:** Simple addition to `Networking/outputs.tf`:
+```hcl
+output "dns_vnet00_id" {
+  description = "The ID of the DNS VNet for region 0 (for app LZ private DNS zone linking)"
+  value       = module.region0.dns_vnet_id
+}
+```
+
+Child module (`modules/region-hub/`) must also export `dns_vnet_id` in its outputs.
+
+### Variables (12 defined)
+
+Key variables with defaults:
+- `resource_group_name_aca` (string) = `"rg-aca"` — RG name prefix
+- `aca_vnet_name` (string) = `"aca-vnet"` — Spoke VNet name
+- `aca_vnet_address_space` (list) = `["172.20.64.0/20"]` — VNet CIDR (Block 4)
+- `aca_subnet_address` (list) = `["172.20.64.0/27"]` — Infrastructure subnet (minimum /27)
+- `aca_env_name` (string) = `"aca-env"` — Environment name prefix
+- `add_dedicated_workload_profile` (bool) = `false` — Toggle for D4 dedicated profile
+- `dedicated_profile_type` (string) = `"D4"` — Workload profile SKU
+
+Full variable list in Carl's architecture proposal.
+
+### Outputs (6 defined)
+
+- `resource_group_id` — ACA resource group ID
+- `aca_environment_id`, `aca_environment_name` — Environment identifiers
+- `aca_default_domain` — Environment's unique FQDN domain
+- `aca_static_ip_address` — Internal load balancer static IP
+- `aca_vnet_id` — Spoke VNet ID
+
+### Out of Scope (Deferred, Not Rejected)
+
+- Sample container app (module provides infrastructure only)
+- Azure Container Registry (can be separate module)
+- Dapr / service mesh
+- Application Gateway / WAF
+- Custom domains & TLS certificates
+- mTLS configuration
+- GPU workload profiles
+- Multi-region support
+- Private endpoints to ACA environment
+- NAT Gateway (follows Decision #9 pattern)
+
+### Security Assessment (SystemAI)
+
+Conducted proactive security requirements assessment **before** implementation. Key findings:
+
+**🔴 Critical (5 findings):**
+1. NSG rules required (see table in security assessment)
+2. Internal-only mode (this design ✓)
+3. Managed identity auth for all services
+4. MCR + AzureFrontDoor.FirstParty firewall rules
+5. DNS configuration (private zone + chaining)
+
+**🟡 Medium (5 findings):**
+1. Private ACR with private endpoint (not mandatory for lab)
+2. Key Vault references for secrets
+3. Image pinning with digests/version tags
+4. Outbound NSG rule tightening
+5. Microsoft Defender for Containers scanning
+
+**🟢 Low (4 findings):**
+1. mTLS between containers
+2. Zone redundancy (cost vs. HA)
+3. Application Insights APM
+4. Non-root container execution
+
+**Overall Assessment:** No blocking concerns. Design is architecturally sound. Proceed with implementation.
+
+See `systemai-aca-security-requirements.md` (441 lines) for full NSG rule tables, firewall rules, RBAC specifications, and lab vs. production settings matrix.
+
+### Implementation Plan (4 Phases)
+
+**Phase 1:** Add `dns_vnet00_id` output to Networking  
+**Phase 2:** Create ContainerApps/ directory with all .tf files  
+**Phase 3:** Validation (terraform fmt, validate, plan against test subscription)  
+**Phase 4:** Documentation (update docs/ip-addressing.md, root README, module README)
+
+### Key Design Insights
+
+1. **Subnet sizing:** `/27` is Azure's hard minimum for ACA workload profiles. This provides 18 usable IPs (32 total minus 14 reserved: 5 Azure + 9 ACA infrastructure). Adequate for lab/demo; users can override to `/26` (25 nodes), `/25` (57 nodes), or `/23` (249 nodes) via terraform.tfvars.
+
+2. **DNS zone ownership:** Unlike Foundry-byoVnet (where AI services' DNS zones are centralized in Networking), ACA environment DNS zone MUST be created by the ACA module because the zone name is environment-specific (generated at `azurerm_container_app_environment` creation). The zone then links to both the local ACA VNet AND the centralized dns_vnet.
+
+3. **NSG vs. Foundry:** ACA environments **support** NSGs on the delegated subnet (unlike Foundry's AI Search, which cannot have an NSG on its delegated subnet). However, ACA NSGs require ACA-specific rules — this adds complexity. For lab simplicity, the initial design defers NSG implementation; SystemAI's assessment provides detailed rule specifications for when NSGs are added.
+
+4. **Firewall integration:** Follows Decision #8 pattern — `internet_security_enabled` is conditional on `add_firewall00`. When firewall is deployed with routing intent, ACA traffic (including MCR pull, AAD auth, Monitor telemetry) routes through the firewall automatically.
+
+### Networking Dependency
+
+Networking module must be applied before ACA module due to:
+- `terraform_remote_state` dependency on `../Networking/terraform.tfstate`
+- Consumption of outputs: `log_analytics_workspace_id`, `vhub00_id`, `dns_resolver_policy00_id`, `dns_server_ip00`, `dns_vnet00_id` (new)
+
+### Cross-Module Coordination
+
+- **Carl:** Produced comprehensive 358-line architecture proposal covering all 14 design sections, implementation plan, design rationale, and prerequisite checks.
+- **SystemAI:** Produced 441-line security requirements assessment with NSG rule tables (inbound/outbound with ACA-specific ports), firewall rules (both FQDN and service tag patterns), RBAC role specifications, and lab/production settings matrix.
+- **Donut:** Will execute Phases 1-4 upon architecture approval.
+- **Scribe:** Documented orchestration logs, session logs, and merged decisions (this entry).
+
+### Citation
+
+- **Architecture Proposal:** `.squad/decisions/inbox/carl-aca-alz-architecture.md` (archived in orchestration-log)
+- **Security Assessment:** `.squad/decisions/inbox/systemai-aca-security-requirements.md` (archived in orchestration-log)
+- **Orchestration Logs:** `.squad/orchestration-log/2026-04-06T15-49-carl-aca-design.md` and `systemai-aca-security.md`
+- **Session Log:** `.squad/log/2026-04-06T15-49-aca-alz-design.md`
+
+### Next Steps
+
+1. ✅ Architecture design completed
+2. ✅ Security assessment completed
+3. ⏳ **Ryan reviews and approves architecture**
+4. ⏳ Donut executes Phase 1 (Networking output addition)
+5. ⏳ Donut executes Phase 2-4 (module creation and validation)
+6. ⏳ SystemAI findings incorporated into module implementation
+7. ⏳ Scribe merges phase completion logs
