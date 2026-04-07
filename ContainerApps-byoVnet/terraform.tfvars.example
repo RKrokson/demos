@@ -16,5 +16,9 @@ pe_subnet_address      = ["172.20.65.0/24"]
 # ── Azure Container Registry ────────────────
 # acr_sku = "Premium"  # Must be Premium for private endpoints
 
-# ── Sample app ──────────────────────────────
-# sample_app_image = "mcr.microsoft.com/k8se/quickstart:latest"
+# ── Container App Mode ────────────────────────
+# app_mode controls what gets deployed:
+#   "none"        — ACA environment + ACR only, no container app
+#   "hello-world" — MCR quickstart image for verification (default)
+#   "mcp-toolbox" — MCP Toolkit server, built and pushed to ACR via az acr build
+# app_mode = "hello-world"

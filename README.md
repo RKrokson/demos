@@ -88,6 +88,10 @@ Rough estimate using Central US, single region:
 | Azure Firewall Premium       | $42         | $1,277.50      |
 | VM (Standard_B2s w/ Windows) | $1.19       | $36.21         |
 
+## Development
+
+This repo uses [Squad](https://bradygaster.github.io/squad/) for AI-assisted development. The `.squad/` folder contains agent configuration for that workflow. Squad is not required to deploy any of the environments here; you can ignore that folder entirely.
+
 ## Disclaimer
 
 The attached diagrams and code are provided AS IS without warranty of any kind and should not be interpreted as an offer or commitment on the part of Microsoft, and Microsoft cannot guarantee the accuracy of any information presented. MICROSOFT MAKES NO WARRANTIES, EXPRESS OR IMPLIED, IN THIS DIAGRAM(s) CODE SAMPLE(s).

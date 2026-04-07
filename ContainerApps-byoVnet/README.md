@@ -1,8 +1,8 @@
 # Application Landing Zone — Container Apps (BYO VNet)
 
-This is an optional application landing zone. It deploys Azure Container Apps (ACA) with a Premium ACR, sample hello-world container app, and private endpoints into its own spoke VNet. The module creates the VNet, subnets, hub connection, DNS zones, and managed identity for image pulls. You do not need to deploy this to use the Networking module on its own.
+This is an optional application landing zone. It deploys Azure Container Apps (ACA) with a Premium ACR and private endpoints into its own spoke VNet. The module creates the VNet, subnets, hub connection, DNS zones, and managed identity for image pulls. You do not need to deploy this to use the Networking module on its own.
 
-The module uses an internal-only load balancer (no public endpoints) and defaults to Consumption workload profile with optional dedicated D4 profile via boolean toggle. The sample app pulls from MCR (Microsoft Container Registry); your own container images can be pushed to the private ACR after deployment.
+The module uses an internal-only load balancer (no public endpoints) and defaults to Consumption workload profile with optional dedicated D4 profile via boolean toggle. A three-mode `app_mode` variable controls what gets deployed into the environment (see [App Modes](#app-modes) below).
 
 All networking and container infrastructure resources are tagged per the team tagging strategy.
 
@@ -24,17 +24,17 @@ terraform init && terraform apply
 
 ## Variables
 
-This module creates its own VNet with subnets and hub connection. Customize networking names and workload profiles, or use defaults.
+This module creates its own VNet with subnets and hub connection. Customize networking names, workload profiles, and app deployment mode, or use defaults.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
+| `app_mode` | `"hello-world"` | Container app to deploy: `none`, `hello-world`, or `mcp-toolbox` |
 | `resource_group_name` | `"rg-aca00"` | Resource group name |
 | `aca_vnet_address_space` | `["172.20.64.0/20"]` | VNet address range (Block 4) |
 | `aca_subnet_address` | `["172.20.64.0/27"]` | ACA environment subnet |
-| `pe_subnet_address` | `["172.20.65.0/24"]` | Private endpoint subnet |
 | `add_dedicated_workload_profile` | `false` | Optional D4 dedicated profile |
 
-For ACR SKU, sample app image, and other service config, see `variables.tf`.
+For subnet addresses, ACR SKU, and other service config, see `variables.tf`.
 
 ## Outputs
 
@@ -46,7 +46,26 @@ For ACR SKU, sample app image, and other service config, see `variables.tf`.
 | `acr_id` | Azure Container Registry ID |
 | `acr_login_server` | ACR login server URL |
 | `aca_identity_id` | Managed identity for image pulls |
-| `sample_app_id` | Hello-world container app ID |
+| `container_app_id` | Deployed container app ID (null if `app_mode = "none"`) |
+| `container_app_fqdn` | Container app FQDN (null if `app_mode = "none"`) |
+
+## App Modes
+
+The `app_mode` variable controls what runs in the ACA environment. The environment and ACR are always deployed regardless of mode.
+
+| Mode | What it does |
+|------|-------------|
+| `none` | ACA environment and ACR only. No container app. Use this when you just need the infrastructure. |
+| `hello-world` (default) | Deploys the MCR quickstart image (`mcr.microsoft.com/k8se/quickstart`) on port 80. Quick way to verify the environment works. No ACR pull needed. |
+| `mcp-toolbox` | Clones the [MCP Toolkit](https://github.com/AiGhostMod/mcpToolkit) repo, builds it via `az acr build` (cloud build, no local Docker needed), and deploys the server on port 8080 with managed identity pulling from ACR. |
+
+The MCP Toolbox container is useful for troubleshooting MCP connections from AI Foundry. It runs a lightweight MCP server inside the same private network, so you can verify connectivity and endpoint resolution without standing up a full application. Source and docs are in the [MCP Toolkit repo](https://github.com/AiGhostMod/mcpToolkit).
+
+Set it in your tfvars or on the command line:
+
+```sh
+terraform apply -var 'app_mode=mcp-toolbox'
+```
 
 ## Architecture
 
@@ -89,5 +108,5 @@ terraform destroy
 
 - Push your own container images to ACR: `az acr build --registry <acr-name> --image myapp:latest .`
 - Create additional container apps in the environment using the Azure CLI or Azure Portal
-- Optionally enable the dedicated D4 workload profile for non-Consumption workloads via `add_dedicated_workload_profile = true`
-- Configure ingress rules and environment variables for your container apps as needed
+- Switch app modes any time: `terraform apply -var 'app_mode=none'` to remove the app while keeping the environment
+- Enable the dedicated D4 workload profile for non-Consumption workloads via `add_dedicated_workload_profile = true`
