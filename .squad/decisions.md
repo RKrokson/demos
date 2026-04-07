@@ -393,6 +393,53 @@ The `networkAcls.defaultAction = "Deny"` change breaks the agent proxy's interna
 
 ---
 
+### 16. Three-Mode Container App Deployment Pattern (Donut — Infra Dev)
+
+**Status:** Implemented  
+**Date:** 2026-04-08
+
+**Context:** ContainerApps-byoVnet module previously hardcoded a single hello-world sample app. Ryan requested a flexible deployment pattern supporting three modes: no app, a quickstart verification app, and a real MCP Toolkit server.
+
+**Decision:** Introduced `app_mode` variable with three values:
+- **`none`** — ACA environment + ACR deployed, no container app. Useful when you only need the platform infrastructure.
+- **`hello-world`** (default) — MCR quickstart image on port 80. Quick smoke test, no ACR pull needed.
+- **`mcp-toolbox`** — MCP Toolkit server cloned from GitHub, built via `az acr build`, pushed to ACR, deployed on port 8080 with managed identity.
+
+**Implementation Details:**
+1. Two separate container app resources (not one with dynamic blocks) — hello-world and mcp-toolbox differ significantly in port, identity, registry config.
+2. `terraform_data` with local-exec provisioner handles git clone + `az acr build` workflow. Cloud build means no local Docker Desktop required.
+3. ACR `public_network_access_enabled` is conditional — `true` only in mcp-toolbox mode (required for `az acr build`), `false` otherwise.
+4. Outputs renamed from `sample_app_id` to `container_app_id` and `container_app_fqdn`, both conditional with `try()`.
+
+**Rationale:**
+- Two resources is cleaner than heavy conditional logic when modes are materially different.
+- `az acr build` is ideal for labs — no Docker Desktop dependency, builds run server-side in Azure.
+- ACR public access tradeoff is acceptable for a lab; in production, use ACR Tasks with dedicated agent pools instead.
+
+**Impact:**
+- `sample_app_name` and `sample_app_image` variables removed (breaking change for existing tfvars files).
+- `sample_app_id` output renamed to `container_app_id` (breaking output change).
+- Pattern is reusable for future app modes (add new values to validation, add new container app resource with count guard).
+
+---
+
+### 17. Squad & Development Tooling Disclosure (Ryan Krokson)
+
+**Status:** Approved  
+**Date:** 2026-04-07T18:12Z
+
+**Context:** User directive to clarify Squad's role in repo development.
+
+**Decision:** Add a mention of Squad to the root README explaining that it's used for development of the repo but is not required to deploy the environments. Link to Brady's Squad website: https://bradygaster.github.io/squad/.
+
+**Rationale:**
+1. People may question the `.squad/` folder
+2. Promotion for Brady and the Squad project
+
+**Impact:** README will include Squad disclosure section.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
