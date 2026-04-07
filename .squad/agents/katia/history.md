@@ -119,3 +119,16 @@
   - **OBSERVATION (non-blocking, INFO):** Sample app validates ACA environment but not private ACR pull path (intentional per Decision #15).
   - **OBSERVATION (non-blocking, INFO):** /27 ACA subnet is 27 usable IPs — sufficient for lab, may need /26 for production-scale D4 profiles.
   - **Verdict:** APPROVE — Module follows all established patterns, naming conventions, tagging standards, and security practices. New Networking output backward compatible. Full findings in `.squad/decisions/inbox/katia-aca-validation.md`.
+- **2026-07-16 (aca-revalidation):** Post-fix revalidation of 3 ACA changes: `external_enabled = true`, duplicate LAW removed (now uses platform LAW), ACR DNS zone centralized (now uses Networking's AVM zone). **All 14 checks PASS. APPROVED.**
+  - `terraform fmt -check`: PASS all 3 modules (Foundry-byoVnet has gitignored `.tfvars` only).
+  - `terraform validate`: PASS all 3 modules.
+  - `app.tf`: `external_enabled = true` correct — enables VNet-internal ingress while ILB prevents public exposure.
+  - `aca.tf`: Correctly consumes `networking.outputs.log_analytics_workspace_id`. No duplicate LAW.
+  - `acr.tf`: PE dns_zone_group uses `networking.outputs.dns_zone_acr_id`. No local ACR DNS zone.
+  - `dns.tf`: Only ACA environment DNS zone remains (module-specific, correct).
+  - Orphan references: Zero matches for removed LAW resource or ACR DNS zone in module.
+  - Dependency chain: All 9 consumed Networking outputs verified present in outputs.tf.
+  - `terraform.tfvars.example`: Accurate, no stale variable references.
+  - **OBSERVATION (non-blocking, MEDIUM):** README line 59 still says "ACR DNS zone created locally" — should say "provided by platform Networking module." Assign to Mordecai.
+  - **OBSERVATION (non-blocking, INFO):** `dns_zone_acr_id` and `dns_vnet00_id` outputs in Networking/outputs.tf are uncommitted. Module directory untracked in git.
+  - **Verdict:** APPROVE — All fixes correct. No orphan references. Dependency chain intact. Full findings in `.squad/decisions/inbox/katia-aca-revalidation.md`.

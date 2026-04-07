@@ -82,6 +82,10 @@ output "dns_zone_documents_id" {
   description = "Private DNS Zone ID for privatelink.documents.azure.com"
   value       = var.add_private_dns00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.documents.azure.com" : null
 }
+output "dns_zone_acr_id" {
+  description = "Private DNS Zone ID for privatelink.azurecr.io"
+  value       = var.add_private_dns00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io" : null
+}
 
 # Platform outputs consumed by application landing zones
 output "rg_net00_name" {
@@ -103,6 +107,10 @@ output "dns_inbound_endpoint00_ip" {
 output "firewall_private_ip00" {
   description = "The private IP of the Azure Firewall in region 0 (null if firewall is not deployed)"
   value       = module.region0.firewall_private_ip
+}
+output "dns_vnet00_id" {
+  description = "The ID of the DNS VNet in region 0 (null if Private DNS is not deployed)"
+  value       = module.region0.dns_vnet_id
 }
 output "dns_server_ip00" {
   description = "The DNS server IP for spoke VNets in region 0 — firewall IP when deployed (DNS proxy), otherwise DNS resolver inbound endpoint IP"

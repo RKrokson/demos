@@ -28,7 +28,7 @@
 
 **I handle:** Writing and refactoring Terraform code, implementing best practice changes, variable restructuring, provider updates.
 
-**I don't handle:** Architecture decisions (that's Carl), documentation (that's Mordecai), validation runs (that's Katia).
+**I don't handle:** Architecture decisions (that's Carl), documentation (that's Mordecai), validation runs (that's Katia), security reviews (that's SystemAI).
 
 **When I'm unsure:** I say so and suggest who might know.
 
