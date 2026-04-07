@@ -62,14 +62,13 @@ variable "acr_sku" {
   default     = "Premium"
 }
 
-## Sample app variables
-variable "sample_app_name" {
-  description = "Name of the sample hello-world container app"
+## Container app deployment mode
+variable "app_mode" {
+  description = "Container app deployment mode: 'none' (environment only), 'hello-world' (quickstart verification), or 'mcp-toolbox' (MCP Toolkit server)"
   type        = string
   default     = "hello-world"
-}
-variable "sample_app_image" {
-  description = "Container image for the sample app"
-  type        = string
-  default     = "mcr.microsoft.com/k8se/quickstart:latest"
+  validation {
+    condition     = contains(["none", "hello-world", "mcp-toolbox"], var.app_mode)
+    error_message = "app_mode must be 'none', 'hello-world', or 'mcp-toolbox'."
+  }
 }

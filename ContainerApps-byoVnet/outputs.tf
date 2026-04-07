@@ -33,9 +33,14 @@ output "aca_identity_id" {
   value       = azurerm_user_assigned_identity.aca_identity.id
 }
 
-output "sample_app_id" {
-  description = "The ID of the sample hello-world container app"
-  value       = azurerm_container_app.hello_world.id
+output "container_app_id" {
+  description = "The ID of the deployed container app (null if app_mode is 'none')"
+  value       = var.app_mode == "hello-world" ? try(azurerm_container_app.hello_world[0].id, null) : var.app_mode == "mcp-toolbox" ? try(azurerm_container_app.mcp_toolbox[0].id, null) : null
+}
+
+output "container_app_fqdn" {
+  description = "The FQDN of the deployed container app (null if app_mode is 'none')"
+  value       = var.app_mode == "hello-world" ? try(azurerm_container_app.hello_world[0].ingress[0].fqdn, null) : var.app_mode == "mcp-toolbox" ? try(azurerm_container_app.mcp_toolbox[0].ingress[0].fqdn, null) : null
 }
 
 output "aca_vnet_id" {

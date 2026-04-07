@@ -16,7 +16,7 @@ resource "azurerm_container_registry" "acr" {
   location                      = azurerm_resource_group.rg_aca00.location
   sku                           = var.acr_sku
   admin_enabled                 = false
-  public_network_access_enabled = false
+  public_network_access_enabled = var.app_mode == "mcp-toolbox" ? true : false
   tags                          = local.common_tags
 }
 
