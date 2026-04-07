@@ -51,3 +51,14 @@ Completed security code review of Donut's ContainerApps-byoVnet implementation (
 - **1 low finding:** 5 DNS helper resources (4 VNet links, 1 A record) missing `tags = local.common_tags`. Governance hygiene only, no security impact.
 - **Strong patterns:** Zero public attack surface, conditional firewall integration, DNS prerequisite check block, clean module separation.
 - Review filed to `.squad/decisions/inbox/systemai-aca-code-review.md`.
+
+### 2026-07-18 — ACA Post-Change Security Recheck
+
+Re-reviewed ContainerApps-byoVnet after three changes: ingress `external_enabled` flip, LAW consolidation, and ACR DNS zone consolidation.
+
+- **Verdict: APPROVE** — No critical findings. All three changes are security-neutral or positive. Zero public endpoints introduced.
+- **Key insight on `external_enabled = true`:** In an internal ACA environment, this does NOT create internet exposure. It makes the app reachable from the broader private network (any connected spoke, on-prem via vHub) — not just the local VNet. This is the intended behavior for lab demos.
+- **LAW consolidation:** Acceptable for lab. Shared workspace means platform RBAC governs app log visibility — fine when operators are the same team.
+- **ACR DNS zone consolidation:** Correct pattern. PE auto-registers into centralized zone. General DNS prerequisites are checked via `check` block, though the ACR zone itself is not explicitly validated (acceptable risk given AVM module deploys all standard privatelink zones).
+- **Existing accepted risks unchanged:** Empty PE subnet NSG (default Azure rules allow VNet inbound), allow-all firewall rules (lab-accepted, backlog item #8), AcrPull identity provisioned but not wired to sample app (infrastructure ready for user workloads).
+- Recheck filed to `.squad/decisions/inbox/systemai-aca-recheck.md`.

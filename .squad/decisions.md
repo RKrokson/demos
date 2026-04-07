@@ -361,24 +361,35 @@ The `networkAcls.defaultAction = "Deny"` change breaks the agent proxy's interna
 
 ### 15. ContainerApps-byoVnet Implementation Decisions (Donut — Infra Dev)
 
-**Status:** Implemented  
+**Status:** Implemented & Approved  
 **Date:** 2026-04-06
 
 **Context:** Donut completed ContainerApps-byoVnet module (11 files). Module follows Foundry-byoVnet pattern, deploys to IP Block 4 (172.20.64.0/20).
 
 **Key Implementation Decisions:**
 
-1. **ACR DNS zone ownership:** `privatelink.azurecr.io` is created in ACA module (not Networking). Networking only manages DNS zones used by its own resources. Single-owner cleaner; if future module needs ACR, centralize then.
+1. **ACR DNS zone ownership:** `privatelink.azurecr.io` is created in Networking module (centralized pattern). Application LZs link to this zone, simplifying multi-module scenarios and avoiding duplication. Single-owner pattern from Networking's AVM private DNS.
 2. **Workload profiles mode:** Consumption profile explicitly declared in ACA environment to enable workload profiles mode. Required for optional D4 dedicated profile via `add_dedicated_workload_profile` toggle.
 3. **Sample app uses MCR image:** Hello-world pulls from MCR (not ACR) to avoid chicken-egg: need images before environment exists. ACR + managed identity infrastructure fully provisioned for user workloads.
-4. **New Networking output:** Added `dns_vnet00_id` to expose DNS VNet ID for cross-module DNS zone linking. Enables app LZs to link their private DNS zones to centralized DNS VNet for resolver integration.
-5. **No firewall rules:** Per Ryan's directive, no firewall rules added. ACA FQDN requirements documented in module README (when created).
+4. **New Networking outputs:** Added `dns_vnet00_id` and `dns_zone_acr_id` to expose DNS VNet ID and centralized ACR DNS zone. Enables app LZs to link their resources to centralized DNS infrastructure.
+5. **No firewall rules:** Per Ryan's directive, no firewall rules added. ACA FQDN requirements documented in module README.
+6. **Ingress `external_enabled = true`:** Permits VNet-scoped reachability (not public internet exposure). Internal load balancer blocks public traffic; flag enables communication from peered spokes and on-premises networks. Verified safe for lab/internal workloads.
+7. **Log Analytics consolidation:** ACA environment sends logs to platform Networking module's LAW (not module-local). Single pane of glass; acceptable for lab context.
 
 **Impact:**
 - New module fully independent — deploy/destroy without touching Networking or Foundry modules
 - IP addressing doc updated with Block 4 allocation
-- Networking output contract expanded (backward compatible — new output only)
-- Handoff to Carl for code review and production readiness
+- Networking output contract expanded (backward compatible — new outputs only)
+- Centralized DNS pattern enables multi-module ACA deployment scenarios
+- Verified secure by SystemAI; validated by Katia (14 checks pass)
+
+**Sub-Decisions:**
+
+- **16a. ACA Revalidation (Katia)** — 2026-07-16  
+  All three fixes post-review are correct: `external_enabled = true` is private-network reachability; LAW consolidation reduces sprawl; ACR DNS zone centralization follows correct pattern. 14 validation checks pass.
+
+- **16b. Security Recheck (SystemAI)** — 2026-07-18  
+  All changes security-neutral or positive. `external_enabled = true` confirmed safe (no public endpoints); LAW consolidation acceptable for lab; DNS zone centralization is correct pattern. Approved for production.
 
 ---
 
