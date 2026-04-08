@@ -60,6 +60,10 @@ variable "acr_sku" {
   description = "ACR SKU (must be Premium for private endpoints)"
   type        = string
   default     = "Premium"
+  validation {
+    condition     = lower(var.acr_sku) == "premium"
+    error_message = "acr_sku must be set to \"Premium\" because this module always creates an ACR private endpoint."
+  }
 }
 
 ## Container app deployment mode
