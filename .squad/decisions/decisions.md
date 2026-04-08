@@ -1,5 +1,63 @@
 # Project Decisions
 
+## Foundry-byoVnet Destroy Sequence (2026-07-16, analyzed by Carl)
+
+**Owner:** Carl (Lead/Architect)  
+**Requested by:** Ryan Krokson  
+**Status:** ANALYSIS COMPLETE — Awaiting Implementation
+
+### Summary
+
+The `terraform destroy` failure on Foundry-byoVnet is caused by an Azure platform-level race condition, not a Terraform configuration error. When the AI Foundry resource is deleted, Azure's backend asynchronously tears down the container environment, creating and then removing a Service Association Link (SAL) called `legionservicelink`. If Terraform attempts to delete the subnet before Azure finishes cleanup, the operation fails.
+
+### Recommendation: Wrapper Script (`scripts/destroy-foundry.ps1`)
+
+A PowerShell wrapper script is the appropriate solution. Terraform cannot express post-destroy waits or conditional retries. The script should:
+
+1. Destroy Foundry resources in reverse dependency order (`-target`)
+2. Poll subnet SAL status using `az network vnet subnet show` until cleared
+3. Purge soft-deleted CognitiveServices account
+4. Run full `terraform destroy`
+5. Graceful failure if SAL doesn't clear within 10 minutes (alert user for Azure support ticket)
+
+**Fallback:** `az group delete` on RG + `terraform state rm` (emergency path only).
+
+### Documentation Required
+
+Add "Destroying the Foundry Module" section to README explaining the SAL issue and providing the manual procedure steps.
+
+### Not Viable
+
+- Pure Terraform approaches: No post-destroy hooks, no way to observe Azure async conditions
+- Subnet delegation removal: Cannot remove while SAL exists
+- Targeting + delay: Helpful manually, but requires automation wrapper to be practical
+- AVM / community: No one has solved this in pure Terraform — official modules have this issue filed as a bug
+
+---
+
+## Orphan RG Verification (2026-04-08, raised by Donut)
+
+**Owner:** Donut (Infra Dev)  
+**Resource Group:** `rg-ai00-sece-7916` (Foundry-byoVnet, suffix 7916)  
+**Status:** ACTION REQUIRED
+
+### Background
+
+During teardown of Foundry-byoVnet (suffix 7916), the `legionservicelink` SAL blocked subnet deletion even after AI Foundry purge. Per Ryan's authorization, the RG was deleted directly via `az group delete` with `--no-wait`, and Terraform state was cleaned with `terraform state rm`.
+
+### Action Required
+
+Verify RG deletion completion:
+```bash
+az group exists --name rg-ai00-sece-7916
+```
+
+Expected result: `false`
+
+The deletion was issued with `--no-wait`, so the RG may still be mid-deletion. If it returns `true`, wait and retry — the SAL typically clears within minutes to hours.
+
+---
+
 ## Gitignore Audit (2025-01-17, finalized 2026-03-27)
 
 **Owner:** Carl (Lead/Architect)  
