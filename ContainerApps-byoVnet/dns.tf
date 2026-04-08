@@ -24,6 +24,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "aca_env_dns_aca_vnet_l
   resource_group_name   = azurerm_resource_group.rg_aca00.name
   private_dns_zone_name = azurerm_private_dns_zone.aca_env_dns.name
   virtual_network_id    = azurerm_virtual_network.aca_vnet.id
+  tags                  = local.common_tags
 }
 
 # Link ACA environment DNS zone to DNS VNet for centralized resolution
@@ -32,4 +33,5 @@ resource "azurerm_private_dns_zone_virtual_network_link" "aca_env_dns_platform_v
   resource_group_name   = azurerm_resource_group.rg_aca00.name
   private_dns_zone_name = azurerm_private_dns_zone.aca_env_dns.name
   virtual_network_id    = data.terraform_remote_state.networking.outputs.dns_vnet00_id
+  tags                  = local.common_tags
 }
