@@ -36,7 +36,7 @@ resource "azurerm_subnet" "pe_subnet" {
   default_outbound_access_enabled = !data.terraform_remote_state.networking.outputs.add_firewall00
 }
 
-# NSG for private endpoint subnet (default-deny inbound)
+# NSG for private endpoint subnet (no custom rules; Azure default rules apply)
 resource "azurerm_network_security_group" "pe_subnet_nsg" {
   name                = "${var.pe_subnet_name}-nsg-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
   location            = azurerm_resource_group.rg_aca00.location
