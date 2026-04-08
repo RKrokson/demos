@@ -26,40 +26,40 @@ terraform init && terraform apply
 
 This module creates its own VNet with subnets and hub connection. Customize networking names, workload profiles, and app deployment mode, or use defaults.
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `app_mode` | `"hello-world"` | Container app to deploy: `none`, `hello-world`, or `mcp-toolbox` |
-| `resource_group_name` | `"rg-aca00"` | Resource group name |
-| `aca_vnet_address_space` | `["172.20.64.0/20"]` | VNet address range (Block 4) |
-| `aca_subnet_address` | `["172.20.64.0/27"]` | ACA environment subnet |
-| `add_dedicated_workload_profile` | `false` | Optional D4 dedicated profile |
+| Variable                         | Default              | Purpose                                                          |
+| -------------------------------- | -------------------- | ---------------------------------------------------------------- |
+| `app_mode`                       | `"hello-world"`      | Container app to deploy: `none`, `hello-world`, or `mcp-toolbox` |
+| `resource_group_name`            | `"rg-aca00"`         | Resource group name                                              |
+| `aca_vnet_address_space`         | `["172.20.64.0/20"]` | VNet address range (Block 4)                                     |
+| `aca_subnet_address`             | `["172.20.64.0/27"]` | ACA environment subnet                                           |
+| `add_dedicated_workload_profile` | `false`              | Optional D4 dedicated profile                                    |
 
 For subnet addresses, ACR SKU, and other service config, see `variables.tf`.
 
 ## Outputs
 
-| Output | Purpose |
-|--------|---------|
-| `aca_environment_id` | Container Apps Environment ID |
-| `aca_environment_default_domain` | Default domain for container apps |
-| `aca_environment_static_ip` | Static IP of internal load balancer |
-| `acr_id` | Azure Container Registry ID |
-| `acr_login_server` | ACR login server URL |
-| `aca_identity_id` | Managed identity for image pulls |
-| `container_app_id` | Deployed container app ID (null if `app_mode = "none"`) |
-| `container_app_fqdn` | Container app FQDN (null if `app_mode = "none"`) |
+| Output                           | Purpose                                                 |
+| -------------------------------- | ------------------------------------------------------- |
+| `aca_environment_id`             | Container Apps Environment ID                           |
+| `aca_environment_default_domain` | Default domain for container apps                       |
+| `aca_environment_static_ip`      | Static IP of internal load balancer                     |
+| `acr_id`                         | Azure Container Registry ID                             |
+| `acr_login_server`               | ACR login server URL                                    |
+| `aca_identity_id`                | Managed identity for image pulls                        |
+| `container_app_id`               | Deployed container app ID (null if `app_mode = "none"`) |
+| `container_app_fqdn`             | Container app FQDN (null if `app_mode = "none"`)        |
 
 ## App Modes
 
 The `app_mode` variable controls what runs in the ACA environment. The environment and ACR are always deployed regardless of mode.
 
-| Mode | What it does |
-|------|-------------|
-| `none` | ACA environment and ACR only. No container app. Use this when you just need the infrastructure. |
-| `hello-world` (default) | Deploys the MCR quickstart image (`mcr.microsoft.com/k8se/quickstart`) on port 80. Quick way to verify the environment works. No ACR pull needed. |
-| `mcp-toolbox` | Clones the [MCP Toolkit](https://github.com/AiGhostMod/mcpToolkit) repo, builds it via `az acr build` (cloud build, no local Docker needed), and deploys the server on port 8080 with managed identity pulling from ACR. |
+| Mode                    | What it does                                                                                                                                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `none`                  | ACA environment and ACR only. No container app. Use this when you just need the infrastructure.                                                                                                                          |
+| `hello-world` (default) | Deploys the MCR quickstart image (`mcr.microsoft.com/k8se/quickstart`) on port 80. Quick way to verify the environment works. No ACR pull needed.                                                                        |
+| `mcp-toolbox`           | Clones the [MCP Toolkit](https://github.com/AiGhostMod/mcpToolkit) repo, builds it via `az acr build` (cloud build, no local Docker needed), and deploys the server on port 8080 with managed identity pulling from ACR. |
 
-The MCP Toolbox container is useful for troubleshooting MCP connections from AI Foundry. It runs a lightweight MCP server inside the same private network, so you can verify connectivity and endpoint resolution without standing up a full application. Source and docs are in the [MCP Toolkit repo](https://github.com/AiGhostMod/mcpToolkit).
+The MCP Toolbox container is useful for troubleshooting MCP connections from AI Foundry. It runs a lightweight MCP server inside the same private network, so you can verify connectivity and endpoint resolution without standing up a full application. The MCP server is unauthenticated and for testing purposes only. Source and docs are in the [MCP Toolkit repo](https://github.com/AiGhostMod/mcpToolkit).
 
 Set it in your tfvars or on the command line:
 
