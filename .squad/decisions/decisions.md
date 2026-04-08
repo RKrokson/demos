@@ -559,6 +559,180 @@ Specific feedback:
 
 - All `variables.tf` files remain unchanged (they are still authoritative)
 - No variable behavior changed — just what READMEs surface
+
+---
+
+## ContainerApps-byoVnet Validation (2026-04-06)
+
+**Owner:** Katia (Validator)  
+**Status:** APPROVED & READY
+
+### Validation Summary
+
+Comprehensive gate review of ContainerApps-byoVnet module. **38 checks all pass. No blocking issues.**
+
+### Key Findings
+
+**Baseline & Consistency (9 checks all ✅):**
+- Terraform formatting and validation clean (both ContainerApps and Networking)
+- All 13 variables have descriptions and sensible defaults
+- Address space non-overlapping; ACA subnet is /27
+- IP addressing documentation updated (Block 4 reserved for Region 1)
+- ACR naming follows alphanumeric constraint for PE compatibility
+
+**Conditional Deployment (4 checks all ✅):**
+- `add_dedicated_workload_profile` toggle works correctly
+- Proper guards for firewall and DNS conditionals
+
+**Dependency Chain (3 checks all ✅):**
+- Remote state path correct (`../Networking/terraform.tfstate`)
+- All 7 consumed outputs exist in Networking
+- New `dns_vnet00_id` Networking output is correct and backward compatible
+
+**Pattern Consistency (4 checks all ✅):**
+- Matches Foundry-byoVnet structure across all files
+- Tagging strategy (local.common_tags) applied consistently
+- Provider versions aligned
+- terraform_remote_state and config.tf match established patterns
+
+**Security Review (7 checks all ✅):**
+- ACR admin/public access disabled
+- ACR private endpoint with correct DNS configuration
+- Container app internal-only (`external_enabled = false`, `internal_load_balancer_enabled = true`)
+- NSG on PE subnet; no NSG on delegated subnet (by design)
+
+### Non-Blocking Observations
+
+1. **OBS-1 (MEDIUM):** `check` blocks warn but don't prevent Terraform from proceeding. Plan crashes on null DNS outputs if DNS not deployed. Matches Foundry-byoVnet pattern. Precondition on resources would improve UX.
+
+2. **OBS-2 (LOW):** No `acr_sku` validation block. Users setting `acr_sku = "Basic"` get cryptic Azure error on PE creation.
+
+3. **OBS-3 (LOW):** ACR DNS zone ownership — per Decision #15, each module creates its own `privatelink.azurecr.io`. Future scaling may require centralization in Networking.
+
+4. **OBS-4 (INFO):** Sample app pulls from MCR (intentional — avoids chicken-egg). Private ACR pull path unexercised by demo.
+
+5. **OBS-5 (INFO):** /27 subnet capacity (27 usable IPs) sufficient initially. Future D4 scaling at max_count=3 with revision swaps could create IP pressure; consider /26 for production.
+
+### Recommendation
+
+Module is clean, correct, and ready for deployment. Observations are for future improvement but do not block approval.
+
+---
+
+## ContainerApps-byoVnet Security Review (2026-04-06)
+
+**Owner:** SystemAI (Cloud Security)  
+**Status:** APPROVED & READY
+
+### Security Assessment
+
+Complete drift analysis against SystemAI ACA security requirements (Decision #12). **24 controls verified. Zero drift. 1 low finding (governance only).**
+
+### Requirements Coverage
+
+All 24 controls met without deviation:
+
+**Networking & Access Control (8/8 ✅):**
+- Internal-only mode verified
+- NSG on PE subnet with default-deny rules
+- No NSG on ACA delegated subnet (by design)
+- ACA environment DNS zone with wildcard A record → static IP
+- DNS zones linked to both ACA VNet and DNS resolver VNet
+- Azure metadata endpoint (168.63.129.16) not blocked
+- vHub connection `internet_security_enabled` correctly tracks firewall state
+- Custom DNS pointing to platform DNS server
+
+**ACR Security (5/5 ✅):**
+- Admin authentication disabled
+- Public network access disabled
+- Premium SKU enforced (required for PE)
+- Private endpoint with correct `registry` subresource
+- `privatelink.azurecr.io` DNS zone created
+
+---
+
+## ACR DNS Zone Ownership Conflict — ContainerApps-byoVnet (2026-04-06)
+
+**Owner:** Donut (Infra Dev)  
+**Status:** RESOLVED
+
+### Problem
+
+During ContainerApps-byoVnet deployment, private DNS zone conflict:
+- Networking module (AVM-managed) owns `privatelink.azurecr.io`
+- ContainerApps-byoVnet tried to create duplicate zone for ACR private endpoint
+- Azure rejects linking same VNet to two zones with identical name
+
+### Impact
+
+- 23/24 resources deployed (environment functional)
+- ACR PE DNS records isolated in ACA module's zone (linked to ACA VNet only)
+- Centralized DNS resolver uses Networking's zone (no ACR PE records)
+- ACR pulls through resolver path fail
+
+### Decision
+
+Consume Networking's shared DNS zone instead of creating duplicate:
+1. Networking exports `dns_zone_acr_id` output (AVM zone reference)
+2. ContainerApps-byoVnet references zone via `terraform_remote_state`
+3. ACR PE DNS zone group linked to Networking's centralized zone
+4. Removes duplicate zone and VNet links from ACA module
+
+### Implementation
+
+- Added `dns_zone_acr_id` output to Networking/outputs.tf
+- Removed duplicate `privatelink.azurecr.io` zone from ContainerApps-byoVnet/acr.tf
+- Repointed ACR PE DNS zone group to Networking zone
+- Manual cleanup: Deleted PE DNS zone group via CLI, removed ghost VNet link via REST API
+- Final state: 24/24 resources deployed, terraform plan shows no drift
+
+### Reference Deployment
+
+- ACA Environment: 172.20.64.18
+- ACR: acr9004.azurecr.io
+- Suffix: 9004, RG: rg-aca00-sece-9004
+- Pattern: Spoke VNets now share platform DNS zones (established for future modules)
+
+**Identity & RBAC (2/2 ✅):**
+- User-assigned managed identity for ACR pulls
+- AcrPull role (least-privilege)
+
+**Secrets & Exposure (2/2 ✅):**
+- No hardcoded credentials
+- No public IPs or public endpoints (sample app internal-only)
+
+**Infrastructure (3/3 ✅):**
+- Subnet delegation to `Microsoft.App/environments`
+- DNS resolver policy VNet link configured
+- DNS prerequisite checks in place
+
+**Conditional Features (2/2 ✅):**
+- PE subnet `default_outbound_access_enabled` respects firewall state
+- ACA delegated subnet correctly excludes `default_outbound_access_enabled`
+
+### Finding: L-1 — Missing Tags on DNS Helpers
+
+**Severity:** 🟢 Low — governance hygiene, no security impact
+
+**Affected resources:**
+- 4× `azurerm_private_dns_zone_virtual_network_link`
+- 1× `azurerm_private_dns_a_record.aca_wildcard`
+
+**Recommendation:** Add `tags = local.common_tags` to all five resources per Decision #6 (Tagging Strategy).
+
+### Positive Security Patterns (Preserve)
+
+1. Zero public attack surface — internal LB, private ACR, no public IPs
+2. Identity-first ACR access — MI + AcrPull, admin auth disabled
+3. DNS architecture is correct — environment zone + wildcard + dual VNet links ensure resolution from ACA and cross-VNet
+4. Conditional firewall integration — both `internet_security_enabled` and `default_outbound_access_enabled` track platform firewall state
+5. DNS prerequisite validation prevents deployment without platform DNS
+6. MCR for sample app avoids chicken-and-egg (ACR infrastructure ready for user workloads)
+7. Clean separation — no modifications to Networking module required
+
+### Conclusion
+
+Implementation faithfully translates security requirements with no drift on any critical or medium control. Strong security posture for a lab/demo module. **No changes required before deployment.**
 - Cleanup sections now lead with "⚠️ Gotcha:" in bold
 - Quick Start sections now use `init && apply` (chained commands)
 - Prose tightened: "must be applied first" → "applied first" (cut passive structure)

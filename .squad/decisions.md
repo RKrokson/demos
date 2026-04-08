@@ -338,6 +338,108 @@ The `networkAcls.defaultAction = "Deny"` change breaks the agent proxy's interna
 
 ---
 
+### 14. ACA ALZ Design Decisions — Ryan Interview (Ryan Krokson)
+
+**Status:** Approved  
+**Date:** 2026-04-06
+
+**Context:** Pre-implementation review with Ryan resolved ambiguities in Carl and SystemAI's ACA architecture proposals.
+
+**Decisions:**
+
+1. **Module name:** `ContainerApps-byoVnet` — follows Foundry naming pattern for consistency
+2. **Sample app:** Yes — include hello-world container app to verify environment post-deploy
+3. **ACR:** Yes — Premium Azure Container Registry with private endpoint required
+4. **Workload profiles:** Consumption always-on + optional D4 dedicated via boolean toggle (Carl's proposal accepted)
+5. **Key Vault:** Reuse Networking module's Key Vault (no new KV in this module) — requires new Networking output for KV ID/URI
+6. **Firewall rules:** Do NOT add rules to Networking module. Document in README that lab assumes any/any firewall rules. List specific ACA FQDN requirements (MCR, AKS dependencies) for users who lock down firewall.
+7. **Intended workloads:** MCP servers, AI agents, AI-related demos — informs container sizing and profile defaults
+
+**Impact:** Clarifies ACA architecture; Donut proceeds with implementation.
+
+---
+
+### 15. ContainerApps-byoVnet Implementation Decisions (Donut — Infra Dev)
+
+**Status:** Implemented & Approved  
+**Date:** 2026-04-06
+
+**Context:** Donut completed ContainerApps-byoVnet module (11 files). Module follows Foundry-byoVnet pattern, deploys to IP Block 4 (172.20.64.0/20).
+
+**Key Implementation Decisions:**
+
+1. **ACR DNS zone ownership:** `privatelink.azurecr.io` is created in Networking module (centralized pattern). Application LZs link to this zone, simplifying multi-module scenarios and avoiding duplication. Single-owner pattern from Networking's AVM private DNS.
+2. **Workload profiles mode:** Consumption profile explicitly declared in ACA environment to enable workload profiles mode. Required for optional D4 dedicated profile via `add_dedicated_workload_profile` toggle.
+3. **Sample app uses MCR image:** Hello-world pulls from MCR (not ACR) to avoid chicken-egg: need images before environment exists. ACR + managed identity infrastructure fully provisioned for user workloads.
+4. **New Networking outputs:** Added `dns_vnet00_id` and `dns_zone_acr_id` to expose DNS VNet ID and centralized ACR DNS zone. Enables app LZs to link their resources to centralized DNS infrastructure.
+5. **No firewall rules:** Per Ryan's directive, no firewall rules added. ACA FQDN requirements documented in module README.
+6. **Ingress `external_enabled = true`:** Permits VNet-scoped reachability (not public internet exposure). Internal load balancer blocks public traffic; flag enables communication from peered spokes and on-premises networks. Verified safe for lab/internal workloads.
+7. **Log Analytics consolidation:** ACA environment sends logs to platform Networking module's LAW (not module-local). Single pane of glass; acceptable for lab context.
+
+**Impact:**
+- New module fully independent — deploy/destroy without touching Networking or Foundry modules
+- IP addressing doc updated with Block 4 allocation
+- Networking output contract expanded (backward compatible — new outputs only)
+- Centralized DNS pattern enables multi-module ACA deployment scenarios
+- Verified secure by SystemAI; validated by Katia (14 checks pass)
+
+**Sub-Decisions:**
+
+- **16a. ACA Revalidation (Katia)** — 2026-07-16  
+  All three fixes post-review are correct: `external_enabled = true` is private-network reachability; LAW consolidation reduces sprawl; ACR DNS zone centralization follows correct pattern. 14 validation checks pass.
+
+- **16b. Security Recheck (SystemAI)** — 2026-07-18  
+  All changes security-neutral or positive. `external_enabled = true` confirmed safe (no public endpoints); LAW consolidation acceptable for lab; DNS zone centralization is correct pattern. Approved for production.
+
+---
+
+### 16. Three-Mode Container App Deployment Pattern (Donut — Infra Dev)
+
+**Status:** Implemented  
+**Date:** 2026-04-08
+
+**Context:** ContainerApps-byoVnet module previously hardcoded a single hello-world sample app. Ryan requested a flexible deployment pattern supporting three modes: no app, a quickstart verification app, and a real MCP Toolkit server.
+
+**Decision:** Introduced `app_mode` variable with three values:
+- **`none`** — ACA environment + ACR deployed, no container app. Useful when you only need the platform infrastructure.
+- **`hello-world`** (default) — MCR quickstart image on port 80. Quick smoke test, no ACR pull needed.
+- **`mcp-toolbox`** — MCP Toolkit server cloned from GitHub, built via `az acr build`, pushed to ACR, deployed on port 8080 with managed identity.
+
+**Implementation Details:**
+1. Two separate container app resources (not one with dynamic blocks) — hello-world and mcp-toolbox differ significantly in port, identity, registry config.
+2. `terraform_data` with local-exec provisioner handles git clone + `az acr build` workflow. Cloud build means no local Docker Desktop required.
+3. ACR `public_network_access_enabled` is conditional — `true` only in mcp-toolbox mode (required for `az acr build`), `false` otherwise.
+4. Outputs renamed from `sample_app_id` to `container_app_id` and `container_app_fqdn`, both conditional with `try()`.
+
+**Rationale:**
+- Two resources is cleaner than heavy conditional logic when modes are materially different.
+- `az acr build` is ideal for labs — no Docker Desktop dependency, builds run server-side in Azure.
+- ACR public access tradeoff is acceptable for a lab; in production, use ACR Tasks with dedicated agent pools instead.
+
+**Impact:**
+- `sample_app_name` and `sample_app_image` variables removed (breaking change for existing tfvars files).
+- `sample_app_id` output renamed to `container_app_id` (breaking output change).
+- Pattern is reusable for future app modes (add new values to validation, add new container app resource with count guard).
+
+---
+
+### 17. Squad & Development Tooling Disclosure (Ryan Krokson)
+
+**Status:** Approved  
+**Date:** 2026-04-07T18:12Z
+
+**Context:** User directive to clarify Squad's role in repo development.
+
+**Decision:** Add a mention of Squad to the root README explaining that it's used for development of the repo but is not required to deploy the environments. Link to Brady's Squad website: https://bradygaster.github.io/squad/.
+
+**Rationale:**
+1. People may question the `.squad/` folder
+2. Promotion for Brady and the Squad project
+
+**Impact:** README will include Squad disclosure section.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

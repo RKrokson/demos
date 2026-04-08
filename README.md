@@ -14,12 +14,13 @@ This repo follows a two-tier landing zone pattern:
 | ------------- | -------- | ----------------------------------------------------------------------- | -------------------------------- |
 | `Networking/` | Platform | Azure Virtual WAN, hubs, spoke VNets, optional Firewall and Private DNS | [README](./Networking/README.md) |
 
-**Application Landing Zones** — Optional workloads that plug into the platform. Deploy one or both Foundry modules. Each creates its own spoke VNet with a dedicated address range, so there are no CIDR conflicts. Running both at the same time has not been fully tested.
+**Application Landing Zones** — Optional workloads that plug into the platform. Deploy one or more application modules. Each creates its own spoke VNet with a dedicated address range, so there are no CIDR conflicts.
 
-| Folder                 | Layer       | Description                                                   | Docs                                      |
-| ---------------------- | ----------- | ------------------------------------------------------------- | ----------------------------------------- |
-| `Foundry-byoVnet/`     | Application | AI Foundry with private endpoints in a BYO VNet               | [README](./Foundry-byoVnet/README.md)     |
-| `Foundry-managedVnet/` | Application | AI Foundry with private endpoints in a Microsoft-managed VNet | [README](./Foundry-managedVnet/README.md) |
+| Folder                    | Layer       | Description                                                   | Docs                                         |
+| ------------------------- | ----------- | ------------------------------------------------------------- | -------------------------------------------- |
+| `Foundry-byoVnet/`        | Application | AI Foundry with private endpoints in a BYO VNet               | [README](./Foundry-byoVnet/README.md)        |
+| `Foundry-managedVnet/`    | Application | AI Foundry with private endpoints in a Microsoft-managed VNet | [README](./Foundry-managedVnet/README.md)    |
+| `ContainerApps-byoVnet/`  | Application | Container Apps with ACR in a BYO VNet                         | [README](./ContainerApps-byoVnet/README.md)  |
 
 Future modules will follow the same application landing zone pattern. See the [Adding a New Application Landing Zone](./docs/adding-application-landing-zone.md) guide.
 
@@ -45,12 +46,12 @@ Future modules will follow the same application landing zone pattern. See the [A
    terraform init && terraform apply
    ```
 
-4. (Optional) Deploy an **application landing zone**. Each Foundry module is independent:
+4. (Optional) Deploy an **application landing zone**. Each module is independent:
    ```sh
-   cd ../Foundry-byoVnet   # or ../Foundry-managedVnet
+   cd ../Foundry-byoVnet   # or ../Foundry-managedVnet or ../ContainerApps-byoVnet
    terraform init && terraform apply
    ```
-   **Note:** Both Foundry modules need `add_private_dns00 = true` in Networking's tfvars to enable private DNS resolution.
+   **Note:** Application landing zones require `add_private_dns00 = true` in Networking's tfvars to enable private DNS resolution.
 
 See each module's README for details.
 
@@ -86,6 +87,10 @@ Rough estimate using Central US, single region:
 | Azure vWAN                   | $6          | $182.50        |
 | Azure Firewall Premium       | $42         | $1,277.50      |
 | VM (Standard_B2s w/ Windows) | $1.19       | $36.21         |
+
+## Development
+
+This repo uses [Squad](https://bradygaster.github.io/squad/) for AI-assisted development. The `.squad/` folder contains agent configuration for that workflow. Squad is not required to deploy any of the environments here; you can ignore that folder entirely.
 
 ## Disclaimer
 
