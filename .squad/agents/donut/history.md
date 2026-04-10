@@ -24,6 +24,8 @@
 
 - **2026-04-10 (donut-networking-deploy):** Deployed Networking platform LZ successfully — 579 resources in Sweden Central, suffix 6786. Azure Firewall at 172.30.0.132, DNS resolver at 172.20.16.4. Zero errors. azurerm bumped to 4.68.0. Region 1 off. Ready for Foundry + ContainerApps modules.
 
+- **2026-04-10 (networking-destroy-redeploy-7):** Destroy + redeploy cycle to test VM extension `depends_on` fix for `ipconfig /renew` ordering. **Destroy:** First attempt destroyed 571/579 — 2 vHub connections (`vhub00-to-shared00-sece`, `vhub00-to-dns00-sece`) timed out after 60 min (nil HTTP response / context deadline exceeded). Retry destroyed remaining 8 cleanly. **Redeploy:** 579 resources created, suffix `2883`, zero errors. RG `rg-net00-sece-2883`, Firewall IP `172.30.0.132`, Key Vault `kv00-sece-2883`. Total cycle: ~110 min. **New learning:** vHub connection deletes can hit 60-min timeout — connections are already deleted server-side, simple retry resolves.
+
 ## Key Learnings
 
 - **Foundry teardown gotchas:** legionservicelink on AI Foundry subnets can persist after destroy. Reliable workaround: RG-delete via CLI + state cleanup with `terraform state rm`. Purging soft-deleted Cognitive Services accounts doesn't always release the link immediately.
