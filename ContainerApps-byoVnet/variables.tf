@@ -76,3 +76,9 @@ variable "app_mode" {
     error_message = "app_mode must be 'none', 'hello-world', or 'mcp-toolbox'."
   }
 }
+
+variable "mcp_dashboard_enabled" {
+  description = "Enable the MCP Toolbox diagnostic dashboard and /api/* endpoints (exposes recent request data — use only in trusted lab environments)"
+  type        = bool
+  default     = false
+}

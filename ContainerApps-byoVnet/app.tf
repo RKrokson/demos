@@ -95,6 +95,11 @@ resource "azurerm_container_app" "mcp_toolbox" {
       image  = "${azurerm_container_registry.acr.login_server}/mcp-toolbox:latest"
       cpu    = 0.25
       memory = "0.5Gi"
+
+      env {
+        name  = "MCP_DASHBOARD_ENABLED"
+        value = tostring(var.mcp_dashboard_enabled)
+      }
     }
   }
 

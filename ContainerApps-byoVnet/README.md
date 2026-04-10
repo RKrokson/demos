@@ -29,6 +29,7 @@ This module creates its own VNet with subnets and hub connection. Customize netw
 | Variable                         | Default              | Purpose                                                          |
 | -------------------------------- | -------------------- | ---------------------------------------------------------------- |
 | `app_mode`                       | `"hello-world"`      | Container app to deploy: `none`, `hello-world`, or `mcp-toolbox` |
+| `mcp_dashboard_enabled`          | `false`              | Enable MCP Toolbox `/dashboard` and `/api/*` diagnostic endpoints |
 | `resource_group_name`            | `"rg-aca00"`         | Resource group name                                              |
 | `aca_vnet_address_space`         | `["172.20.64.0/20"]` | VNet address range (Block 4)                                     |
 | `aca_subnet_address`             | `["172.20.64.0/27"]` | ACA environment subnet                                           |
@@ -61,10 +62,13 @@ The `app_mode` variable controls what runs in the ACA environment. The environme
 
 The MCP Toolbox container is useful for troubleshooting MCP connections from AI Foundry. It runs a lightweight MCP server inside the same private network, so you can verify connectivity and endpoint resolution without standing up a full application. The MCP server is unauthenticated and for testing purposes only. Source and docs are in the [MCP Toolkit repo](https://github.com/AiGhostMod/mcpToolkit).
 
+To enable the diagnostic dashboard during demos, set `mcp_dashboard_enabled = true`. This exposes `/dashboard` and `/api/*` endpoints for inspecting recent MCP traffic. Off by default — the dashboard can reveal request headers and auth material, so keep it in trusted environments.
+
 Set it in your tfvars or on the command line:
 
 ```sh
 terraform apply -var 'app_mode=mcp-toolbox'
+terraform apply -var 'app_mode=mcp-toolbox' -var 'mcp_dashboard_enabled=true'
 ```
 
 ## Architecture
