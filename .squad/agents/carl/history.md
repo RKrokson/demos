@@ -16,6 +16,14 @@
 
 - **2026-04-10 (donut-networking-deploy):** Donut deployed Networking platform LZ successfully — 579 resources in Sweden Central, Firewall at 172.30.0.132, DNS resolver at 172.20.16.4. azurerm bumped to 4.68.0. Region 1 off. Ready for Foundry + ContainerApps modules.
 
+- **2026-04-14 (bastion-routing-intent-validation):** Created comprehensive validation checklist for Ryan to prove Bastion works with vWAN routing intent (secured hub). Microsoft docs say AzureBastionSubnet requires 0.0.0.0/0 propagation disabled, but our deployment works with `internet_security_enabled = true`. Checklist covers 8 evidence categories: connectivity, routing, firewall logs, topology, config, edge cases, negative tests, and PG packaging. Hypothesis: Bastion data plane uses its public IP directly, not the spoke's default route — the injected 0.0.0.0/0 from routing intent doesn't affect Bastion's own traffic. Decision filed to `decisions/inbox/carl-bastion-routing-intent.md`.
+
+- **2026-04-14 (team-update-orchestration):** Parallel agent orchestration session. Deployed Networking LZ (579 resources, suffix 8575) + Foundry-byoVnet (32 resources, suffix 8999) with one vHub transient recovery. Bastion validation checklist completed and decision merged into team decisions (Decision #18). Orchestration logs written. Both modules stable for downstream operations. Foundry environment ready for Bastion validation testing and Microsoft PG evidence collection.
+
+## Learnings
+
+- **Bastion + vWAN Routing Intent:** Azure Bastion deployed in a spoke VNet with `internet_security_enabled = true` (routing intent active, 0.0.0.0/0 propagated) works despite Microsoft Bastion FAQ saying it shouldn't. Bastion's data plane likely uses its public IP directly and doesn't follow the spoke's default route. Key evidence points: effective routes on VM NIC (same VNet), firewall logs showing whether Bastion traffic transits the FW, and the `internetSecurity` flag on the hub connection. This contradicts the Bastion FAQ docs as of July 2026.
+
 ## Key Patterns
 
 - Platform/application landing zone model: Networking = shared foundation, Foundry/ContainerApps = pluggable workloads

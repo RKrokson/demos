@@ -322,6 +322,37 @@ All agents use correct pronouns when referring to team members.
 
 ---
 
+### 18. Bastion Works with vWAN Routing Intent (Secured Hub) (Carl — Lead/Architect)
+
+**Status:** Evidence Collection In Progress  
+**Date:** 2026-07-21  
+**Requested by:** Ryan Krokson
+
+**Context:** Microsoft documentation (Bastion FAQ) states that when Azure Virtual WAN hub is integrated with Azure Firewall as a Secured Virtual Hub, the AzureBastionSubnet must reside within a Virtual Network where the default 0.0.0.0/0 route propagation is disabled at the virtual network connection level.
+
+Our deployed environment contradicts this. We have:
+- Azure Firewall in vWAN hub (Sweden Central)
+- Routing intent enabled (both `InternetTrafficPolicy` and `PrivateTrafficPolicy` → firewall)
+- Bastion deployed in `shared_vnet` (spoke VNet)
+- Hub connection has `internet_security_enabled = true` (0.0.0.0/0 route IS propagated)
+- Bastion **works** — RDP/SSH connections to VMs succeed, VMs have internet access
+
+**Hypothesis:** Bastion likely works because its data plane uses the **public IP directly** for WebSocket tunneling, not the spoke's default route. The 0.0.0.0/0 route injected by routing intent applies to traffic sourced from VM NICs in the subnet, but Bastion's own control/data plane communication uses a separate path (its public IP ↔ Azure backbone).
+
+**Validation checklist developed for Microsoft PG** with 8 categories:
+1. Connectivity evidence (RDP, SSH, file transfer, outbound internet)
+2. Routing evidence (effective routes on VM NIC, hub connection configuration)
+3. Firewall evidence (diagnostic logs, traffic flow analysis)
+4. Network topology evidence (vWAN topology, routing intent configuration)
+5. Configuration evidence (Terraform files, portal screenshots)
+6. Edge cases (cross-VNet Bastion, shareable links, DNS resolution)
+7. Negative tests (control cases establishing what would break)
+8. Evidence packaging (compilation format for PG submission)
+
+**Impact:** No Terraform code changes needed. May result in updated guidance for our module README. Validates current architecture pattern as correct.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

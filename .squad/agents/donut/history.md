@@ -26,9 +26,15 @@
 
 - **2026-04-10 (networking-destroy-redeploy-7):** Destroy + redeploy cycle to test VM extension `depends_on` fix for `ipconfig /renew` ordering. **Destroy:** First attempt destroyed 571/579 — 2 vHub connections (`vhub00-to-shared00-sece`, `vhub00-to-dns00-sece`) timed out after 60 min (nil HTTP response / context deadline exceeded). Retry destroyed remaining 8 cleanly. **Redeploy:** 579 resources created, suffix `2883`, zero errors. RG `rg-net00-sece-2883`, Firewall IP `172.30.0.132`, Key Vault `kv00-sece-2883`. Total cycle: ~110 min. **New learning:** vHub connection deletes can hit 60-min timeout — connections are already deleted server-side, simple retry resolves.
 
+- **2026-04-14 (networking-foundry-deploy-8):** Sequential deploy of Networking + Foundry-byoVnet. **Networking:** 579 resources, suffix `8575`, region swedencentral. Hit vHub InternalServerError during initial apply — Azure created the resource but polling failed. Imported the vHub but it was in Failed/None routing state. Had to delete via REST API and let Terraform recreate cleanly. Total Networking wall time: ~50 min (including recovery). Firewall IP `172.30.0.132`, DNS resolver `172.20.16.4`, KV `kv00-sece-8575`. **Foundry-byoVnet:** 32 resources, suffix `8999`, zero errors, ~25 min. AI Foundry `aifoundry8999`, project `project8999`, Cosmos DB + AI Search + Storage all deployed. **New learning:** When vHub creation polling fails with InternalServerError, don't import — the resource is in a Failed provisioning state. Delete it from Azure (REST API DELETE) and let Terraform recreate it fresh.
+
+- **2026-04-14 (team-update-orchestration):** Parallel agent orchestration session. Deployed Networking LZ (579 resources, suffix 8575) + Foundry-byoVnet (32 resources, suffix 8999) with one vHub transient recovery. Carl completed Bastion + routing intent validation checklist for Microsoft PG (8 categories, 60+ CLI commands). Orchestration logs written. Team decisions merged (Decision #18: Bastion works with vWAN routing intent despite docs). Status: Both modules stable for downstream operations. Foundry environment ready for Bastion validation testing.
+
 ## Key Learnings
 
-- **Foundry teardown gotchas:** legionservicelink on AI Foundry subnets can persist after destroy. Reliable workaround: RG-delete via CLI + state cleanup with `terraform state rm`. Purging soft-deleted Cognitive Services accounts doesn't always release the link immediately.
+- **vHub InternalServerError recovery:** When vHub creation fails with InternalServerError and the polling times out, the resource exists in Azure but in a Failed/None routing state. Importing it into state doesn't help — the router never provisions. Correct fix: remove from state (`terraform state rm`), delete from Azure via REST API, then re-apply. The fresh creation succeeds and the router provisions correctly.
+
+- **Foundry teardown gotchas:**legionservicelink on AI Foundry subnets can persist after destroy. Reliable workaround: RG-delete via CLI + state cleanup with `terraform state rm`. Purging soft-deleted Cognitive Services accounts doesn't always release the link immediately.
 
 - **ACA teardown:** Clean and predictable (~16 min), no soft-delete concerns, no legionservicelink issues. ACA infrastructure is well-behaved.
 
