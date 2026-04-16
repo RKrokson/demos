@@ -34,6 +34,8 @@
 
 - **2026-04-15 (donut-destroy):** Executed planned destruction of Foundry-byoVnet (32 resources, suffix 8999) then Networking LZ (579 resources, suffix 8575). Foundry teardown encountered expected legionservicelink SAL blocking issue on AI Foundry subnet — resolved via Cognitive Services soft-delete purge + ~10 min SAL wait. Networking destroyed cleanly in ~45 min. Both Terraform states emptied. Subscription returned to clean state. Orchestration and session logs recorded.
 
+- **2026-04-16 (bastion-config-update):** Implemented Decision #19 — added `ip_connect_enabled = true` and `tunneling_enabled = true` to `azurerm_bastion_host.bastion` resource in Networking/modules/region-hub/main.tf. Inline comment documents Standard SKU requirement. Terraform validate and fmt both pass clean. Changes are backward compatible (in-place Bastion update on next apply). Enables cross-VNet and native client testing scenarios per Decision #18 (routing intent validation). Coordinated with Mordecai (docs). Orchestration log written.
+
 ## Key Learnings
 
 - **vHub InternalServerError recovery:** When vHub creation fails with InternalServerError and the polling times out, the resource exists in Azure but in a Failed/None routing state. Importing it into state doesn't help — the router never provisions. Correct fix: remove from state (`terraform state rm`), delete from Azure via REST API, then re-apply. The fresh creation succeeds and the router provisions correctly.
@@ -51,6 +53,8 @@
 - **ACA subnet delegation:** `Microsoft.App/environments` — requires explicit subnet delegation. ACA manages internal networking; no NSG needed on delegated subnet.
 
 - **Firewall DNS proxy:** vHub firewall private IP is at `virtual_hub[0].private_ip_address`, not `ip_configuration[0]` (that's VNet-mode). DNS routing decision lives in platform layer — app LZs consume platform's `dns_server_ip00` output.
+
+- **Bastion Standard SKU features:** `ip_connect_enabled` and `tunneling_enabled` require Standard SKU. They enable cross-VNet connect-by-IP and native client support (`az network bastion tunnel/rdp/ssh`). Set unconditionally since default SKU is Standard and these are lab environments.
 
 ## See Also
 
