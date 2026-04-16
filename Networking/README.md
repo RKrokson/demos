@@ -8,12 +8,12 @@ This is the shared networking foundation that all application landing zones in t
 
 **Optionals:** Azure Firewall, Private DNS Resolver, and a second region. All default to `false`. Enable them in your `terraform.tfvars`:
 
-| Toggle              | Enables                                   |
-| ------------------- | ----------------------------------------- |
-| `create_vhub01`     | Second region (hub, VNets, VMs)           |
-| `add_firewall00`    | Azure Firewall in region 0                |
-| `add_firewall01`    | Azure Firewall in region 1 (requires vhub01) |
-| `add_private_dns00` | Private DNS Resolver in region 0          |
+| Toggle              | Enables                                            |
+| ------------------- | -------------------------------------------------- |
+| `create_vhub01`     | Second region (hub, VNets, VMs)                    |
+| `add_firewall00`    | Azure Firewall in region 0                         |
+| `add_firewall01`    | Azure Firewall in region 1 (requires vhub01)       |
+| `add_private_dns00` | Private DNS Resolver in region 0                   |
 | `add_private_dns01` | Private DNS Resolver in region 1 (requires vhub01) |
 
 See `variables.tf` for the full configuration options (VNet ranges, VM sizes, region names, etc).
@@ -26,6 +26,7 @@ terraform init && terraform apply
 ```
 
 **Optional:** Create a `terraform.tfvars` to enable Firewall and Private DNS. Two examples:
+
 - `terraform.tfvars.example` — Just the toggles
 - `terraform.tfvars.advanced.example` — Toggles + custom IP ranges
 
@@ -46,14 +47,14 @@ Application landing zone modules (`Foundry-byoVnet/`, `Foundry-managedVnet/`) co
 
 Application landing zones consume these outputs via `terraform_remote_state`. See the full list in `outputs.tf`.
 
-| Output | Purpose |
-|--------|---------|
-| `rg_net00_id`, `rg_net00_name`, `rg_net00_location` | Networking resource group |
-| `vhub00_id`, `vhub01_id` | Virtual hub IDs (vhub01 is null if `create_vhub01 = false`) |
-| `key_vault_id`, `key_vault_name` | Key Vault (stores VM admin password) |
-| `log_analytics_workspace_id` | Log Analytics (firewall logs go here) |
-| `dns_resolver_policy00_id`, `dns_inbound_endpoint00_ip` | Private DNS (null if disabled) |
-| `firewall_private_ip00` | Firewall private IP (null if not deployed) |
+| Output                                                  | Purpose                                                     |
+| ------------------------------------------------------- | ----------------------------------------------------------- |
+| `rg_net00_id`, `rg_net00_name`, `rg_net00_location`     | Networking resource group                                   |
+| `vhub00_id`, `vhub01_id`                                | Virtual hub IDs (vhub01 is null if `create_vhub01 = false`) |
+| `key_vault_id`, `key_vault_name`                        | Key Vault (stores VM admin password)                        |
+| `log_analytics_workspace_id`                            | Log Analytics (firewall logs go here)                       |
+| `dns_resolver_policy00_id`, `dns_inbound_endpoint00_ip` | Private DNS (null if disabled)                              |
+| `firewall_private_ip00`                                 | Firewall private IP (null if not deployed)                  |
 
 DNS zone IDs are also available for all `privatelink.*` zones (blob, file, table, queue, vault, Cognitive Services, OpenAI, Search, Cosmos DB). All outputs are null-safe when features are disabled.
 
@@ -61,10 +62,10 @@ DNS zone IDs are also available for all `privatelink.*` zones (blob, file, table
 
 Each region uses a `172.2x.0.0/16` supernet split into `/20` blocks. Virtual hub prefixes use a separate `172.30.x.x` range. Full allocation scheme is in [docs/ip-addressing.md](../docs/ip-addressing.md).
 
-| Region | vHub Prefix | Shared VNet | DNS VNet | Foundry-byoVnet | Foundry-managedVnet | Future |
-|--------|-------------|-------------|----------|-----------------|---------------------|--------|
-| Region 0 | `172.30.0.0/23` | `172.20.0.0/20` | `172.20.16.0/20` | `172.20.32.0/20` | `172.20.48.0/20` | `172.20.64+` |
-| Region 1 | `172.30.2.0/23` | `172.21.0.0/20` | `172.21.16.0/20` | Reserved | Reserved | `172.21.64+` |
+| Region   | vHub Prefix     | Shared VNet     | DNS VNet         | Foundry-byoVnet  | Foundry-managedVnet | Future       |
+| -------- | --------------- | --------------- | ---------------- | ---------------- | ------------------- | ------------ |
+| Region 0 | `172.30.0.0/23` | `172.20.0.0/20` | `172.20.16.0/20` | `172.20.32.0/20` | `172.20.48.0/20`    | `172.20.64+` |
+| Region 1 | `172.30.2.0/23` | `172.21.0.0/20` | `172.21.16.0/20` | Reserved         | Reserved            | `172.21.64+` |
 
 ## Module Structure
 
@@ -84,6 +85,27 @@ Networking/
 
 **Firewall:** Deployed with Routing Intent enabled. Default policy is allow-all. Update rules as needed.
 
+**Bastion:** Defaults to Standard SKU with IP-based connections (`ip_connect_enabled`) and native client support (`tunneling_enabled`) both enabled. This means you can connect to VMs by IP address (not just resource ID) and use `az network bastion` CLI commands instead of the portal.
+
+Connect via native RDP client:
+
+```sh
+az network bastion rdp \
+  --name <bastion-name> --resource-group <rg-name> \
+  --target-ip-address <vm-private-ip>
+```
+
+Connect via native SSH client:
+
+```sh
+az network bastion ssh \
+  --name <bastion-name> --resource-group <rg-name> \
+  --target-ip-address <vm-private-ip> \
+  --auth-type password --username yourAdminUser
+```
+
+IP-based connections also enable cross-VNet Bastion access: a single Bastion in the shared spoke can reach VMs in application landing zone VNets connected to the same vWAN hub.
+
 **Private DNS:** Uses [Azure Verified Module](https://azure.github.io/Azure-Verified-Modules/indexes/terraform/tf-pattern-modules/) — deploys all common `privatelink.*` zones except `privatelink.{dnsPrefix}.database.windows.net` (create manually if needed). See [exceptions list](https://github.com/Azure/terraform-azurerm-avm-ptn-network-private-link-private-dns-zones?tab=readme-ov-file#-private_link_private_dns_zones).
 
 **VM DNS gotcha:** VMs may boot with default Azure DNS before custom DNS settings apply. The DHCP lease is ~127 years and doesn't auto-renew. Fix with `ipconfig /renew` or reboot inside the VM. This is normal Azure platform behavior.
@@ -95,22 +117,27 @@ Networking/
 Six common configurations. See [terraform.tfvars.example](./terraform.tfvars.example) and [terraform.tfvars.advanced.example](./terraform.tfvars.advanced.example) for ready-to-use templates. Rename one to `terraform.tfvars` and set the toggles:
 
 ### Single Region + DNS Resolver
+
 ```hcl
 create_vhub01     = false
 add_firewall00    = false
 add_private_dns00 = true
 ```
+
 ![Diagram](./Diagrams/1reg-hub-dns-v1.2.png)
 
 ### Single Region + Firewall + DNS
+
 ```hcl
 create_vhub01     = false
 add_firewall00    = true
 add_private_dns00 = true
 ```
+
 ![Diagram](./Diagrams/1reg-shub-dns-v1.2.png)
 
 ### Two Regions + Firewall + DNS
+
 ```hcl
 create_vhub01     = true
 add_firewall00    = true
@@ -118,6 +145,7 @@ add_firewall01    = true
 add_private_dns00 = true
 add_private_dns01 = true
 ```
+
 ![Diagram](./Diagrams/2reg-shub-dns-v1.2.png)
 
 See [terraform.tfvars.advanced.example](./terraform.tfvars.advanced.example) to customize IP ranges, regions, or VM sizes.

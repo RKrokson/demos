@@ -374,6 +374,11 @@ resource "azurerm_bastion_host" "bastion" {
   resource_group_name = var.resource_group_name
   sku                 = var.bastion_host_sku
   tags                = var.common_tags
+
+  # Requires Standard SKU. Enables connect-by-IP (cross-VNet) and native client (az network bastion tunnel/rdp/ssh).
+  ip_connect_enabled = true
+  tunneling_enabled  = true
+
   ip_configuration {
     name                 = "configuration"
     subnet_id            = azurerm_subnet.bastion_subnet.id
