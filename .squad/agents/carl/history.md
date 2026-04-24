@@ -33,6 +33,8 @@
 - DNS architecture: centralized in Networking, spokes link to shared zones via conditional `enable_dns_link`
 - Firewall/NAT Gateway mutually exclusive (routing intent precedence)
 
+
+- **2026-04-24 (donut-platform-foundry-deploy):** Donut deployed Networking LZ (firewall + DNS) + Foundry-byoVnet to Sweden Central. SUCCESS: 611 total resources (Networking 579 suffix 8357, Foundry-byoVnet 32 suffix 0918) in ~57 min. Firewall 172.30.0.132, DNS Resolver 172.20.16.4, Foundry aifoundry0918/project0918 with GPT-5.4 model. One transient DNS resolver policy VNet link InternalServerError resolved by retry (3rd documented occurrence of this transient).
 ## See Also
 
 - **decisions.md** — Team approval decisions and architecture direction
