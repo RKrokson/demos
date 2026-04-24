@@ -33,3 +33,38 @@ No conditional gating on the SKU variable — these are lab environments, and th
 
 
 
+
+---
+
+# Deploy Decision: Full Platform + Foundry-byoVnet (2026-04-24)
+
+**Author:** Donut (Infra Dev)
+**Requested by:** Ryan Krokson
+
+## Decisions Made
+
+### 1. Reused existing terraform.tfvars (no changes needed)
+Ryan's existing Networking tfvars already had dd_firewall00 = true and dd_private_dns00 = true with single region (create_vhub01 = false). No modifications required.
+
+### 2. DNS policy circuit breaker — retry, not workaround
+The DNS resolver policy VNet link hit the known InternalServerError circuit breaker during initial apply. Chose simple retry (re-plan + re-apply) rather than any workaround. This is now the 3rd occurrence of this transient — it always resolves on retry within seconds.
+
+### 3. Foundry-byoVnet tfvars unchanged
+Used existing tfvars with Block 2 addressing (172.20.32.0/20) and GPT-5.4 model. No modifications needed for this deploy.
+
+## Deployment Summary
+
+| Module | Resources | Suffix | Wall Time |
+|--------|-----------|--------|-----------|
+| Networking | 579 | 8357 | ~35 min |
+| Foundry-byoVnet | 32 | 0918 | ~22 min |
+| **Total** | **611** | — | **~57 min** |
+
+## Key Endpoints
+
+- Firewall IP: 172.30.0.132
+- DNS Resolver: 172.20.16.4
+- Key Vault: kv00-sece-8357
+- AI Foundry: ifoundry0918
+- Project: project0918
+
