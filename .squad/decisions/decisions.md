@@ -142,3 +142,66 @@ Remove `ip_connect_enabled` from `azurerm_bastion_host.bastion` in `Networking/m
 - Donut history entry: `2026-04-16 (bastion-config-update)` (original addition)
 - Donut history learning: `Bastion IP-connect incompatible with vWAN routing intent`
 
+---
+
+# Bastion Documentation Update — IP-Connect Removal
+
+**Agent:** Mordecai (Docs)  
+**Date:** 2026-04-25  
+**Branch:** `fix/bastion-remove-ip-connect`  
+**Commit:** Update Bastion docs — remove IP-connect, switch examples to resource-id
+
+## Summary
+
+Updated Networking README Notes section to align with Donut's code changes (Decision #20):
+1. **Bastion section** — Removed `ip_connect_enabled` since it conflicts with vWAN routing intent. Native client RDP/SSH still works via resource ID.
+2. **VM DNS gotcha section** — Deleted entirely. DNS renewal is solved in code via `vm_post_deploy` extension (runs `ipconfig /renew` after DNS servers configured). No longer a gotcha worth documenting.
+
+## Changes
+
+### Bastion section (lines 88–109)
+
+1. **Intro paragraph (line 88):**
+   - Removed: "IP-based connections (`ip_connect_enabled`) and native client support (`tunneling_enabled`) both enabled"
+   - Added: Clear statement that only `tunneling_enabled` is active; explained IP-connect removal reason
+
+2. **RDP example (line 95):**
+   - Changed: `--target-ip-address <vm-private-ip>`
+   - To: `--target-resource-id <vm-resource-id>`
+   - Added: Example resource ID format for clarity
+
+3. **SSH example (line 105):**
+   - Changed: `--target-ip-address <vm-private-ip>`
+   - To: `--target-resource-id <vm-resource-id>`
+
+4. **Cross-VNet paragraph (line 107):**
+   - Removed: Entire paragraph describing IP-connect cross-VNet access
+   - Added: "Cross-VNet Bastion access is not supported in this vWAN topology."
+
+### VM DNS gotcha section (line 113)
+
+1. **Deleted entirely:**
+   - Old: Paragraph explaining DHCP lease behavior and suggesting manual fixes
+   - Why: DNS renewal is auto-handled by platform's `vm_post_deploy` extension. No longer a gotcha worth documenting as a Note.
+
+## Rationale
+
+### Bastion removal
+- Donut's code change removed `ip_connect_enabled` because it forces the vWAN routing intent's 0.0.0.0/0 route into the spoke, which misroutes IP-connect data through the firewall.
+- Resource-ID-based access remains functional and unaffected.
+- Cross-VNet Bastion (which relied on IP-connect) is no longer a feature in this topology.
+- Documentation must reflect current infrastructure state.
+
+### VM DNS gotcha removal
+- Previously documented as a "gotcha" requiring manual intervention.
+- Platform's `vm_post_deploy` (CustomScriptExtension) already solves it: runs `ipconfig /renew` after DNS servers are configured (via `depends_on` ordering in region-hub/main.tf line 438).
+- VMs now come up with correct DNS automatically — no longer a gotcha for documentation.
+
+## Verification
+
+- README Bastion section now matches actual module capabilities
+- Examples use correct flag (`--target-resource-id`) that works with vWAN
+- No CLI commands reference removed feature
+- VM DNS paragraph removed — issue solved in code, no longer documentation concern
+- Tone matches team style: concise, engineer-focused, no AI vocabulary
+
