@@ -85,30 +85,30 @@ Networking/
 
 **Firewall:** Deployed with Routing Intent enabled. Default policy is allow-all. Update rules as needed.
 
-**Bastion:** Defaults to Standard SKU with IP-based connections (`ip_connect_enabled`) and native client support (`tunneling_enabled`) both enabled. This means you can connect to VMs by IP address (not just resource ID) and use `az network bastion` CLI commands instead of the portal.
+**Bastion:** Defaults to Standard SKU with native client support (`tunneling_enabled`) enabled. This lets you use `az network bastion` CLI commands for RDP/SSH instead of the portal. IP-based connections (`ip_connect_enabled`) were removed because they conflict with vWAN routing intent; use resource ID instead.
 
 Connect via native RDP client:
 
 ```sh
 az network bastion rdp \
   --name <bastion-name> --resource-group <rg-name> \
-  --target-ip-address <vm-private-ip>
+  --target-resource-id <vm-resource-id>
 ```
+
+Example resource ID: `/subscriptions/<subscription-id>/resourceGroups/<rg-name>/providers/Microsoft.Compute/virtualMachines/<vm-name>`
 
 Connect via native SSH client:
 
 ```sh
 az network bastion ssh \
   --name <bastion-name> --resource-group <rg-name> \
-  --target-ip-address <vm-private-ip> \
+  --target-resource-id <vm-resource-id> \
   --auth-type password --username yourAdminUser
 ```
 
-IP-based connections also enable cross-VNet Bastion access: a single Bastion in the shared spoke can reach VMs in application landing zone VNets connected to the same vWAN hub.
+Cross-VNet Bastion access is not supported in this vWAN topology.
 
 **Private DNS:** Uses [Azure Verified Module](https://azure.github.io/Azure-Verified-Modules/indexes/terraform/tf-pattern-modules/) — deploys all common `privatelink.*` zones except `privatelink.{dnsPrefix}.database.windows.net` (create manually if needed). See [exceptions list](https://github.com/Azure/terraform-azurerm-avm-ptn-network-private-link-private-dns-zones?tab=readme-ov-file#-private_link_private_dns_zones).
-
-**VM DNS gotcha:** VMs may boot with default Azure DNS before custom DNS settings apply. The DHCP lease is ~127 years and doesn't auto-renew. Fix with `ipconfig /renew` or reboot inside the VM. This is normal Azure platform behavior.
 
 **Regions:** Defaults are Sweden Central (region 0) and Central US (region 1). Override in `terraform.tfvars` — update both the full name and abbreviation.
 
