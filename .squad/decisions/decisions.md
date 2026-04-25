@@ -65,7 +65,7 @@ Used existing tfvars with Block 2 addressing (172.20.32.0/20) and GPT-5.4 model.
 - Firewall IP: 172.30.0.132
 - DNS Resolver: 172.20.16.4
 - Key Vault: kv00-sece-8357
-- AI Foundry: ifoundry0918
+- AI Foundry: aifoundry0918
 - Project: project0918
 
 ---
