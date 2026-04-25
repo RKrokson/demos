@@ -44,7 +44,7 @@ No conditional gating on the SKU variable — these are lab environments, and th
 ## Decisions Made
 
 ### 1. Reused existing terraform.tfvars (no changes needed)
-Ryan's existing Networking tfvars already had dd_firewall00 = true and dd_private_dns00 = true with single region (create_vhub01 = false). No modifications required.
+Ryan's existing Networking tfvars already had `add_firewall00 = true` and `add_private_dns00 = true` with single region (`create_vhub01 = false`). No modifications required.
 
 ### 2. DNS policy circuit breaker — retry, not workaround
 The DNS resolver policy VNet link hit the known InternalServerError circuit breaker during initial apply. Chose simple retry (re-plan + re-apply) rather than any workaround. This is now the 3rd occurrence of this transient — it always resolves on retry within seconds.
