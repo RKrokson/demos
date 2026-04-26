@@ -86,6 +86,14 @@ output "dns_zone_acr_id" {
   description = "Private DNS Zone ID for privatelink.azurecr.io"
   value       = var.add_private_dns00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io" : null
 }
+output "dns_zone_fabric_id" {
+  description = "Private DNS Zone ID for privatelink.fabric.microsoft.com"
+  value       = var.add_private_dns00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.fabric.microsoft.com" : null
+}
+output "dns_zone_sql_id" {
+  description = "Private DNS Zone ID for privatelink.database.windows.net"
+  value       = var.add_private_dns00 ? "${azurerm_resource_group.rg-net00.id}/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net" : null
+}
 
 # Platform outputs consumed by application landing zones
 output "rg_net00_name" {
