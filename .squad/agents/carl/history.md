@@ -40,3 +40,27 @@
 - **decisions.md** — Team approval decisions and architecture direction
 - **history-archive.md** — Detailed research/design work (July 2025 - March 2026)
 - Donut, Katia, Mordecai, SystemAI histories for parallel work
+
+## Learnings — 2026-04-09 — Fabric ALZ design
+
+- New module proposed: `Fabric-byoVnet` at IP block 5 (`172.20.80.0/20`). F2 / swedencentral. Design dropped at `.squad/decisions/inbox/carl-fabric-alz-design.md` for Ryan review.
+- **DNS zone for Fabric workspace PE is single zone:** `privatelink.fabric.microsoft.com` (resource `Microsoft.Fabric/privateLinkServicesForFabric`, subresource `workspace`). Verified via Microsoft Learn "Azure Private Endpoint private DNS zone values" doc. Tenant-level Power BI uses a different zone set (`analysis.windows.net`, `pbidedicated.windows.net`, `prod.powerquery.microsoft.com`) — NOT needed for workspace-level pattern.
+- **Networking AVM private DNS zones module excludes `privatelink.database.windows.net`** (per Networking/README.md line 111). Fabric ALZ needs SQL — both `fabric.microsoft.com` and `database.windows.net` zones must be added to Networking. Centralized DNS pattern continues (matches Decision #15a item 1).
+- **Fabric tenant settings ARE API-manageable** via Fabric Admin REST API `update-tenant-setting` (not portal-only as the brief assumed). Caller needs Fabric Admin role. Toggling "workspace-level inbound network rules" requires re-registering `Microsoft.Fabric` provider afterward.
+- **F SKU + MPE + workspace-level PL all supported on F2** (verified via Fabric features parity doc — F SKU column shows MPE ✅ and Workspace-level private links ✅; trial supports MPE only via footnote ^1).
+- Hybrid admin pattern resolution order: explicit group OID > explicit UPN list > `data.external` fallback to `az ad signed-in-user show`. `data.azurerm_client_config.current.user_principal_name` is unreliable so use az cli external data source for the zero-config first run.
+- Predictable teardown gotchas: MPE approval-state leftover on KV cross-RG, capacity-paused-state destroy failure, workspace soft-delete (90d), workspace-PE ordering. Mitigated via `purge-soft-deleted.ps1` and explicit `depends_on`.
+- Provider strategy: `microsoft/fabric` for workspace + MPEs + role assignments. `azurerm_fabric_capacity` for the capacity. `azapi` retained as escape hatch for any workspace-PE binding gap (open question #1 for Ryan).
+- New Networking outputs needed: `dns_zone_fabric_id`, `dns_zone_sql_id`. Update `docs/ip-addressing.md` to claim Block 5.
+
+## Learnings — 2026-04-09 — Fabric ALZ design (Ryan walkthrough)
+
+- All 8 open questions resolved. Design status: Approved — ready for Donut implementation.
+- **CORRECTION to my Q2 reasoning:** Fabric MPEs are NEVER auto-approved by the platform — they always land in `Pending` on the target. Verified Microsoft Learn: `learn.microsoft.com/fabric/security/security-managed-private-endpoints-create`. My original "auto-approve = true (same-tenant, same-sub)" assumption for storage/SQL was wrong; same-tenant only affects whether approval rights exist, not whether the platform auto-approves. Always pending.
+- Right pattern: `azapi_resource_action` PATCH on `{target_id}/privateEndpointConnections/{name}` setting `properties.privateLinkServiceConnectionState.status = "Approved"` with `depends_on = [mpe_resource]`. Apply per MPE (3 actions for our 3 MPEs).
+- Single-user lab pattern means operator already has Owner on subscription → has approval rights on KV cross-RG without any module-side role assignment. The role assignment I originally proposed was unnecessary.
+- `azapi_resource_action` has no destroy semantics. New teardown risk: orphaned `Approved` PE connections on target after Fabric MPE destroy. Mitigation moved into `purge-soft-deleted.ps1`.
+- Q1 resolution: ship workspace-PE binding via azapi behind `var.use_azapi_for_workspace_pe = true` feature flag. Migration path documented (terraform state mv + flip variable).
+- Q4: `var.workspace_content_mode = "none"` MVP only. `lakehouse` reserved for future via validation list (mirrors ContainerApps app_mode pattern).
+- Q7: Add `azurerm_monitor_diagnostic_setting` for Fabric capacity → Networking LAW. `log_analytics_workspace_id` already in Networking outputs (line 30). No Networking change needed for this.
+- Resource count went 19 → 21 (added 3 azapi auto-approval actions, 1 diagnostic setting; merged some numbering as 12a/12b/13a/13b/14a/14b).
