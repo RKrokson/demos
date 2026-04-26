@@ -188,7 +188,7 @@ All agents use correct pronouns when referring to team members.
 ### 11. Foundry BYO VNet — Configuration Gaps & 403 Root Cause (Katia)
 
 **Status:** Analysis Complete, Actionable Findings  
-**Date:** 2026-07-15
+**Date:** 2026-04-05 (corrected — original entry stamped with model-hallucinated date)
 
 **Problem:** Post-deployment, the Agents blade returns 403 from Cosmos DB. Investigation compares our module against Microsoft's official reference template ([15b](https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/15b-private-network-standard-agent-setup-byovnet)).
 
@@ -325,7 +325,7 @@ All agents use correct pronouns when referring to team members.
 ### 18. Bastion Works with vWAN Routing Intent (Secured Hub) (Carl — Lead/Architect)
 
 **Status:** Evidence Collection In Progress  
-**Date:** 2026-07-21  
+**Date:** 2026-04-14 (corrected — original entry stamped with model-hallucinated date)
 **Requested by:** Ryan Krokson
 
 **Context:** Microsoft documentation (Bastion FAQ) states that when Azure Virtual WAN hub is integrated with Azure Firewall as a Secured Virtual Hub, the AzureBastionSubnet must reside within a Virtual Network where the default 0.0.0.0/0 route propagation is disabled at the virtual network connection level.
@@ -356,8 +356,10 @@ Our deployed environment contradicts this. We have:
 
 ### Microsoft Fabric Application Landing Zone — Architecture & Design (Carl — Lead)
 
+> **Revision 2026-04-25:** §2 DNS zones corrected — both zones already created by AVM module; only outputs needed.
+
 **Status:** Approved — ready for Donut implementation
-**Date:** 2026-04-09 (proposed) / 2026-04-09 (approved by Ryan after Q&A walkthrough)
+**Date:** 2026-04-09 (proposed) / 2026-04-25 (revised — DNS zones correction)
 **Module name:** `Fabric-byoVnet` (recommended — matches existing `Foundry-byoVnet`, `ContainerApps-byoVnet` naming. The "byoVnet" suffix is accurate: we provide the spoke VNet and use a workspace-level PE for inbound, so the ingress side genuinely is BYO. Outbound uses Managed Private Endpoints, but that is a workspace property, not a network mode.)
 
 **Locked parameters (per Ryan, not re-litigated):** F2 default · swedencentral default · spin-up/teardown lifecycle · single-user-per-tenant · workspace-level PE only · 3 MPEs (lab Storage, lab Azure SQL, existing Networking PLZ Key Vault) · README + helpers + Terraform pre-flight (all three layers) · fail_fast pre-flight · hybrid admin pattern (UPN list OR security group OID, default current_user_upn) · `microsoft/fabric` provider preferred over azapi.
@@ -411,14 +413,14 @@ No "fabric workload subnet" is needed: Fabric capacity is a tenant-bound managed
 
 | Zone | Used for | Where it must live |
 |------|----------|-------------------|
-| `privatelink.fabric.microsoft.com` | Workspace PE FQDNs (`{wsid}.z{xy}.w.api.fabric.microsoft.com`, `.c.`, `.dfs.`, `.blob.`, `.onelake.`, `.datawarehouse.`) | **NEW — must be added to Networking** |
+| `privatelink.fabric.microsoft.com` | Workspace PE FQDNs (`{wsid}.z{xy}.w.api.fabric.microsoft.com`, `.c.`, `.dfs.`, `.blob.`, `.onelake.`, `.datawarehouse.`) | **Already in Networking (AVM default `azure_fabric`)** — expose via `dns_zone_fabric_id` output |
 | `privatelink.blob.core.windows.net` | Lab storage (consumed via Networking output) | Already in Networking |
-| `privatelink.database.windows.net` | Lab Azure SQL | **NEW — must be added to Networking** (per Networking/README.md line 111, AVM module's exceptions list omits it) |
+| `privatelink.database.windows.net` | Lab Azure SQL | **Already in Networking (AVM default `azure_sql_server`)** — expose via `dns_zone_sql_id` output. *(Note: README.md line 111 excludes `privatelink.{dnsPrefix}.database.windows.net` — that's the SQL MI variant, not this standard zone.)* |
 | `privatelink.vaultcore.azure.net` | Existing Networking KV | Already in Networking |
 
-> **Decision (centralized DNS pattern):** Both new zones are added to the Networking module, following the centralized DNS pattern set by ContainerApps-byoVnet (Decision #15a, item 1). New Networking outputs: `dns_zone_fabric_id`, `dns_zone_sql_id`. Donut should bundle these Networking changes in the same PR (or a precursor PR) so `Fabric-byoVnet` can be deployed without manual zone creation. **Both zones are gated on `add_private_dns00 = true`.**
+> **Decision (centralized DNS pattern):** Both zones are already created by the Networking AVM module (`private_link_private_dns_zones` defaults include `azure_fabric` and `azure_sql_server`). No new `azurerm_private_dns_zone` resources are needed in Networking. Only two new outputs are required: `dns_zone_fabric_id` and `dns_zone_sql_id` — both null-safe, gated on `var.add_private_dns00`. Donut adds these outputs to `Networking/outputs.tf` following the existing pattern (lines 46-87).
 >
-> **Why centralized:** matches the established pattern, avoids zone duplication when this module is deployed alongside others, and the Networking AVM private DNS module already accepts a custom `private_link_private_dns_zones` map for additions.
+> **Why centralized:** matches the established pattern, avoids zone duplication when this module is deployed alongside others.
 
 **A-record handling for the workspace PE:** the workspace FQDN is `{workspaceid}.z{xy}.w.api.fabric.microsoft.com` (and `.c.`, `.dfs.`, `.blob.`, `.onelake.` variants). The DNS zone group on the PE writes A records automatically based on the PE's IP plan — but the records use the `{wsid}.z{xy}` prefix, which is workspace-specific. Verify on first deploy that the DNS zone group correctly registers all five FQDN variants. (Microsoft Learn confirms the zone is correct; only one `privatelink.fabric.microsoft.com` zone is needed.)
 
@@ -630,12 +632,12 @@ Drawing on the Foundry-byoVnet `serviceassociationlink` lesson, these are the pr
 
 | New output | Source | Purpose |
 |------------|--------|---------|
-| `dns_zone_fabric_id` | `privatelink.fabric.microsoft.com` (added to AVM zones map) | Workspace PE DNS zone group |
-| `dns_zone_sql_id` | `privatelink.database.windows.net` (added to AVM zones map — currently excluded per README line 111) | SQL VNet-side resolution if needed |
+| `dns_zone_fabric_id` | `privatelink.fabric.microsoft.com` (AVM default `azure_fabric` — already in zone set) | Workspace PE DNS zone group |
+| `dns_zone_sql_id` | `privatelink.database.windows.net` (AVM default `azure_sql_server` — already in zone set) | SQL VNet-side resolution if needed |
 
 **Networking module changes summary:**
-1. Add two zones to the AVM private DNS zones module's input map.
-2. Add two `output {}` blocks (mirror existing `dns_zone_*_id` pattern).
+1. Add two `output {}` blocks to `Networking/outputs.tf` (mirror existing `dns_zone_*_id` pattern, lines 46-87). Both outputs null-safe gated on `var.add_private_dns00`.
+2. No AVM zone additions needed — both zones are already in the AVM `private_link_private_dns_zones` defaults.
 3. No other Networking changes required.
 
 ---
@@ -753,20 +755,209 @@ No design change. Expectation: MPEs originate from Fabric's managed network, not
 ## TL;DR for Ryan (post-approval)
 
 - New module `Fabric-byoVnet` at IP block 5 (`172.20.80.0/20`), F2 capacity in swedencentral, single-PE-subnet spoke.
-- 21 resources (was 19) across azurerm + azapi + microsoft/fabric + null/external — added 3 azapi MPE auto-approval actions and 1 diagnostic settings resource per Q2/Q7.
-- Two new private DNS zones added to Networking (`fabric.microsoft.com`, `database.windows.net`) — minimal Networking change, centralized DNS pattern preserved.
+- 19 resources across azurerm + azapi + microsoft/fabric + null/external — added 3 azapi MPE auto-approval actions and 1 diagnostic settings resource per Q2/Q7.
+- No new DNS zones in Networking — both `privatelink.fabric.microsoft.com` and `privatelink.database.windows.net` are AVM defaults already created by the Networking module. Networking change is two new outputs only (`dns_zone_fabric_id`, `dns_zone_sql_id`).
 - Three-layer prereq strategy: README + helper PS/bash scripts (`scripts/`) + Terraform `check{}`/`validation{}`/`data "external"` pre-flight.
 - Hybrid admin pattern: explicit group OID > explicit UPN list > `data.external` fallback to `az ad signed-in-user show`.
 - Workspace-PE binding ships behind `use_azapi_for_workspace_pe = true` feature flag (Q1) — flip to `microsoft/fabric` provider when parity verified.
 - All 8 open questions resolved (§11). Three are deferred verifications for Donut at impl time (Q3, Q8, the workspace-PE PLS resource ID format), five are locked design choices, none block implementation.
 
 **Next step:** Donut starts implementation. Likely PR sequence:
-1. Networking: add `privatelink.fabric.microsoft.com` and `privatelink.database.windows.net` to AVM zones map; add `dns_zone_fabric_id` and `dns_zone_sql_id` outputs.
+1. Networking: add `dns_zone_fabric_id` and `dns_zone_sql_id` outputs to `Networking/outputs.tf` (both zones already exist via AVM defaults — outputs only, no new zone resources).
 2. `Fabric-byoVnet` module (all files per §1).
 3. `docs/ip-addressing.md` Block 5 claim + root README entry.
 
+---
+
+### Fabric ALZ — Security Review (SystemAI)
+
+**Reviewer:** SystemAI (Cloud Security)  
+**Requested by:** Ryan Krokson  
+**Date:** 2026-04-25  
+**Design reference:** `decisions.md` — "Microsoft Fabric Application Landing Zone — Architecture & Design" (Carl — Lead, last revised 2026-04-25)  
+**Scope:** Pre-implementation security review. Carl's §2 DNS correction (expose existing AVM zone outputs) is in flight; it does not affect security posture and is not evaluated here.
+
+---
+
+## Verdict: APPROVE WITH CONDITIONS
+
+No critical (blocking) findings. The design is architecturally sound and inherits good security patterns from prior modules. There are **four medium findings** and **six low/informational findings**. Two of the medium findings require Carl to add explicit design guidance before Donut starts implementation; the others are documentation or implementation guardrails.
+
+> **Implementation gate:** Carl should resolve **M1** and **M2** (below) with explicit design notes before handing off to Donut. M3 and M4 can be resolved in the implementation PR. All low findings are advisory — Donut addresses them opportunistically.
+
+---
+
+## 🟡 Medium Findings
+
+### M1 — "Block Public Internet Access" tenant setting is absent from the design
+
+**What:** The design configures a workspace-level private endpoint (`pe_workspace`) and enables the "Configure workspace-level inbound network rules" tenant setting. This is necessary for the PE to work — but it is not sufficient to remove public internet access to the workspace. Fabric has a separate tenant-wide setting: **"Block Public Internet Access"** (`BlockPublicNetworkAccess`). Without it, the workspace remains reachable via `app.fabric.microsoft.com` and all public Fabric API endpoints even after the workspace PE is deployed. The PE adds a private *additional* path; it does not remove the public one.
+
+**Why it matters:** This design is intended for a shared lab/POC with a wide audience. If any participant — or an evaluator observing the demo — attempts to understand the security posture, they may conclude private access is enforced when it isn't. More practically: data exfiltration from a Fabric notebook is possible via public egress (e.g., `Invoke-WebRequest` in a notebook to an external server) even if Fabric's managed private endpoints are the only inbound data access path.
+
+**Tradeoff:** For a purely demo/lab environment where participants access the workspace via their browsers over the internet, enabling "Block Public Internet Access" would break their access unless they're inside the private network. This is probably why it wasn't included — but the design should state this explicitly rather than leaving it undefined.
+
+**Recommended mitigation (Carl to decide):** One of:
+- **(a) Document the intentional omission:** Add a note to §4 (Tenant Prereqs) and the README stating: "Block Public Internet Access is intentionally NOT set in this lab — participants access the workspace via public internet. Private endpoint is deployed to demonstrate isolation capability; it does not enforce private-only access in this configuration."
+- **(b) Add it as an optional gated prereq:** If a user wants private-only enforcement, add "Block Public Internet Access" to the `configure-fabric-tenant-settings.ps1` script as an optional flag (e.g., `--enforce-private-only`), with a README note that this breaks browser-based access unless the user is on-prem or in the private network.
+
+Either (a) or (b) closes the gap. The choice is Carl's. The finding is **medium** — not critical — because the lab doesn't process production data and the public endpoint is expected behaviour in a multi-browser-based demo. It becomes critical if real data is ever loaded and the PE is communicated as enforcing isolation.
+
+---
+
+### M2 — MPE connection name lookup deferred with no guidance; wrong-target approval risk on shared KV
+
+**What:** §11 Q2 documents the azapi_resource_action auto-approval pattern but defers the connection name lookup to Donut: *"figure out the lookup pattern at impl time."* The three approval actions (Storage, SQL, KV) must PATCH the correct `privateEndpointConnections/{conn_name}` entry on each target. The connection name is generated by Fabric and is not deterministic from the Terraform resource declaration alone. The lookup must list connections on the target and filter to find the one whose `properties.privateEndpoint.id` matches the MPE resource.
+
+**Why it matters:** Two scenarios are concerning:
+
+1. **Wrong connection approved (KV-specific):** The Networking Key Vault is shared across all application landing zones (Foundry-byoVnet, ContainerApps-byoVnet, and this module). It already has PE connections from the Networking module's own PE setup. If the connection lookup logic is naive (e.g., "pick the first Pending connection"), the azapi_resource_action could approve a *different* PE connection — one from a concurrent deployment, a leftover from a failed teardown, or (worst case) one from an unrelated party who submitted a PE request to the shared KV. In a shared lab this is a real risk.
+
+2. **Silent failure leaving MPE in Pending:** If the lookup fails to find the correct connection name and the PATCH targets a non-existent connection, `azapi_resource_action` may succeed silently (HTTP 404 on the target is not necessarily fatal to the Terraform action resource) while the MPE remains `Pending`. The workspace then has no private connectivity to KV/Storage/SQL and the operator may not notice until attempting to use those resources from a Fabric item.
+
+**Recommended mitigation:** Carl should add the following guidance to the design before handoff:
+
+- Specify that the connection lookup MUST filter by `properties.privateEndpoint.id` matching the MPE ID (not just "first Pending"), or alternatively by `name` prefix matching a known Fabric-assigned pattern.
+- Add a `check {}` block or output that asserts each MPE's `connection_status == "Approved"` post-apply.
+- Note in §3 resource inventory: "If a Pending connection from a prior failed deploy exists on the shared KV, the lookup must skip it — use state-file MPE ID as the filter key, not connection state."
+
+This is **medium** rather than critical because the happy-path single-user lab deploy has exactly one pending connection per target at any given time. The risk materialises under concurrent deploys or retry-after-failure scenarios, both of which are realistic in a wide-audience shared lab.
+
+---
+
+### M3 — Orphaned "Approved" PE connection records on shared Networking KV post-destroy
+
+**What:** §8 teardown gotcha #1 acknowledges this risk: after `terraform destroy` of the Fabric module, the `azapi_resource_action.approve_mpe_keyvault` has no destroy semantics, so the `privateEndpointConnections/{name}` entry on the Networking KV remains in `Approved` state even after the Fabric workspace and its MPE no longer exist. The `purge-soft-deleted.ps1` script is the documented mitigation.
+
+**Why it matters from a security perspective (beyond what the design already notes):**
+
+1. **Azure Key Vault PE connection slot exhaustion:** Azure Key Vault has a maximum of 25 private endpoint connections per instance. In a shared lab with many deploy/destroy cycles, orphaned connections accumulate. After enough cycles, the KV can no longer accept new PE connections — affecting all modules that depend on it (Foundry-byoVnet's existing PE, this module on next deploy, any future modules).
+
+2. **Compliance/audit confusion:** An auditor reviewing KV network settings sees `Approved` PE connections pointing to resource IDs that no longer exist. This is a false positive for "approved external access" that could flag a compliance review. In a lab, this is low-stakes, but if the same KV is ever promoted to a production environment or reviewed under a compliance framework, stale Approved connections require explanation.
+
+3. **Storage and SQL:** The same issue exists for lab Storage and SQL server (resources 12b, 13b), but since those are created and destroyed within the same Fabric module, they're also destroyed and won't have orphaned connections post-destroy. **The KV is the only resource where the orphaned connection persists on a resource that outlives the Fabric module.**
+
+**Recommended mitigation:** The existing `purge-soft-deleted.ps1` mitigation is correct. Add the following:
+- Make the KV connection cleanup a **mandatory step** in the README destroy section, not just a "run this script optionally" note. Phrase it as: "Step N (Required): Run `purge-soft-deleted.ps1` — this removes orphaned KV PE connections. Skipping this step will cause connection-slot accumulation on the shared Networking KV."
+- Consider adding a `data "external"` post-destroy check (or a README warning) that the Networking KV should be inspected for orphaned connections after multiple cycles.
+
+---
+
+### M4 — PE subnet NSG rules not specified; under-specification risk for Donut
+
+**What:** §2 and §3 resource #5 specify "NSG attached, default-deny inbound" for the `private-endpoint-subnet`. No specific inbound or outbound rules are defined in the design.
+
+**Why it matters:** PE subnets have specific requirements:
+- Private endpoints receive traffic inbound from clients within the VNet or connected networks (via vHub) — traffic arrives as standard TCP/IP, so the NSG must allow inbound on the service's port (443 for Fabric PLS, 1433 for SQL, 443 for Storage, 443 for KV) from `VirtualNetwork` service tag.
+- Azure's internal infrastructure (DNS resolution, IMDS, health probes) needs specific allowances.
+- Without explicit rules, the default-deny NSG could block PE health probes, leaving the PE in a degraded state that isn't caught until a user actually tries to connect.
+
+**Mitigating context:** The existing modules (Foundry-byoVnet, ContainerApps-byoVnet) have PE subnets with NSGs that were validated in prior security reviews. The pattern is presumably established. However, this is a workspace PE (different from an AI service PE), and the Fabric PLS uses a different port profile.
+
+**Recommended mitigation:** Carl or Donut should explicitly define the NSG rules for the PE subnet. Minimum required:
+- Inbound ALLOW: `VirtualNetwork` → PE subnet, port 443, TCP (Fabric PLS, Storage, KV)
+- Inbound ALLOW: `VirtualNetwork` → PE subnet, port 1433, TCP (SQL Server MPE)
+- Inbound DENY ALL (default — already planned)
+- Outbound: default-allow-VNet-and-Azure is sufficient; no additional egress rules needed on PE subnet
+
+If the existing Foundry-byoVnet NSG already has these rules as a template, Donut can copy-adapt. The design should reference the template explicitly rather than leaving it unspecified.
+
+---
+
+## 🟢 Low / Informational Findings
+
+### L1 — `current_user` capacity admin fallback gives sole admin to whoever runs Terraform
+
+**What:** The zero-config fallback (`data.external.current_user_upn`) makes the CLI-signed-in user the sole capacity admin. In a shared lab where multiple people might deploy (or re-deploy after a failure), the last person to run `terraform apply` becomes the sole capacity admin, potentially displacing the previous operator.
+
+**Risk level:** Low — the design correctly recommends `capacity_admin_group_object_id` for shared environments, and the README should reinforce this. No change to design required; add a prominent note in the README and `.tfvars.example` that shared lab deployments SHOULD use `capacity_admin_group_object_id`.
+
+---
+
+### L2 — No workspace member access pattern for lab participants
+
+**What:** `fabric_workspace_role_assignment.operator_admin` grants the deploying operator Admin on the workspace. For a "wide audience" POC, other participants need workspace access (Viewer, Contributor, or Member roles). The design has no mechanism or documentation for adding participants.
+
+**Risk level:** Low — this is a usability gap, not a security gap per se. The security risk is the inverse: if not documented, operators might grant overly broad roles (e.g., making all participants Admin) as a shortcut. README should include a section: "Adding lab participants — recommended role: Viewer or Contributor. Use `fabric_workspace_role_assignment` for Terraform-managed access or Fabric workspace Settings for manual assignment."
+
+---
+
+### L3 — Shared Networking KV MPE creates a Fabric-to-platform network path; future data plane grants are a latent blast radius
+
+**What:** The MPE to the shared Networking KV creates a network path from Fabric's managed network to the KV. The KV currently stores VM passwords for lab VMs deployed by the Networking module (prior security assessment finding). No KV data plane access is granted to the Fabric workspace identity in this design, so the risk is currently inactive.
+
+**Risk level:** Low — **currently**, the MPE is network-only; KV RBAC still gates data access. However, if in a future iteration someone adds `azurerm_role_assignment` to grant the workspace MI `Key Vault Secrets User` on the shared KV (perhaps as a "convenience" for notebook access to secrets), the blast radius includes all platform secrets. Add a README note: "The KV MPE creates a network path only — the workspace has no data-plane access to the Networking KV. Do not grant the workspace managed identity Key Vault access roles on the shared Networking KV. If notebooks need secrets, deploy a separate KV in the Fabric RG."
+
+---
+
+### L4 — Fabric Admin REST API token in helper scripts; CI/CD log capture risk
+
+**What:** `check-tenant-prereqs.ps1` and `configure-fabric-tenant-settings.ps1` acquire a delegated admin token via `az account get-access-token` (or equivalent) and pass it in `Invoke-RestMethod` calls. In a CI/CD pipeline with verbose logging enabled, the bearer token could appear in pipeline logs.
+
+**Risk level:** Low — these are local-run helper scripts, not CI/CD pipeline steps. The design correctly documents them as manual pre-flight/bootstrap tools. The token is short-lived (1-hour Azure AD token). Donut should ensure the scripts use `-Headers @{Authorization = "Bearer $token"}` with the token stored in a variable (not embedded in a URL), and add a comment: "Do not enable verbose PowerShell tracing (-Trace) when running this script — it will log the bearer token."
+
+---
+
+### L5 — `workspace_content_mode = "none"` → future lakehouse mode needs OneLake cleanup in purge script
+
+**What:** When `workspace_content_mode = "lakehouse"` is eventually implemented, it will deploy a Fabric Lakehouse. OneLake (Fabric's storage layer) stores data independently of the underlying storage account — it has its own 90-day soft-delete retention. The current `purge-soft-deleted.ps1` handles workspace soft-delete and SQL soft-delete but does not have hooks for OneLake item purge.
+
+**Risk level:** Low — not a current concern since `lakehouse` mode is not yet implemented. Donut should add a TODO comment in `purge-soft-deleted.ps1`: "When workspace_content_mode=lakehouse is implemented, add OneLake item purge here — workspace soft-delete does not immediately purge OneLake data."
+
+---
+
+### L6 — F2 SKU in Sweden Central: data residency note for POC users
+
+**What:** Fabric F2 capacity in Sweden Central anchors data residency to the EU (Sweden). Capacity-bound compute (Spark jobs, notebooks, SQL analytics) runs in-region. OneLake data is stored in the region of the capacity. This is correct for GDPR-sensitive scenarios.
+
+**Risk level:** Low — informational. For a lab with synthetic data, no concern. Add a one-liner to the README: "Data residency: Sweden Central — all Fabric compute and OneLake storage is EU-bound. Appropriate for GDPR-in-scope POC scenarios. Do not load real production data into this lab without confirming data classification requirements."
+
+---
+
+## Summary of Conditions for Approval
+
+For Donut to begin implementation, Carl must address these two items (M1 and M2 are design decisions, not implementation details):
+
+| Condition | Owner | Blocking? |
+|-----------|-------|-----------|
+| **M1:** Decide and document whether "Block Public Internet Access" is omitted intentionally (document why) or should be an optional flag in the tenant settings script | Carl | Yes — add to §4 and README before handoff |
+| **M2:** Specify the MPE connection name lookup strategy (filter by MPE resource ID, not by state) and add a post-apply assertion on connection status | Carl (design spec) or Donut (implementation) | Yes — either Carl adds to §11 Q2 or explicitly delegates to Donut with a defined acceptance criterion |
+| **M3:** Mark KV PE connection cleanup as mandatory (not optional) in the destroy sequence | Donut | No — implement in PR |
+| **M4:** Define explicit NSG rules for the PE subnet | Donut | No — implement in PR, reference Foundry-byoVnet as template |
+
+Low findings are advisory — Donut addresses opportunistically with no gate.
+
+---
+
+## Positive Security Patterns (no action needed)
+
+For balance, the following are correctly designed and require no changes:
+
+- ✅ `public_network_access_enabled = false` on both lab storage and SQL — data is inaccessible without MPE or network path
+- ✅ `shared_access_key_enabled = false` on storage — Entra ID auth only, no SAS key blast radius
+- ✅ SQL Entra-only auth — no SQL admin password to leak
+- ✅ `min_tls_version = "TLS1_2"` on storage
+- ✅ `internet_security_enabled` tied to `add_firewall00` — spoke firewall enforcement follows platform state
+- ✅ `default_outbound_access_enabled = !add_firewall00` — no default outbound when firewall is active
+- ✅ DNS resolver policy VNet link — ensures private DNS resolution for all privatelink zones
+- ✅ Custom DNS pointing to platform DNS server — no split-brain DNS
+- ✅ Diagnostic logs to shared LAW — operational visibility without data leakage
+- ✅ `random_string.unique` suffix on workspace name — no name-collision re-deploy risk
+- ✅ Three-layer pre-flight (check/validation/external) — fails fast with actionable messages
+- ✅ `purge-soft-deleted.ps1` — destroy hygiene handled proactively
+- ✅ `workspace_content_mode` variable added from day one — safe forward-compatibility pattern
+- ✅ `use_azapi_for_workspace_pe` feature flag — pragmatic escape hatch for young provider
+- ✅ No hardcoded secrets anywhere in the design
+- ✅ Workspace-level (not tenant-level) PE — correct scope for a lab; tenant-level would lock all users in the tenant
+
+---
 
 ## Governance
+
+- All meaningful changes require team consensus
+- Document architectural decisions here
+- Keep history focused on work, decisions focused on direction
+- Team directives from Ryan (via Copilot) are recorded when they affect workflow/communication
 
 - All meaningful changes require team consensus
 - Document architectural decisions here

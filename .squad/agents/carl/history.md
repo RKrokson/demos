@@ -53,6 +53,13 @@
 - Provider strategy: `microsoft/fabric` for workspace + MPEs + role assignments. `azurerm_fabric_capacity` for the capacity. `azapi` retained as escape hatch for any workspace-PE binding gap (open question #1 for Ryan).
 - New Networking outputs needed: `dns_zone_fabric_id`, `dns_zone_sql_id`. Update `docs/ip-addressing.md` to claim Block 5.
 
+## Learnings — 2026-04-25 — Fabric ALZ DNS zones correction (Ryan review)
+
+- **Always verify AVM module defaults against the live source (`variables.tf`), not just the README.** The AVM `private_link_private_dns_zones` default list (~75 zones) includes `azure_fabric` → `privatelink.fabric.microsoft.com` and `azure_sql_server` → `privatelink.database.windows.net`. Both were already being created by Networking's AVM invocation — no zone additions were ever needed in Networking.
+- **The AVM invocation in `Networking/modules/region-hub/main.tf:206-218` passes NO `private_link_excluded_zones`**, so all AVM-default zones are created. Always check for the zone key in the AVM `variables.tf` source before claiming a zone is missing.
+- **`Networking/README.md` line 111 is misleading.** It says the AVM module excludes `privatelink.{dnsPrefix}.database.windows.net` — that's the SQL Managed Instance variant (requires a caller-constructed custom dnsPrefix), NOT the standard `privatelink.database.windows.net` SQL Server zone. Flag for future README cleanup to avoid repeating this mistake.
+- **Fabric workspace PE only needs one zone:** `privatelink.fabric.microsoft.com`. Subdomains like `.dfs.fabric.microsoft.com`, `.onelake.fabric.microsoft.com`, etc. resolve under the same zone — no separate zones required. Verified via Microsoft Learn "Azure Private Endpoint private DNS zone values".
+
 ## Learnings — 2026-04-09 — Fabric ALZ design (Ryan walkthrough)
 
 - All 8 open questions resolved. Design status: Approved — ready for Donut implementation.
@@ -64,3 +71,14 @@
 - Q4: `var.workspace_content_mode = "none"` MVP only. `lakehouse` reserved for future via validation list (mirrors ContainerApps app_mode pattern).
 - Q7: Add `azurerm_monitor_diagnostic_setting` for Fabric capacity → Networking LAW. `log_analytics_workspace_id` already in Networking outputs (line 30). No Networking change needed for this.
 - Resource count went 19 → 21 (added 3 azapi auto-approval actions, 1 diagnostic setting; merged some numbering as 12a/12b/13a/13b/14a/14b).
+
+## Learnings — 2026-04-25 — Fabric ALZ SystemAI Security Review (APPROVE WITH CONDITIONS)
+
+- **Design gates — YOU MUST RESOLVE BEFORE DONUT STARTS IMPL:**
+  - **M1 — "Block Public Internet Access" decision:** The design omits this tenant setting (probably intentionally for multi-browser POC access). Decide: either document the intentional omission with a README note, OR add it as an optional flag in `configure-fabric-tenant-settings.ps1`. Either choice is acceptable — the gap is that the design doesn't state which you chose. Add this to §4 (Tenant Prereqs) and README.
+  - **M2 — MPE connection name lookup specification:** Your §11 Q2 defers the connection lookup to Donut with "figure out the lookup pattern at impl time." SystemAI flagged: lookup MUST filter by `properties.privateEndpoint.id` (not just "first Pending"), especially on the shared KV where multiple PE connections may exist from concurrent deploys. Specify the lookup strategy in §11 Q2, or explicitly delegate to Donut with this acceptance criterion.
+- **Implementation gates (Donut addresses in PR, no blocking):**
+  - **M3:** Mark KV PE connection cleanup as mandatory (not optional) in destroy README docs. Reference purge-soft-deleted.ps1.
+  - **M4:** Define PE subnet NSG rules explicitly (inbound on ports 443, 1433 from VirtualNetwork, default-deny). Reference Foundry-byoVnet NSG as template.
+- **L1–L6 (advisory):** Low findings for Donut's opportunistic incorporation — no gate.
+- **13 positive patterns confirmed** — workspace-level PE (not tenant), Entra-only auth, public access disabled, hybrid admin pattern, etc. Design is architecturally sound. Zero critical findings.
