@@ -87,3 +87,9 @@
   - **M4:** Define PE subnet NSG rules explicitly (inbound on ports 443, 1433 from VirtualNetwork, default-deny). Reference Foundry-byoVnet NSG as template.
 - **L1–L6 (advisory):** Low findings for Donut's opportunistic incorporation — no gate.
 - **13 positive patterns confirmed** — workspace-level PE (not tenant), Entra-only auth, public access disabled, hybrid admin pattern, etc. Design is architecturally sound. Zero critical findings.
+
+- **2026-04-26 (fabric-alz-steps-1-3-complete-branch-ready):** [ORCHESTRATION LOG — FINAL] All three steps of Fabric ALZ implementation complete on squad/fabric-alz-impl:
+   - **Step 1 (Carl, 2026-04-26):** DNS zones added to Networking outputs (dns_zone_fabric_id, dns_zone_sql_id) — branch created from main at fae6bee.
+   - **Step 2 (Donut, 2026-04-26):** Full Fabric-byoVnet/ module implementation (13 files, commit c884193). All M1–M4 security mitigations integrated. MPE auto-approval skill documented.
+   - **Step 3 (Mordecai, 2026-04-26):** Documentation synchronized (docs/ip-addressing.md Block 5 + root README, commit 09dfcd7).
+   - **Status:** Design → implementation → documentation chain complete. Branch ready for Ryan review and merge to main. Orchestration logs and session logs recorded. Full history cross-annotations complete.
