@@ -60,6 +60,11 @@
 - **`Networking/README.md` line 111 is misleading.** It says the AVM module excludes `privatelink.{dnsPrefix}.database.windows.net` — that's the SQL Managed Instance variant (requires a caller-constructed custom dnsPrefix), NOT the standard `privatelink.database.windows.net` SQL Server zone. Flag for future README cleanup to avoid repeating this mistake.
 - **Fabric workspace PE only needs one zone:** `privatelink.fabric.microsoft.com`. Subdomains like `.dfs.fabric.microsoft.com`, `.onelake.fabric.microsoft.com`, etc. resolve under the same zone — no separate zones required. Verified via Microsoft Learn "Azure Private Endpoint private DNS zone values".
 
+## Learnings — 2026-04-25 — Fabric ALZ M1/M2 from SystemAI security review
+
+- **M1 trade-off documented (lab-friendly public access by design):** "Block Public Internet Access" is intentionally NOT enforced in this lab — workspace PE adds a private *additional* path, not a private-*only* path. Public endpoints remain open so browser-based lab participants can reach the workspace. Acceptable for lab/POC with synthetic data; must be revisited if production data is ever loaded. Ryan made the call: option (a) — document the omission, add optional `--enforce-private-only` flag to the helper script as deferred work.
+- **M2 MPE lookup spec'd (filter by PE resource ID, not state):** The azapi_resource_action auto-approval MUST filter `privateEndpointConnections` by `properties.privateEndpoint.id == MPE resource ID`. Never use "first Pending" or name-pattern matching — the shared Networking KV can have connections from other modules, concurrent deploys, or failed teardowns. Also: add a post-apply `check {}` assertion that each MPE's `connection_status == "Approved"` — silent Pending is the key failure mode.
+
 ## Learnings — 2026-04-09 — Fabric ALZ design (Ryan walkthrough)
 
 - All 8 open questions resolved. Design status: Approved — ready for Donut implementation.
