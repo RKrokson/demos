@@ -44,6 +44,21 @@
 
 - **2026-04-26 (fabric-alz-step1-networking-outputs):** Created branch `squad/fabric-alz-impl` from main (clean state, up to date with origin). Added two new outputs to `Networking/modules/region-hub/outputs.tf` (`private_dns_zone_fabric_id`, `private_dns_zone_sql_id`) and two matching outputs to `Networking/outputs.tf` — all null-safe, gated on `var.add_private_dns` / `var.add_private_dns00`, constructed from resource group ID following the existing 11-zone pattern. `terraform fmt` and `terraform validate` both clean. Committed at `7c89900`. Branch not pushed — Ryan handles. **Remaining steps for Fabric ALZ:** Step 2 = `Fabric-byoVnet/` module (all files per §1), Step 3 = `docs/ip-addressing.md` Block 5 claim. M3 (KV PE cleanup in destroy README) and M4 (explicit NSG rules) to be addressed in Step 2 module PR.
 
+- **2026-04-26 (fabric-alz-step2-module):** Built the complete `Fabric-byoVnet/` application landing zone module — 11 files. Follows Foundry-byoVnet pattern: spoke VNet (Block 5 — 172.20.80.0/20), single PE subnet (/24) with NSG, vHub connection, DNS resolver policy link.
+
+  **Key resources:** Fabric Capacity (F2), Fabric Workspace, workspace-level PE with `privatelink.fabric.microsoft.com` DNS zone group, lab Storage Account (public access disabled, MPE-only ingress), lab SQL Server + DB (Entra-only auth, public access disabled), diagnostic settings to platform LAW.
+
+  **MPE auto-approval pattern (M2):** Three MPEs (Storage blob, SQL Server, Key Vault) each followed by: `data "azapi_resource_list"` to enumerate PE connections on the target → `locals` filter by `lower(properties.privateEndpoint.id) == lower(mpe.id)` → `azapi_resource_action` PUT to approve → `check {}` block asserting `connection_status == "Approved"`. The KV lookup tolerates other existing connections from prior deploys or other modules. Wrote reusable skill at `.squad/skills/mpe-auto-approval/SKILL.md`.
+
+  **NSG approach (M4):** Explicit allow rules on PE subnet — inbound 443 (VirtualNetwork → VirtualNetwork) for Fabric PLS/Storage/KV, inbound 1433 for SQL, explicit deny-all inbound, outbound VNet-to-VNet allow + deny-all. No NSG on Fabric delegation subnet (doesn't exist — Fabric capacity is tenant-managed, no VNet injection needed).
+
+  **Tenant prereq script:** `configure-fabric-tenant-settings.ps1` — idempotent PowerShell using Fabric Admin REST API to enable EnableFabric, WorkspaceLevelPrivateEndpointSettings, UsersCanCreateFabricItems, ServicePrincipalsCanCallFabricPublicAPIs. Re-registers Microsoft.Fabric provider after toggling workspace inbound rules. Includes token safety note (no verbose tracing).
+
+  **Fabric provider schema learnings:** `fabric_workspace_role_assignment` uses nested `principal = { id, type }` block (not separate `principal_id`/`principal_type` args). `fabric_workspace_managed_private_endpoint` uses `target_private_link_resource_id` (not `..._service_id`) and requires `request_message`. Discovered and fixed during `terraform validate` — initial code used wrong argument names from design doc assumptions vs actual provider v1.9.1 schema.
+
+  **Validation:** `terraform init` succeeded (all 5 providers installed: azurerm 4.26.0, azapi 2.3.0, random 3.8.1, fabric 1.9.1, external 2.3.5). `terraform fmt` clean. `terraform validate` passes. Committed on `squad/fabric-alz-impl`. **Remaining:** Step 3 = `docs/ip-addressing.md` Block 5 claim.
+
+
 ## Key Learnings
 
 - **vHub InternalServerError recovery:** When vHub creation fails with InternalServerError and the polling times out, the resource exists in Azure but in a Failed/None routing state. Importing it into state doesn't help — the router never provisions. Correct fix: remove from state (`terraform state rm`), delete from Azure via REST API, then re-apply. The fresh creation succeeds and the router provisions correctly.
@@ -63,6 +78,13 @@
 - **Firewall DNS proxy:** vHub firewall private IP is at `virtual_hub[0].private_ip_address`, not `ip_configuration[0]` (that's VNet-mode). DNS routing decision lives in platform layer — app LZs consume platform's `dns_server_ip00` output.
 
 - **Bastion Standard SKU features:** `ip_connect_enabled` and `tunneling_enabled` require Standard SKU. They enable cross-VNet connect-by-IP and native client support (`az network bastion tunnel/rdp/ssh`). Set unconditionally since default SKU is Standard and these are lab environments.
+
+- **Fabric MPE auto-approval pattern:** Fabric MPEs always land in Pending. Use `data "azapi_resource_list"` with `depends_on` (forces apply-time read) to enumerate PE connections on the target, filter by `lower(properties.privateEndpoint.id)` matching the MPE resource ID, then `azapi_resource_action` PUT to approve. The `one()` function enforces exactly-one-match semantics. `check {}` blocks catch silent Pending failures. The KV lookup must tolerate other existing connections — strict filter by PE resource ID is mandatory for shared resources.
+
+- **Fabric provider schema (v1.9.x):** `fabric_workspace_role_assignment` uses a nested object `principal = { id, type }` — not separate `principal_id`/`principal_type` arguments. `fabric_workspace_managed_private_endpoint` uses `target_private_link_resource_id` (not `..._service_id`) and requires a `request_message` argument. Always run `terraform providers schema -json` to verify argument names before coding against design docs — the microsoft/fabric provider is young and schemas shift between versions.
+
+- **PE subnet NSG explicit rules:** For modules with private endpoints, define explicit NSG allow rules (443 for HTTPS services, 1433 for SQL) from VirtualNetwork service tag, plus explicit deny-all rules. Don't rely on Azure's default-deny from empty NSGs — explicit rules are auditable and survive default behavior changes. No NSG needed on Fabric delegation subnets (which don't exist for Fabric — capacity is tenant-managed, no VNet injection).
+
 
 ## See Also
 
