@@ -2,6 +2,20 @@
 
 ## Active Decisions
 
+### Microsoft Fabric Application Landing Zone — Architecture & Design (Carl — Lead)
+
+> **Revision 2026-04-25:** §2 DNS zones corrected — both zones already created by AVM module; only outputs needed.
+
+**Status:** Approved — ready for Donut implementation
+**Date:** 2026-04-25 (latest revision)
+**Module name:** `Fabric-byoVnet` — matches existing naming pattern (`Foundry-byoVnet`, `ContainerApps-byoVnet`).
+
+This is the design specification for the Fabric ALZ implementation in progress. See module implementation (Donut, step 2) and docs updates (Mordecai, step 3) on branch `squad/fabric-alz-impl`.
+
+---
+
+## Archived Decisions
+
 ### 1. Landing Zone Architecture Framing (Carl — Lead/Architect)
 
 **Status:** Approved  
@@ -353,16 +367,9 @@ Our deployed environment contradicts this. We have:
 
 ---
 
+## Fabric ALZ Design Specification (Detail)
 
-### Microsoft Fabric Application Landing Zone — Architecture & Design (Carl — Lead)
-
-> **Revision 2026-04-25:** §2 DNS zones corrected — both zones already created by AVM module; only outputs needed.
-
-**Status:** Approved — ready for Donut implementation
-**Date:** 2026-04-09 (proposed) / 2026-04-25 (revised — DNS zones correction + M1/M2 from SystemAI security review)
-**Module name:** `Fabric-byoVnet` (recommended — matches existing `Foundry-byoVnet`, `ContainerApps-byoVnet` naming. The "byoVnet" suffix is accurate: we provide the spoke VNet and use a workspace-level PE for inbound, so the ingress side genuinely is BYO. Outbound uses Managed Private Endpoints, but that is a workspace property, not a network mode.)
-
-**Locked parameters (per Ryan, not re-litigated):** F2 default · swedencentral default · spin-up/teardown lifecycle · single-user-per-tenant · workspace-level PE only · 3 MPEs (lab Storage, lab Azure SQL, existing Networking PLZ Key Vault) · README + helpers + Terraform pre-flight (all three layers) · fail_fast pre-flight · hybrid admin pattern (UPN list OR security group OID, default current_user_upn) · `microsoft/fabric` provider preferred over azapi.
+Details for the Fabric-byoVnet module implementation. Comprehensive design specifications for Donut's module development.
 
 ---
 
