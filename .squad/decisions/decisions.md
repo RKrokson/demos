@@ -205,3 +205,32 @@ Updated Networking README Notes section to align with Donut's code changes (Deci
 - VM DNS paragraph removed — issue solved in code, no longer documentation concern
 - Tone matches team style: concise, engineer-focused, no AI vocabulary
 
+---
+
+# Decision: Disable Purge Protection on Fabric-private Key Vault
+
+**Date:** 2026-07-14  
+**Author:** Donut  
+**Requested by:** Ryan  
+**Module:** `Fabric-private/`
+
+## Decision
+
+Set `purge_protection_enabled = false` on `azurerm_key_vault.fabric_kv` in `Fabric-private/fabric.tf`.
+
+## Rationale
+
+This is a lab module that Ryan deploys and tears down repeatedly. Purge protection on a Key Vault enforces a minimum 7-day wait (or requires `az keyvault purge`) between destroy and re-deploy of the same-named resource. That friction has no benefit in a non-production lab environment.
+
+Soft delete is retained (`soft_delete_retention_days = 7`) as it is an Azure-enforced minimum and provides a recovery window for accidental deletion during a session.
+
+## Trade-offs
+
+- **Accepted risk:** Deleted secrets are recoverable for 7 days via soft-delete but can be immediately purged by any authorized operator. Acceptable for a lab with no production data.
+- **Naming collision:** The KV name includes a `random_string` suffix, so collisions across destroy/redeploy cycles are unlikely but not impossible. README updated to note `az keyvault purge` as a targeted fix if a collision occurs.
+
+## Alternatives Considered
+
+- Keep purge protection, document `az keyvault purge` as mandatory step — rejected as unnecessary friction for a lab lifecycle.
+- Import soft-deleted KV on redeploy — rejected as operationally complex for no benefit.
+
