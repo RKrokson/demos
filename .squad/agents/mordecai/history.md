@@ -1,23 +1,28 @@
-# Project Context
+# Mordecai — Documentation Specialist
 
-- **Owner:** Ryan Krokson
-- **Project:** Azure IaC demo/lab environments — Terraform modules for Azure vWAN, AI Foundry, networking
-- **Stack:** Terraform (azurerm >= 4.0, azapi >= 2.0, random ~> 3.5), PowerShell, Azure CLI
-- **Structure:** Three root modules — Networking (foundation), Foundry-byoVnet, Foundry-managedVnet linked via terraform_remote_state
-- **Created:** 2026-03-27
+**Project:** Azure IaC demo/lab (Terraform modules)  
+**Stack:** Markdown, technical documentation  
+**Created:** 2026-03-27
 
-## Learnings
+## Summary
 
-<!-- Append new learnings below. Each entry is something lasting about the project. -->
-- Ryan wants "platform landing zone" / "application landing zone" framing across all READMEs
-- Root README currently serves double duty as both landing page and content (monolithic). Needs restructuring into a navigation hub.
-- Diagram path casing inconsistency: root README uses `./Diagrams/` (capital D), Networking README uses `./diagrams/` (lowercase). Both folders exist with different content. Windows hides this but Git on Linux will break.
-- Root `Diagrams/` folder has only 4 images; Networking `diagrams/` folder has 16 images — the Networking examples reference the local subfolder.
-- Foundry-byoVnet README has no `./diagrams/` subfolder — references `../Diagrams/` (root level).
-- Foundry-managedVnet has a `diagrams/` subfolder with 1 image — references `../Diagrams/` (root level).
-- The advanced tfvars example includes `create_AiLZ` vars but no AI subnet address overrides — worth documenting.
-- copilot-instructions.md already exists at `.github/copilot-instructions.md` with solid content. Needs landing zone framing update.
-- Networking `config.tf` has no `required_version` constraint, unlike both Foundry modules (>= 1.8.3).
+Documentation lead across all modules. Restructured root README into navigation hub. Standardized landing zone framing (Platform LZ: Networking; Application LZ: Foundry/ContainerApps/Fabric). Normalized diagram references for case-sensitive filesystems. Completed 6 phases: (1) LZ framing + VPN cleanup, (2) tables/guides, (3) diagrams, (4) prose polish, (5) ACA + Bastion docs, (6) Fabric-private README rewrite.
+
+## Recent Work (2026-07-15)
+
+Completed Fabric-private README rewrite (6 items per Carl's ADR): (1) Removed redundant DNS zone prereq callout, (2) Rewrote security posture (3 subsections: Private Connectivity, Private-Only Access Optional, Tenant-Level PL Out-of-Scope), (3) Added tenant-level note (pointer-only), (4) Removed orphaned KV PE cleanup section, (5) Added `restrict_workspace_public_access` variable documentation, (6) Renamed Fabric-byoVnet → Fabric-private throughout docs (README, root README, ip-addressing.md).
+
+## Key Patterns
+
+- READMEs are entry points → refer to variables.tf for full config
+- Focus on 5 critical variables + "why," not exhaustive "what"
+- Security notes: concrete behavior, no aspiration
+- Humanizer discipline: natural prose, no AI vocabulary, no rule-of-three
+- Diagram strategy: normalize paths for cross-platform, add scenario descriptions
+
+## Cross-Team Coordination
+
+Worked with Carl (architecture), Donut (code), Katia (validation), Ryan (direction). Coordinated documentation cycles through design → implementation → docs.
 - Neither Foundry README documents its Terraform variables or outputs.
 - Cleanup/destroy sequencing is scattered — byoVnet and managedVnet each have partial cleanup steps; no unified destroy guide exists.
 - **2026-03-29 (repo-revamp-plan):** Full team documentation review completed. 19 recommendations delivered covering README structure, landing zone framing, diagram normalization, and documentation completeness. Team consensus: README restructuring is primary doc work. All recommendations merged into squad decisions.md. **Key coordination:** Worked with Carl (architecture), Donut (code), Katia (validation) to align documentation with technical decisions. **Typo found:** `.tfvars.advance.example` should be `.tfvars.advanced.example`.
@@ -52,3 +57,5 @@
 - **2026-04-26 (fabric-alz-docs):** Documented Fabric-byoVnet ALZ in IP plan and root README (step 3 of 3, parallel with Donut's module build). Claimed IP block 5 (`172.20.80.0/20`) in `docs/ip-addressing.md` for Fabric-byoVnet with PE subnet at `172.20.80.0/24`. Reserved block 5 in Region 1 for future. Added Fabric-byoVnet row to root README application LZ table. Added KV PE-slot cleanup gotcha to Destroy Order (25-connection limit). Added tenant prereq note for Fabric. Pattern: Fabric has only one subnet (PE subnet) unlike Foundry's two — no workload subnet needed because Fabric capacity is tenant-bound, not VNet-injected. MPEs live in Fabric-managed network, not our VNet.
 
 - **2026-04-26 (fabric-alz-parallel-steps-2-3-complete):** [ORCHESTRATION LOG] Both Step 2 and Step 3 completed on squad/fabric-alz-impl. Donut completed Fabric-byoVnet module implementation in parallel (13 files, commit c884193). Full design → implementation → documentation chain complete. Orchestration and session logs recorded. Ready for Ryan review and merge.
+
+- **2026-07-15 (fabric-readme-rewrite-6items):** Implemented Carl's ADR on Fabric ALZ README revision. All 6 items completed: (1) Removed redundant "DNS zones must be available" prereq callout — DNS zones are now listed inline with sources. (2) Rewrote security posture section: dropped the verbose "BlockPublicNetworkAccess" note, replaced with concise "Private Connectivity" + "Private-Only Access (Optional)" + "Tenant-Level Private Link — Out of Scope" pattern. Security posture now explains PE is additive by default, documents the `restrict_workspace_public_access` flag for private-only mode, and explicitly defers tenant-level PL as out of scope (no PowerShell flags, no roadmap foreshadowing). (3) Added "Tenant-Level Private Link — Out of Scope" subsection (3 lines: plain statement it's not configured, explanation it's tenant-wide concern, link to official docs). (4) Removed entire "Step 2: Clean up orphaned KV PE connections" destroy section — orphaned PE problem solved by workspace-local KV pattern; renumbered cleanup steps. (5) Documented new `restrict_workspace_public_access` variable: added row to Variables table, wrote 2-subsection explanation in Security Posture (what it does, prerequisites, user experience change). (6) Renamed all `Fabric-byoVnet` → `Fabric-private` string references in Fabric README (title, Quick Start cd command, description), root README (table entry line 24, Getting Started line 52, Destroy Order context line 55), and docs/ip-addressing.md (Block 5 Region 0 line 18, Block 5 Region 1 line 30). Folder itself still at old path; Donut will `git mv` after these edits land. Updated "What It Deploys" table to reflect workspace-local KV instead of shared Networking KV. Humanizer pass applied: natural prose, no inflated symbols, no rule-of-three, specific over vague language.
