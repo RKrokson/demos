@@ -234,3 +234,37 @@ Soft delete is retained (`soft_delete_retention_days = 7`) as it is an Azure-enf
 - Keep purge protection, document `az keyvault purge` as mandatory step — rejected as unnecessary friction for a lab lifecycle.
 - Import soft-deleted KV on redeploy — rejected as operationally complex for no benefit.
 
+---
+
+# User Directive: Lab KV Protection Minimums
+
+**Date:** 2026-04-27  
+**By:** Ryan (via Copilot)  
+**Scope:** All Key Vaults in this repository
+
+## Directive
+
+Minimize Key Vault protections in this lab environment:
+- Disable purge protection everywhere
+- Set soft-delete retention to the Azure-mandated minimum (7 days; soft delete itself cannot be disabled)
+
+## Rationale
+
+The friction of `az keyvault purge` and 90-day waits is not justified in a lab environment. This directive prioritizes rapid destroy/redeploy cycles over recovery protection.
+
+---
+
+# User Directive: Fabric Workspace Private-Only by Default
+
+**Date:** 2026-04-27  
+**By:** Ryan (via Copilot)  
+**Module:** `Fabric-private/`
+
+## Directive
+
+Flip the default for `restrict_workspace_public_access` from `false` to `true` in Fabric-private variables.
+
+## Rationale
+
+The lab's purpose is private connectivity — public-by-default contradicts the module's design intent (workspace PE is always deployed). Making private-only the default reduces configuration friction and aligns infrastructure with purpose.
+
