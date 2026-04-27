@@ -4,13 +4,39 @@
 
 ### Microsoft Fabric Application Landing Zone — Architecture & Design (Carl — Lead)
 
-> **Revision 2026-04-25:** §2 DNS zones corrected — both zones already created by AVM module; only outputs needed.
+> **Revision 2026-07-14:** ADR completed — items 2 (LZ-local KV + MPE repoint), 5 (rename Fabric-byoVnet → Fabric-private), and 6 (workspace public access toggle) all approved and implemented by Donut (code) and Mordecai (docs). Item 3 (tenant-level PL) deferred out-of-scope per ADR verdicts.
 
-**Status:** Approved — ready for Donut implementation
-**Date:** 2026-04-25 (latest revision)
-**Module name:** `Fabric-byoVnet` — matches existing naming pattern (`Foundry-byoVnet`, `ContainerApps-byoVnet`).
+**Status:** Approved — implementation complete on branch squad/fabric-alz-impl
+**Date:** 2026-07-15 (implementation complete)
+**Module name:** `Fabric-private` (renamed from `Fabric-byoVnet` to reflect private-inbound + private-outbound connectivity pattern)
 
-This is the design specification for the Fabric ALZ implementation in progress. See module implementation (Donut, step 2) and docs updates (Mordecai, step 3) on branch `squad/fabric-alz-impl`.
+**Decision Summary:**
+- **Item 2:** Workspace-local KV + MPE repoint — eliminates cross-RG dependencies and orphaned PE cleanup. Local KV in LZ RG, MPE targets it, DNS zone group via Networking's `dns_zone_vaultcore_id`.
+- **Item 5:** Folder rename to `Fabric-private` — clarifies pattern (private connectivity, not VNet injection like Foundry-byoVnet).
+- **Item 6:** Workspace public access toggle via `terraform_data` + `local-exec` calling Fabric REST API. Variable `restrict_workspace_public_access` (default false) sets inbound policy to `Deny`. Workspace PE required; users must be on VNet (Bastion/VPN) to access workspace content.
+- **Item 3:** Tenant-level private link deferred (tenant-admin concern, no Terraform provider support, out of scope for module).
+
+See ADR in decisions/inbox → merged: `carl-fabric-readme-review.md` (ADR full), `donut-fabric-private-implementation.md` (code delivery), `mordecai-fabric-readme-rewrite.md` (docs delivery).
+
+---
+
+### Copilot Directive — Local Testing Before Push
+
+**Status:** Approved — directive captured  
+**Date:** 2026-04-27  
+**Author:** Ryan Krokson (via Copilot)
+
+Always test locally and work out the kinks before pushing to GitHub. Pushes happen only after user has reviewed locally. Applies to all agents and branch work.
+
+---
+
+### DNS Resolver Policy VNet Link — Transient Error (2026-04-27)
+
+**Status:** Resolved — informational  
+**Date:** 2026-04-27  
+**Author:** Donut (Infrastructure Dev)
+
+During Networking deploy (579 resources, region 0 only), `azapi_resource.dns_policy_dns_vnet_link` failed with Azure InternalServerError (circuit breaker exceeded). Simple re-plan + re-apply resolved it (~15 seconds). No manual intervention needed. This is known transient Azure API behavior on DNS resolver policy operations. If hit during future deploys, just re-apply.
 
 ---
 
