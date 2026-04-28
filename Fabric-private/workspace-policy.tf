@@ -55,6 +55,6 @@ resource "terraform_data" "workspace_communication_policy" {
   }
 
   depends_on = [
-    fabric_workspace.workspace,
+    azurerm_private_endpoint.pe_fabric_workspace,
   ]
 }
