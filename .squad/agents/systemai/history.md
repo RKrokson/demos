@@ -62,3 +62,16 @@ Re-reviewed ContainerApps-byoVnet after three changes: ingress `external_enabled
 - **ACR DNS zone consolidation:** Correct pattern. PE auto-registers into centralized zone. General DNS prerequisites are checked via `check` block, though the ACR zone itself is not explicitly validated (acceptable risk given AVM module deploys all standard privatelink zones).
 - **Existing accepted risks unchanged:** Empty PE subnet NSG (default Azure rules allow VNet inbound), allow-all firewall rules (lab-accepted, backlog item #8), AcrPull identity provisioned but not wired to sample app (infrastructure ready for user workloads).
 - Recheck filed to `.squad/decisions/inbox/systemai-aca-recheck.md`.
+
+
+---
+
+## Cross-Agent Notice: REST API from Design Skill (2026-07-18)
+
+**All agents:** A new skill .squad/skills/rest-api-from-design/SKILL.md has been created to prevent recurring REST implementation errors. This affects anyone writing REST calls in Terraform, GitHub Actions, or shell scripts.
+
+**Trigger:** Apply when implementing a REST call whose method + URL appears in a design doc or vendor docs. Key rule: use on_failure = fail on all state-mutating calls (POST/PUT/PATCH/DELETE); never substitute your own HTTP conventions.
+
+**Named prior failure:** Fabric workspace-policy.tf bug (commit 4171dc3) — used PATCH instead of PUT, wrong URL path, on_failure=continue masked the error.
+
+For details, see .squad/skills/rest-api-from-design/SKILL.md.
