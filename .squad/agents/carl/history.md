@@ -30,6 +30,18 @@ Architected platform/application landing zone model for multi-module deployment 
 - Led decision documentation flow: research → ADR → inbox → decisions.md
 - Managed design gates and security review conditions
 
+## Fabric Provider Gotchas (2026-04-28)
+
+During first live deploy of Fabric-private on squad/fabric-alz-impl, Donut identified 5 provider-specific issues. These are architecture-neutral workarounds:
+
+1. **azapi workspace PE** requires `preview = true` for resource type `microsoft.fabric/capacities/workspaces/privateEndpoints`
+2. **fabric provider capacity** reference needs explicit UUID lookup (`data.azurerm_resource` with filtering, not direct resource ID)
+3. **azurerm diagnostic_setting** removal leaves dangling state unless `enabled_log` blocks are explicitly declared (avoid silent failures)
+4. **azapi workspace PE removal** requires careful ordering — destroy PE subnet links before MPE resources
+5. **azapi_resource_action** for MPE approval: connection name is non-deterministic; use `endswith()` pattern with `on_failure = "continue"` for graceful handling
+
+**Impact:** No design changes needed. Recommend documenting these in provider version notes if issues persist in future releases. Fixes validated on squad/fabric-alz-impl deployment.
+
 ## See Also
 
 - `.squad/decisions.md` — All team decisions and approvals
