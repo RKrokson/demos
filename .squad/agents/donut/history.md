@@ -59,6 +59,15 @@ Donut is the infrastructure developer driving module implementation and live dep
 - **Workspace-local KV:** Eliminates orphaned PE on destroy; RBAC-only security
 - **DNS resolver policy VNet link retry:** Transient InternalServerError — safe to retry
 
+### Full lab teardown — Fabric-private + Networking (2026-07-17)
+- **MPE UnknownError on destroy:** `fabric_workspace_managed_private_endpoint` resources (mpe_keyvault, mpe_storage) fail with `UnknownError` during `terraform destroy` if the workspace PE has already been removed (likely a Fabric API timing issue). Workaround: `terraform state rm` to drop them from state, then delete them manually via the Fabric REST API before deleting the workspace.
+- **WorkspaceContainsManagedEndpoints:** Fabric refuses to delete a workspace if managed private endpoints still exist, even if they're no longer tracked in Terraform state. Must DELETE each MPE first: `GET /v1/workspaces/{id}/managedPrivateEndpoints` to list, then `DELETE /v1/workspaces/{id}/managedPrivateEndpoints/{mpeId}` for each. Only after that will `fabric_workspace` destroy succeed.
+- **RequestDeniedByInboundPolicy on refresh:** Once workspace deny-public is active, any `terraform destroy` without `-refresh=false` will fail immediately — the Fabric provider can't refresh `fabric_workspace`. Always use `-refresh=false` for any destroy when workspace deny-public is in effect.
+- **KV with PE already removed → 10+ min soft-delete wait:** `azurerm_key_vault` with `public_network_access_enabled = false` takes ~10 minutes to soft-delete when its private endpoint was already destroyed earlier in the same run. Appears to poll an async ARM operation. Normal; just wait.
+- **Networking destroy with `-refresh=false`:** Skips the 30-min modtm GitHub refresh. Total time with `-refresh=false`: ~15 min for Azure operations (vHub destroyed in ~10 min, vWAN + RG ~1 min). Acceptable for teardown when state is known good.
+- **Orphan soft-deleted KVs:** Two KVs (`kv00-sece-0473`, `kv00-sece-1850`) were left over from prior teardowns (March 2026). Purged during this session. KV purge takes 5–10 min each — sequential, no batching.
+- **Outcome:** Full teardown successful. Fabric-private: 4 final resources destroyed after manual MPE cleanup. Networking: 579 resources destroyed. All RGs gone, no soft-deleted resources remaining.
+
 ### Fabric workspace-policy REST fix (2026-07-17 post-PE-deploy)
 - **Bug:** `workspace-policy.tf` had two errors in both provisioners: wrong HTTP method (`PATCH` instead of `PUT`) and missing `/networking/` segment in the URL path (`/v1/workspaces/{id}/communicationPolicy` instead of `/v1/workspaces/{id}/networking/communicationPolicy`). Both errors were present on create-time and destroy-time provisioners.
 - **Docs reference:** Microsoft Learn — "Set up and use workspace-level private links", Step 8. Confirmed: `PUT https://api.fabric.microsoft.com/v1/workspaces/{workspaceID}/networking/communicationPolicy`.
