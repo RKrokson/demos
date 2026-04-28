@@ -109,3 +109,11 @@ validation) and preserves this instance as a concrete prior failure example. Ski
 **Named prior failure:** Fabric workspace-policy.tf bug (commit 4171dc3) — used PATCH instead of PUT, wrong URL path, on_failure=continue masked the error.
 
 For details, see .squad/skills/rest-api-from-design/SKILL.md.
+
+---
+
+## Next Design Pass Queued
+
+
+Fabric next design pass ready to spawn. Scope locked in decisions.md: native Lakehouse, three-way network_mode enum (inbound_only / outbound_only / inbound_and_outbound), and storage account upgrades (ADLS Gen 2 + Workspace Identity + Storage Blob Data Contributor) for outbound MPE path. Teardown complete; environment clean. See orchestration-log and session-log for context.
+

@@ -479,3 +479,30 @@ The 2026-04-28 deployment incorrectly concluded "Fabric private links are tenant
 
 **azapi quirk documented:** `schema_validation_enabled = false` required because this resource type is not yet in the azapi bundled schema. See `.squad/skills/fabric-workspace-private-link/SKILL.md` for the pattern.
 
+
+---
+
+### 2026-04-28T23:53Z: Fabric next-round scope clarifications
+
+**By:** Ryan (via Copilot)
+
+**Context:** Pre-design brief for Carl's next design pass on Fabric-private. Scope confirmed before teardown completes.
+
+**Decisions:**
+
+1. **Lakehouse:** Add a **native Fabric Lakehouse** (OneLake-backed, `fabric_lakehouse` resource) inside the deployed workspace. NOT a shortcut to external ADLS Gen 2.
+
+2. **Network mode conditional:** Three-way enum `network_mode`:
+   - `inbound_only` — **default.** Workspace PE + communicationPolicy (deny public). No MPEs.
+   - `outbound_only` — MPEs to storage/etc. only. No workspace PE. Workspace remains publicly reachable. **Niche / demo-only** scenario: customer is OK with public Fabric but needs to reach a private Azure resource.
+   - `inbound_and_outbound` — both directions.
+   - README must document `outbound_only` use case so future-self knows why it exists.
+
+3. **Storage account upgrades for outbound (MPE) path:**
+   - Storage account becomes ADLS Gen 2 (`is_hns_enabled = true`).
+   - Enable Fabric **Workspace Identity** on the workspace.
+   - Assign **Storage Blob Data Contributor** to the workspace identity SP on the storage account.
+   - Shortcut creation is **out of scope** — Ryan will set up the shortcut manually. We're just enabling the prerequisites.
+
+**Sequencing:** Carl designs first → Donut implements → Ryan validates. Hold until teardown completes.
+
