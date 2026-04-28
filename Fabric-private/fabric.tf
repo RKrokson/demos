@@ -120,7 +120,53 @@ resource "azurerm_mssql_database" "lab_db" {
   tags      = local.common_tags
 }
 
-# NOTE: Workspace-level private endpoints (Microsoft.Fabric/privateLinkServicesForFabric)
-# are NOT a valid ARM resource type. Fabric private connectivity is tenant-scoped
-# via Microsoft.PowerBI/privateLinkServicesForPowerBI — not per-workspace.
-# Inbound traffic restriction is enforced via workspace_communication_policy below.
+########## Workspace-Level Private Endpoint
+##########
+# Microsoft.Fabric/privateLinkServicesForFabric is a real ARM type (API 2024-06-01).
+# It is workspace-scoped — completely distinct from the tenant-level
+# Microsoft.PowerBI/privateLinkServicesForPowerBI type.
+# Prerequisites (manual, out-of-band):
+#   1. Fabric tenant setting "Configure workspace-level inbound network rules" enabled.
+#   2. Microsoft.Fabric resource provider registered in the subscription.
+
+resource "azapi_resource" "fabric_private_link_service" {
+  type      = "Microsoft.Fabric/privateLinkServicesForFabric@2024-06-01"
+  name      = "fabric-pls-${random_string.unique.result}"
+  location  = "global"
+  parent_id = azurerm_resource_group.rg_fabric00.id
+
+  # Microsoft.Fabric/privateLinkServicesForFabric is not yet in the azapi provider's
+  # bundled schema; disable local validation so azapi passes the request to ARM directly.
+  schema_validation_enabled = false
+
+  body = {
+    properties = {
+      tenantId    = data.azurerm_client_config.current.tenant_id
+      workspaceId = fabric_workspace.workspace.id
+    }
+  }
+
+  depends_on = [fabric_workspace.workspace]
+}
+
+resource "azurerm_private_endpoint" "pe_fabric_workspace" {
+  name                = "fabric-workspace-pe-${random_string.unique.result}"
+  resource_group_name = azurerm_resource_group.rg_fabric00.name
+  location            = azurerm_resource_group.rg_fabric00.location
+  subnet_id           = azurerm_subnet.pe_subnet.id
+  tags                = local.common_tags
+
+  private_service_connection {
+    name                           = "fabric-workspace-pe-connection"
+    private_connection_resource_id = azapi_resource.fabric_private_link_service.id
+    subresource_names              = ["workspace"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name = "fabric-workspace-dns-config"
+    private_dns_zone_ids = [
+      data.terraform_remote_state.networking.outputs.dns_zone_fabric_id
+    ]
+  }
+}

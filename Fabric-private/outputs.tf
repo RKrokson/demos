@@ -38,7 +38,27 @@ output "mpe_sql_id" {
   value       = fabric_workspace_managed_private_endpoint.mpe_sql.id
 }
 
+output "key_vault_id" {
+  description = "The ID of the LZ-local Fabric Key Vault"
+  value       = azurerm_key_vault.fabric_kv.id
+}
+
 output "mpe_keyvault_id" {
   description = "The ID of the Key Vault MPE"
   value       = fabric_workspace_managed_private_endpoint.mpe_keyvault.id
+}
+
+output "workspace_private_link_service_id" {
+  description = "The ARM resource ID of the Fabric workspace private link service"
+  value       = azapi_resource.fabric_private_link_service.id
+}
+
+output "workspace_private_endpoint_id" {
+  description = "The resource ID of the Fabric workspace private endpoint"
+  value       = azurerm_private_endpoint.pe_fabric_workspace.id
+}
+
+output "workspace_private_endpoint_ip" {
+  description = "The private IP address assigned to the Fabric workspace private endpoint"
+  value       = azurerm_private_endpoint.pe_fabric_workspace.private_service_connection[0].private_ip_address
 }
