@@ -1,4 +1,4 @@
-# Configure providers for Fabric BYO VNet module
+# Configure providers for Fabric private module
 terraform {
   required_providers {
     azurerm = {
@@ -34,4 +34,9 @@ provider "azurerm" {
     }
   }
   storage_use_azuread = true
+}
+
+provider "fabric" {
+  # fabric_workspace_managed_private_endpoint requires preview opt-in (fabric provider >= 1.x)
+  preview = true
 }

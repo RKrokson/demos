@@ -15,19 +15,58 @@ resource "azurerm_fabric_capacity" "fabric_capacity" {
   tags                   = local.common_tags
 }
 
-resource "fabric_workspace" "workspace" {
-  display_name = "fabric-workspace-${random_string.unique.result}"
-  capacity_id  = azurerm_fabric_capacity.fabric_capacity.id
-  description  = "Fabric workspace for BYO VNet lab deployment"
+# The fabric_workspace resource requires the Fabric-side capacity UUID, not the ARM resource ID.
+# This data source looks up the UUID by display_name (which matches the ARM resource name).
+data "fabric_capacity" "this" {
+  display_name = azurerm_fabric_capacity.fabric_capacity.name
+  depends_on   = [azurerm_fabric_capacity.fabric_capacity]
 }
 
-resource "fabric_workspace_role_assignment" "operator_admin" {
-  workspace_id = fabric_workspace.workspace.id
-  role         = "Admin"
+resource "fabric_workspace" "workspace" {
+  display_name = "fabric-workspace-${random_string.unique.result}"
+  capacity_id  = data.fabric_capacity.this.id
+  description  = "Fabric workspace for Private lab deployment"
+}
 
-  principal = {
-    id   = data.azurerm_client_config.current.object_id
-    type = "User"
+########## Local Key Vault (LZ-scoped, MPE target)
+##########
+# Lives in the Fabric LZ resource group so destroy doesn't leave orphaned PE
+# connections on the shared Networking KV. Workspace reaches it via MPE 3.
+
+resource "azurerm_key_vault" "fabric_kv" {
+  name                = "kv-fabric-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
+  resource_group_name = azurerm_resource_group.rg_fabric00.name
+  location            = azurerm_resource_group.rg_fabric00.location
+  tenant_id           = data.azurerm_client_config.current.tenant_id
+  sku_name            = "standard"
+
+  enable_rbac_authorization     = true
+  public_network_access_enabled = false
+  purge_protection_enabled      = false
+  soft_delete_retention_days    = 7
+
+  tags = local.common_tags
+}
+
+resource "azurerm_private_endpoint" "pe_fabric_kv" {
+  name                = "fabric-kv-pe-${random_string.unique.result}"
+  resource_group_name = azurerm_resource_group.rg_fabric00.name
+  location            = azurerm_resource_group.rg_fabric00.location
+  subnet_id           = azurerm_subnet.pe_subnet.id
+  tags                = local.common_tags
+
+  private_service_connection {
+    name                           = "fabric-kv-pe-connection"
+    private_connection_resource_id = azurerm_key_vault.fabric_kv.id
+    subresource_names              = ["vault"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name = "fabric-kv-dns-config"
+    private_dns_zone_ids = [
+      data.terraform_remote_state.networking.outputs.dns_zone_vaultcore_id
+    ]
   }
 }
 
@@ -81,49 +120,7 @@ resource "azurerm_mssql_database" "lab_db" {
   tags      = local.common_tags
 }
 
-########## Workspace Private Endpoint + DNS Zone Group
-##########
-
-# VERIFY at first deploy: the PLS resource ID format for workspace-level PE.
-# The target is Microsoft.Fabric/privateLinkServicesForFabric/{workspace-guid}.
-# If fabric_workspace.workspace.id includes a path prefix, adjust the construction below.
-resource "azurerm_private_endpoint" "pe_workspace" {
-  name                = "fabric-workspace-pe-${random_string.unique.result}"
-  resource_group_name = azurerm_resource_group.rg_fabric00.name
-  location            = azurerm_resource_group.rg_fabric00.location
-  subnet_id           = azurerm_subnet.pe_subnet.id
-  tags                = local.common_tags
-
-  private_service_connection {
-    name                           = "fabric-workspace-pls-connection"
-    private_connection_resource_id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Fabric/privateLinkServicesForFabric/${fabric_workspace.workspace.id}"
-    subresource_names              = ["workspace"]
-    is_manual_connection           = false
-  }
-
-  private_dns_zone_group {
-    name = "fabric-workspace-dns-config"
-    private_dns_zone_ids = [
-      data.terraform_remote_state.networking.outputs.dns_zone_fabric_id
-    ]
-  }
-
-  depends_on = [fabric_workspace.workspace]
-}
-
-########## Diagnostic Settings — send capacity logs to platform LAW
-##########
-
-resource "azurerm_monitor_diagnostic_setting" "fabric_capacity_diag" {
-  name                       = "fabric-capacity-diag-${random_string.unique.result}"
-  target_resource_id         = azurerm_fabric_capacity.fabric_capacity.id
-  log_analytics_workspace_id = data.terraform_remote_state.networking.outputs.log_analytics_workspace_id
-
-  enabled_log {
-    category_group = "allLogs"
-  }
-
-  metric {
-    category = "AllMetrics"
-  }
-}
+# NOTE: Workspace-level private endpoints (Microsoft.Fabric/privateLinkServicesForFabric)
+# are NOT a valid ARM resource type. Fabric private connectivity is tenant-scoped
+# via Microsoft.PowerBI/privateLinkServicesForPowerBI — not per-workspace.
+# Inbound traffic restriction is enforced via workspace_communication_policy below.
