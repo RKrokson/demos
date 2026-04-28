@@ -42,6 +42,36 @@ During first live deploy of Fabric-private on squad/fabric-alz-impl, Donut ident
 
 **Impact:** No design changes needed. Recommend documenting these in provider version notes if issues persist in future releases. Fixes validated on squad/fabric-alz-impl deployment.
 
+## Learnings
+
+### Fabric workspace-level PE model (2026-07-16)
+
+Fabric supports private links at **two distinct scopes** — tenant-level (`Microsoft.PowerBI/privateLinkServicesForPowerBI`) and workspace-level (`Microsoft.Fabric/privateLinkServicesForFabric`). These are completely different ARM resource types. The workspace-level flow:
+
+1. Fabric admin enables tenant setting "Configure workspace-level inbound network rules" (portal-only, not ARM).
+2. Deploy ARM resource `Microsoft.Fabric/privateLinkServicesForFabric@2024-06-01` (location: `global`, binds tenantId + workspaceId).
+3. Create standard `azurerm_private_endpoint` targeting that PL service with `subresource_names = ["workspace"]`.
+4. DNS zone: `privatelink.fabric.microsoft.com` (already centralized in our Networking module).
+5. Optionally deny public access via Fabric REST API `communicationPolicy` endpoint.
+
+**What Donut got wrong on 2026-04-28:** Concluded "Fabric private links are tenant-scoped only" and removed the workspace PE. This conflated the tenant-level PL service (`Microsoft.PowerBI/...`) with the workspace-level PL service (`Microsoft.Fabric/...`). The incorrect comment was left in `fabric.tf` lines 123-127. The workspace was left publicly reachable as a result.
+
+**Fix designed:** ADR `carl-fabric-workspace-pe-fix.md` — additive two-resource fix (azapi PL service + azurerm PE), no existing resources destroyed. Pending Ryan approval.
+
+## Cross-Agent Update — Fabric Workspace-Level PE Fix Deployed (2026-07-17)
+
+**Partner:** Donut (Infrastructure Dev)  
+**Branch:** squad/fabric-alz-impl  
+**Outcome:** ✅ Workspace PE deployed and verified (IP 172.20.80.5)
+
+Donut successfully implemented the workspace-level PE fix design per the ADR. The corrected pattern is confirmed:
+- **Resource type:** `Microsoft.Fabric/privateLinkServicesForFabric@2024-06-01` (azapi provider, location: global)
+- **azapi quirk:** `schema_validation_enabled = false` required (bundled schema outdated)
+- **PE dependency:** workspace-policy.tf now depends on PE (not bare workspace), ensuring private path is live before deny-public-access fires
+- **Scope guardrail:** Tenant-level PE remains out of scope per Ryan directive
+
+All inbox files merged into decisions.md; superseded 2026-04-28 entry marked with full resolution context.
+
 ## See Also
 
 - `.squad/decisions.md` — All team decisions and approvals
