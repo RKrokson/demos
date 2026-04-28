@@ -40,6 +40,64 @@ During Networking deploy (579 resources, region 0 only), `azapi_resource.dns_pol
 
 ---
 
+### Fabric workspace communicationPolicy REST fix (Donut — Infrastructure)
+
+**Status:** Applied ✅  
+**Date:** 2026-07-17  
+**Branch:** squad/fabric-alz-impl  
+**Author:** Donut (Infrastructure Dev)
+
+**Bug:** `Fabric-private/workspace-policy.tf` had two errors in both the create-time and destroy-time provisioners:
+- HTTP method: `PATCH` → `PUT` (correct)
+- URL path: `/v1/workspaces/{id}/communicationPolicy` → `/v1/workspaces/{id}/networking/communicationPolicy` (added `/networking/` segment)
+
+Additionally, create-time provisioner had `on_failure = continue`, which silently swallowed API errors. Ryan caught the misconfiguration from the portal.
+
+**Root Cause:** Implementation used incorrect URL (missing `/networking/` segment) and wrong HTTP verb. The `on_failure = continue` masked the failure.
+
+**Fix:**
+- Both provisioners: Changed `Method PATCH` → `Method PUT`; added `/networking/` to both URL paths
+- Create-time provisioner: Changed `on_failure = continue` → `on_failure = fail` so future regressions are loud
+- Destroy-time provisioner: Kept `on_failure = continue` (intentional best-effort)
+
+**Docs Reference:** Microsoft Learn — "Set up and use workspace-level private links", Step 8  
+`PUT https://api.fabric.microsoft.com/v1/workspaces/{workspaceID}/networking/communicationPolicy`
+
+**Outcome:** Applied with `-refresh=false -target=terraform_data.workspace_communication_policy[0]`. REST call returned 200/204. Deny state confirmed.
+
+**Lesson:** Never use `on_failure = continue` on a create-time provisioner that changes critical state. Reserve for destroy-time best-effort cleanup only.
+
+---
+
+### REST API from Design Doc — Skill Capture (Carl — Lead/Architect)
+
+**Status:** Approved — new skill  
+**Date:** 2026-07-18  
+**Branch:** squad/fabric-alz-impl  
+**Author:** Carl (Lead/Architect)  
+**Type:** Process Guardrail
+
+**Summary:** Created `.squad/skills/rest-api-from-design/SKILL.md` to stop a recurring implementation error: implementers substitute their own REST convention judgment (method or URL path) for the method and URL that the design doc or vendor docs explicitly cited.
+
+**Trigger Conditions:** Apply this skill when:
+- Implementing a REST call whose method + URL appears in a design doc, vendor doc, or `.squad/decisions.md`
+- Writing Terraform `local-exec` PowerShell/bash that hits an external API
+- Writing GitHub Actions scripts or Azure CLI fallback shells that hand-roll HTTP calls
+
+**Key Rules Captured in the Skill:**
+1. **Verbatim copy** — method and URL from the cited spec go into code unchanged
+2. **Comment-as-contract** — paste the cited URL + method as a comment directly above the call
+3. **`on_failure = fail`** on all state-mutating calls (POST/PUT/PATCH/DELETE). `on_failure = continue` banned on mutating calls
+4. **Read-back validation** — after a PUT/PATCH, do a GET and assert the desired state was applied
+5. **Concrete citation** — names `Fabric-private/workspace-policy.tf` commit `4171dc3` as canonical prior failure
+
+**Confidence:** `medium` — second observed recurrence. Elevate to `high` on third observation.
+
+**Files Created:**
+- `.squad/skills/rest-api-from-design/SKILL.md`
+
+---
+
 ## Archived Decisions
 
 ### 1. Landing Zone Architecture Framing (Carl — Lead/Architect)

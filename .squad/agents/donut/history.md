@@ -59,6 +59,18 @@ Donut is the infrastructure developer driving module implementation and live dep
 - **Workspace-local KV:** Eliminates orphaned PE on destroy; RBAC-only security
 - **DNS resolver policy VNet link retry:** Transient InternalServerError — safe to retry
 
+### Fabric workspace-policy REST fix (2026-07-17 post-PE-deploy)
+- **Bug:** `workspace-policy.tf` had two errors in both provisioners: wrong HTTP method (`PATCH` instead of `PUT`) and missing `/networking/` segment in the URL path (`/v1/workspaces/{id}/communicationPolicy` instead of `/v1/workspaces/{id}/networking/communicationPolicy`). Both errors were present on create-time and destroy-time provisioners.
+- **Docs reference:** Microsoft Learn — "Set up and use workspace-level private links", Step 8. Confirmed: `PUT https://api.fabric.microsoft.com/v1/workspaces/{workspaceID}/networking/communicationPolicy`.
+- **Fix:** Changed `Method PATCH` → `Method PUT`, added `/networking/` to both URL paths. Tightened create-time `on_failure = continue` → `on_failure = fail`.
+- **Silent-failure lesson:** `on_failure = continue` on a critical state-change provisioner is dangerous — it lets Terraform mark the resource as created while the actual API call silently failed. The portal showed "Allow all connections" even though Terraform reported success. **Rule: only use `on_failure = continue` on destroy-time best-effort reverts, never on create/update state-change calls.**
+- **Apply outcome:** Targeted apply with `-refresh=false` (full plan blocked because workspace deny-public was already in effect from Ryan's manual flip, causing the Fabric provider to get `RequestDeniedByInboundPolicy` on refresh). `Write-Host` confirmation appeared: `Fabric workspace 574ffc99-6b22-4e19-ba7f-f1f3715c1cf4 inbound public access set to Deny (private-only via workspace PE).` REST call returned 200/204.
+
+### Fabric workspace-policy GET verification (2026-07-17 fix #3)
+- **Pattern added:** After the PUT, the create-time provisioner now issues a GET against the same URI and asserts `inbound.publicAccessRules.defaultAction == "Deny"`. A mismatch throws and fails the apply — no silent success.
+- **Reachability finding (important):** Feared the GET would be blocked by the very deny-public policy we just set. It was NOT. Microsoft's own docs confirm: "Workspace-level network settings don't restrict the workspaces network communication policy API. This API remains accessible from public networks, even if public access to the workspace is blocked." (See the table in Step 8 of the private links setup article.) The management plane endpoint stays callable from anywhere; only the workspace data-plane paths are restricted.
+- **Apply outcome:** Both lines printed — PUT confirmation and `✅ Verified: workspace 574ffc99-6b22-4e19-ba7f-f1f3715c1cf4 inbound defaultAction is Deny.` No errors. Assertion passed. No decision-inbox entry needed (no network-reachability escalation required).
+
 ---
 
 ## See Also
@@ -67,3 +79,16 @@ Donut is the infrastructure developer driving module implementation and live dep
 - **history-archive.md** — Detailed early work (March 2026)
 - Carl, Mordecai histories for parallel efforts
 
+
+
+---
+
+## Cross-Agent Notice: REST API from Design Skill (2026-07-18)
+
+**All agents:** A new skill .squad/skills/rest-api-from-design/SKILL.md has been created to prevent recurring REST implementation errors. This affects anyone writing REST calls in Terraform, GitHub Actions, or shell scripts.
+
+**Trigger:** Apply when implementing a REST call whose method + URL appears in a design doc or vendor docs. Key rule: use on_failure = fail on all state-mutating calls (POST/PUT/PATCH/DELETE); never substitute your own HTTP conventions.
+
+**Named prior failure:** Fabric workspace-policy.tf bug (commit 4171dc3) — used PATCH instead of PUT, wrong URL path, on_failure=continue masked the error.
+
+For details, see .squad/skills/rest-api-from-design/SKILL.md.
