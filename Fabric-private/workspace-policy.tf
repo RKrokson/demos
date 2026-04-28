@@ -21,15 +21,15 @@ resource "terraform_data" "workspace_communication_policy" {
 
   provisioner "local-exec" {
     interpreter = ["pwsh", "-NoProfile", "-Command"]
-    on_failure  = continue
+    on_failure  = fail
     command     = <<-EOT
       $ErrorActionPreference = 'Stop'
       $token = (az account get-access-token --resource https://api.fabric.microsoft.com --query accessToken -o tsv)
       if (-not $token) { throw 'Failed to acquire Fabric API access token via az CLI.' }
       $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
       $body = '{"inbound":{"publicAccessRules":{"defaultAction":"Deny"}}}'
-      $uri = 'https://api.fabric.microsoft.com/v1/workspaces/${self.input.workspace_id}/communicationPolicy'
-      Invoke-RestMethod -Uri $uri -Method PATCH -Headers $headers -Body $body | Out-Null
+      $uri = 'https://api.fabric.microsoft.com/v1/workspaces/${self.input.workspace_id}/networking/communicationPolicy'
+      Invoke-RestMethod -Uri $uri -Method PUT -Headers $headers -Body $body | Out-Null
       Write-Host "Fabric workspace ${self.input.workspace_id} inbound public access set to Deny (private-only via workspace PE)."
     EOT
   }
@@ -45,8 +45,8 @@ resource "terraform_data" "workspace_communication_policy" {
         if (-not $token) { Write-Host 'Skipping policy revert — no Fabric API token.'; exit 0 }
         $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
         $body = '{"inbound":{"publicAccessRules":{"defaultAction":"Allow"}}}'
-        $uri = 'https://api.fabric.microsoft.com/v1/workspaces/${self.input.workspace_id}/communicationPolicy'
-        Invoke-RestMethod -Uri $uri -Method PATCH -Headers $headers -Body $body | Out-Null
+        $uri = 'https://api.fabric.microsoft.com/v1/workspaces/${self.input.workspace_id}/networking/communicationPolicy'
+        Invoke-RestMethod -Uri $uri -Method PUT -Headers $headers -Body $body | Out-Null
         Write-Host "Fabric workspace ${self.input.workspace_id} inbound public access reverted to Allow (best-effort)."
       } catch {
         Write-Host "Best-effort revert of workspace communication policy failed: $($_.Exception.Message)"
