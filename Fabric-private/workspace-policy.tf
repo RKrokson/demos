@@ -28,9 +28,17 @@ resource "terraform_data" "workspace_communication_policy" {
       if (-not $token) { throw 'Failed to acquire Fabric API access token via az CLI.' }
       $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
       $body = '{"inbound":{"publicAccessRules":{"defaultAction":"Deny"}}}'
+      # Per Microsoft docs: PUT https://api.fabric.microsoft.com/v1/workspaces/{id}/networking/communicationPolicy
+      # Source: https://learn.microsoft.com/en-us/fabric/security/security-workspace-level-private-links-set-up#step-8-deny-public-access-to-the-workspace
       $uri = 'https://api.fabric.microsoft.com/v1/workspaces/${self.input.workspace_id}/networking/communicationPolicy'
       Invoke-RestMethod -Uri $uri -Method PUT -Headers $headers -Body $body | Out-Null
       Write-Host "Fabric workspace ${self.input.workspace_id} inbound public access set to Deny (private-only via workspace PE)."
+      $got = Invoke-RestMethod -Uri $uri -Method GET -Headers $headers
+      $actual = $got.inbound.publicAccessRules.defaultAction
+      if ($actual -ne 'Deny') {
+        throw "Workspace policy verification failed: expected defaultAction=Deny, got '$actual'."
+      }
+      Write-Host "✅ Verified: workspace ${self.input.workspace_id} inbound defaultAction is Deny."
     EOT
   }
 
