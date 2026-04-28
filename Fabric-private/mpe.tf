@@ -13,7 +13,7 @@ resource "fabric_workspace_managed_private_endpoint" "mpe_storage" {
   name                            = "mpe-storage-blob-${random_string.unique.result}"
   target_private_link_resource_id = azurerm_storage_account.lab_storage.id
   target_subresource_type         = "blob"
-  request_message                 = "Auto-created by Fabric-byoVnet Terraform module"
+  request_message                 = "Auto-created by Fabric-private Terraform module"
 }
 
 data "azapi_resource_list" "storage_pe_connections" {
@@ -31,7 +31,7 @@ resource "azapi_resource_action" "approve_mpe_storage" {
     properties = {
       privateLinkServiceConnectionState = {
         status      = "Approved"
-        description = "Auto-approved by Fabric-byoVnet Terraform module"
+        description = "Auto-approved by Fabric-private Terraform module"
       }
     }
   }
@@ -46,7 +46,7 @@ resource "fabric_workspace_managed_private_endpoint" "mpe_sql" {
   name                            = "mpe-sql-${random_string.unique.result}"
   target_private_link_resource_id = azurerm_mssql_server.lab_sql.id
   target_subresource_type         = "sqlServer"
-  request_message                 = "Auto-created by Fabric-byoVnet Terraform module"
+  request_message                 = "Auto-created by Fabric-private Terraform module"
 }
 
 data "azapi_resource_list" "sql_pe_connections" {
@@ -64,42 +64,42 @@ resource "azapi_resource_action" "approve_mpe_sql" {
     properties = {
       privateLinkServiceConnectionState = {
         status      = "Approved"
-        description = "Auto-approved by Fabric-byoVnet Terraform module"
+        description = "Auto-approved by Fabric-private Terraform module"
       }
     }
   }
 }
 
 # ─────────────────────────────────────────────
-# MPE 3: Fabric → Networking Key Vault (shared resource)
-# The KV is shared across all ALZs — the lookup MUST tolerate
-# other existing PE connections from prior deploys or other modules.
+# MPE 3: Fabric → Local Key Vault (LZ-scoped)
+# The KV lives in the Fabric LZ RG (azurerm_key_vault.fabric_kv).
+# Strict ID-filter lookup is preserved for parity with the storage/SQL MPEs.
 # ─────────────────────────────────────────────
 
 resource "fabric_workspace_managed_private_endpoint" "mpe_keyvault" {
   workspace_id                    = fabric_workspace.workspace.id
   name                            = "mpe-keyvault-${random_string.unique.result}"
-  target_private_link_resource_id = data.terraform_remote_state.networking.outputs.key_vault_id
+  target_private_link_resource_id = azurerm_key_vault.fabric_kv.id
   target_subresource_type         = "vault"
-  request_message                 = "Auto-created by Fabric-byoVnet Terraform module"
+  request_message                 = "Auto-created by Fabric-private Terraform module"
 }
 
 data "azapi_resource_list" "kv_pe_connections" {
   type       = "Microsoft.KeyVault/vaults/privateEndpointConnections@2023-07-01"
-  parent_id  = data.terraform_remote_state.networking.outputs.key_vault_id
+  parent_id  = azurerm_key_vault.fabric_kv.id
   depends_on = [fabric_workspace_managed_private_endpoint.mpe_keyvault]
 }
 
 resource "azapi_resource_action" "approve_mpe_keyvault" {
   type        = "Microsoft.KeyVault/vaults/privateEndpointConnections@2023-07-01"
-  resource_id = "${data.terraform_remote_state.networking.outputs.key_vault_id}/privateEndpointConnections/${local.kv_pe_conn_name}"
+  resource_id = "${azurerm_key_vault.fabric_kv.id}/privateEndpointConnections/${local.kv_pe_conn_name}"
   method      = "PUT"
 
   body = {
     properties = {
       privateLinkServiceConnectionState = {
         status      = "Approved"
-        description = "Auto-approved by Fabric-byoVnet Terraform module"
+        description = "Auto-approved by Fabric-private Terraform module"
       }
     }
   }
@@ -111,23 +111,34 @@ resource "azapi_resource_action" "approve_mpe_keyvault" {
 # ─────────────────────────────────────────────
 
 locals {
+  # Fabric names the managed PE as "{workspace_id}.{mpe_name}" in the Fabric-managed subscription.
+  # The ARM PE connection object's privateEndpoint.id ends with that string.
+  # We match by suffix — never by Fabric resource UUID (which is not an ARM ID).
   storage_pe_conn_name = one([
     for conn in try(data.azapi_resource_list.storage_pe_connections.output.value, []) :
     conn.name
-    if lower(try(conn.properties.privateEndpoint.id, "")) == lower(fabric_workspace_managed_private_endpoint.mpe_storage.id)
+    if endswith(
+      lower(try(conn.properties.privateEndpoint.id, "")),
+      lower("${fabric_workspace.workspace.id}.${fabric_workspace_managed_private_endpoint.mpe_storage.name}")
+    )
   ])
 
   sql_pe_conn_name = one([
     for conn in try(data.azapi_resource_list.sql_pe_connections.output.value, []) :
     conn.name
-    if lower(try(conn.properties.privateEndpoint.id, "")) == lower(fabric_workspace_managed_private_endpoint.mpe_sql.id)
+    if endswith(
+      lower(try(conn.properties.privateEndpoint.id, "")),
+      lower("${fabric_workspace.workspace.id}.${fabric_workspace_managed_private_endpoint.mpe_sql.name}")
+    )
   ])
 
-  # KV lookup tolerates other existing connections — strict filter by this MPE's resource ID only
   kv_pe_conn_name = one([
     for conn in try(data.azapi_resource_list.kv_pe_connections.output.value, []) :
     conn.name
-    if lower(try(conn.properties.privateEndpoint.id, "")) == lower(fabric_workspace_managed_private_endpoint.mpe_keyvault.id)
+    if endswith(
+      lower(try(conn.properties.privateEndpoint.id, "")),
+      lower("${fabric_workspace.workspace.id}.${fabric_workspace_managed_private_endpoint.mpe_keyvault.name}")
+    )
   ])
 }
 
@@ -163,11 +174,11 @@ check "mpe_sql_approved" {
 check "mpe_keyvault_approved" {
   data "azapi_resource" "mpe_kv_conn" {
     type                   = "Microsoft.KeyVault/vaults/privateEndpointConnections@2023-07-01"
-    resource_id            = "${data.terraform_remote_state.networking.outputs.key_vault_id}/privateEndpointConnections/${local.kv_pe_conn_name}"
+    resource_id            = "${azurerm_key_vault.fabric_kv.id}/privateEndpointConnections/${local.kv_pe_conn_name}"
     response_export_values = ["properties.privateLinkServiceConnectionState.status"]
   }
   assert {
     condition     = data.azapi_resource.mpe_kv_conn.output.properties.privateLinkServiceConnectionState.status == "Approved"
-    error_message = "MPE to Key Vault is not Approved. The shared Networking KV may have stale PE connections — see README destroy procedure for cleanup."
+    error_message = "MPE to Key Vault is not Approved after auto-approval. Run: az network private-endpoint-connection approve"
   }
 }

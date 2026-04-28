@@ -3,48 +3,131 @@
 - **Owner:** Ryan Krokson
 - **Project:** Azure IaC demo/lab environments — Terraform modules for Azure vWAN, AI Foundry, networking
 - **Stack:** Terraform (azurerm >= 4.0, azapi >= 2.0, random ~> 3.5), PowerShell, Azure CLI
-- **Structure:** Three root modules — Networking (foundation), Foundry-byoVnet, Foundry-managedVnet linked via terraform_remote_state
+- **Structure:** Three root modules — Networking (foundation), Foundry-byoVnet/Fabric-private, Foundry-managedVnet linked via terraform_remote_state
 - **Created:** 2026-03-27
 
-## Recent Work (2026-04-27)
+## Most Recent Work (2026-07-17)
 
-- **2026-04-27 (kv-softdelete-and-workspace-default):** (1) Set `soft_delete_retention_days = 7` on Networking/keyvault.tf kv00 (was defaulting to 90 days). Fabric-private already at 7 days — no change. (2) Flipped `restrict_workspace_public_access` default in Fabric-private/variables.tf: `false` → `true` (private-by-default aligns with module's PE-always design). (3) Updated Fabric-private/README.md variables table, Security Posture section, and destroy procedure; updated root README.md with KV soft-delete callout. Terraform fmt + validate clean in both modules. (4) Processed two user directives from Ryan (lab KV minimums, workspace private default) and merged into decisions.md. Orchestration and session logs written. Decision documented.
+- **2026-07-17 (fabric-private-first-deploy):** Full live deployment of Networking + Fabric-private ALZ from scratch. Networking: 579 resources, Sweden Central, firewall + private DNS enabled — two-phase apply (first run created 402 resources then hit azapi 403s; root cause was cross-tenant auth; fix = `az account set --subscription b6b5dea5-...` → switches to ryan@krokson.xyz in personal tenant). Total: 579 resources. Fabric-private: caught and fixed 5 code bugs during live apply (see Learnings below). Final state: 26 resources deployed, all 3 MPEs approved (storage/SQL/KV), workspace communication policy set. Fabric workspace ID: `574ffc99-6b22-4e19-ba7f-f1f3715c1cf4`, suffix `3886`.
 
-- **2026-04-27 (fabric-kv-purge-protection):** Disabled purge_protection_enabled on azurerm_key_vault.fabric_kv in Fabric-private/fabric.tf (true → false). Updated README destroy procedure. terraform fmt + validate clean. Rationale: Lab module (Fabric-private) is redeployed often; purge protection enforces 7-day waits between destroy/redeploy, adding friction without benefit in non-prod environment. Soft delete retained for accidental deletion recovery. Decision documented.
+## Learnings (2026-07-17 first deploy)
 
-- **2026-04-27 (networking-deploy):** Deployed Networking platform LZ to Azure from branch squad/fabric-alz-impl. Config: Region 0 only (swedencentral/sece), firewall00=true, private_dns00=true, vhub01=false. Plan: 579 resources to create. First apply completed 578/579 in ~36 min but hit Azure InternalServerError on dns_policy_dns_vnet_link (circuit breaker — "exceeded maximum processing count"). Re-plan showed 1 add/1 destroy; re-apply succeeded in ~15s. Total wall clock ~37 min. No vHub errors this run. New Fabric ALZ outputs confirmed: `dns_zone_fabric_id` = privatelink.fabric.microsoft.com, `dns_zone_sql_id` = privatelink.database.windows.net. RG: rg-net00-sece-7768, suffix: 7768.
+- **Cross-tenant azapi auth (CRITICAL):** `ME-rykrokso-01` (ID: `b6b5dea5-...`) is in Ryan's personal tenant (`16248402-...`, `ryan@krokson.xyz`). The azapi 2.x provider uses the DEFAULT az CLI account's tenant for token acquisition. If the CLI default is `rykrokso@microsoft.com` (corporate, tenant `72f988bf-...`), azapi acquires a corporate token → 403 on all GET operations in the personal tenant. Fix: **always run `az account set --subscription b6b5dea5-81d3-4e4a-85f3-b05266fc6f89` before any Terraform commands** to switch the default CLI account to `ryan@krokson.xyz`. Setting `ARM_TENANT_ID` alone does NOT work (corporate account not registered in personal tenant → AADSTS90072). The azurerm provider is more lenient and creates resources without GET-first checks, which is why some resources succeeded and others failed in the partial apply.
 
-- **2026-04-26 (fabric-alz-step2-module):** Built complete Fabric-byoVnet/ application landing zone module (13 files). Follows Foundry-byoVnet pattern: spoke VNet (Block 5 — 172.20.80.0/20), single PE subnet (/24) with explicit NSG (M4 compliance), vHub connection, DNS resolver policy link. Key resources: Fabric Capacity (F2), Workspace, workspace-level PE, lab Storage + SQL Server, diagnostic settings to platform LAW. **MPE auto-approval pattern (M2):** Three azapi_resource_action resources filter PE connections by lower(properties.privateEndpoint.id) matching MPE ID (strict filtering for shared KV), with post-apply check {} assertions. NSG rules: explicit inbound 443 (VirtualNetwork) for Fabric PLS/Storage/KV, inbound 1433 for SQL, explicit deny-all. All security mitigations (M1–M4) integrated. Committed on branch squad/fabric-alz-impl.
+- **Fabric capacity UUID vs ARM ID:** `azurerm_fabric_capacity.id` returns ARM format (`/subscriptions/.../Microsoft.Fabric/capacities/{name}`). `fabric_workspace.capacity_id` requires the Fabric-side UUID (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`). The ARM API does NOT expose this UUID. Fix: use `data "fabric_capacity" "this" { display_name = azurerm_fabric_capacity.fabric_capacity.name }` — the display_name in the Fabric API matches the ARM resource name exactly.
 
-- **2026-04-26 (fabric-alz-parallel-steps-2-3-complete):** [ORCHESTRATION] Steps 2+3 complete on squad/fabric-alz-impl. Mordecai handled docs (Block 5 claim + README refresh) in parallel. Full design → implementation → documentation. Orchestration and session logs recorded. Ready for Ryan review and merge.
+- **Diagnostic settings not supported for Fabric capacities:** `azurerm_monitor_diagnostic_setting` targeting `microsoft.fabric/capacities` returns 400 `ResourceTypeNotSupported`. Remove this resource entirely — no workaround exists.
 
-## Work Archive (2026-04-06 to 2026-04-25)
+- **Workspace-level Fabric PE is not a real resource:** `Microsoft.Fabric/privateLinkServicesForFabric/{workspace-uuid}` is NOT a valid ARM resource type. Azure returns `InvalidResourceId`. Fabric Private Links are **tenant-scoped** only via `Microsoft.PowerBI/privateLinkServicesForPowerBI` (configured in Fabric Admin portal, not Terraform). Remove any workspace-level PE targeting that path. Inbound access control is done via `workspace_communication_policy`, not a PE.
 
-**ContainerApps-byoVnet ALZ (April 6–8):** Implemented 11-file module, fixed bugs (external_enabled, LAW consolidation), added three-mode deployment (none/hello-world/mcp-toolbox).
+- **MPE PE connection filter must use endswith, not == Fabric UUID:** `fabric_workspace_managed_private_endpoint.id` is a Fabric UUID (e.g., `2958f6a9-...`). `conn.properties.privateEndpoint.id` from the ARM PE connections list is an ARM resource path in Fabric's managed subscription (e.g., `.../Microsoft.Network/privateEndpoints/{workspace_id}.{mpe_name}`). These can NEVER be equal. Correct filter: `endswith(lower(conn.properties.privateEndpoint.id), lower("${workspace_id}.${mpe_name}"))`.
 
-**Deploy/Destroy Cycles (April 8–15):** 4 full environment tests: 630 resources (~63 min deploy), confirmed ACA clean teardown (~16 min), identified legionservicelink SAL release timing (5-10 min post-purge), vHub connection delete timeout workaround (retry after 60 min), vHub InternalServerError recovery (REST API delete + re-create).
+- **Fabric workspace creator auto-assigned Admin:** When `fabric_workspace` is created, the creating user is automatically assigned the Admin role. `fabric_workspace_role_assignment` for the same principal will fail with `PrincipalAlreadyHasWorkspaceRolePermissions`. Remove the explicit role assignment — the creator already has Admin.
 
-**Infrastructure Updates (April 16–25):** Added Bastion IP-Connect/tunneling features. Documented Decision #18 (Bastion works with routing intent). Coordinated design gates M1–M2 with Carl (Block Public Internet Access trade-off, MPE lookup spec). SystemAI security review: 4 medium findings (M1–M4), 6 advisory. Created branch squad/fabric-alz-impl, added Networking DNS zone outputs for Fabric ALZ. Ready for module implementation.
+- **workspace_communication_policy requires tenant-level Fabric Private Links:** `PATCH /v1/workspaces/{id}/communicationPolicy` returns `EntityNotFound` unless Fabric Private Links are enabled at the tenant level in the Fabric Admin portal. For lab environments without that configuration, add `on_failure = continue` to the provisioner so it degrades gracefully rather than failing the apply.
+
+- **MPE creation is slow:** Each `fabric_workspace_managed_private_endpoint` takes 2–3 min to create. With 3 MPEs, total MPE creation time is ~9 min. Normal; do not assume failure if no output for 3 min.
+
+- **Fabric MPE UnknownError is transient:** The Fabric API sometimes returns `UnknownError` for MPE creation. This is a transient server-side error — retry the apply. MPEs that previously failed with UnknownError succeed on retry with no other changes needed.
+
+## Most Recent Work (2026-07-16)
+
+- **2026-07-16 (full-env-teardown-pre-fabric):** Full environment teardown for clean Fabric testing slate. State discovery: Foundry-byoVnet had 2 resources (terraform_remote_state + random_string only — no Azure resources ever deployed), Foundry-managedVnet 0 resources, Fabric-private no state file, ContainerApps-byoVnet 0 resources, Networking 944 resources. Executed `terraform destroy -auto-approve` on Foundry-byoVnet (1 resource destroyed, instant), checked for soft-deleted AI Foundry resources (none found), then destroyed Networking (579 resources destroyed, 44.3 min). vHub took 10m45s. State refresh phase alone took ~30 min due to 181 modtm_module_source outbound calls to GitHub — normal for this module pattern, just slow. Post-destroy: no orphan resource groups matching our naming pattern. 5 pre-existing RGs remain (Default-ActivityLogAlerts, NetworkWatcherRG, rg-shared00-krok, rg-arc00-krok, McapsGovernance). Environment is clean. **Key timing insight:** modtm refresh phase = ~30 min of the 44 min total. Actual Azure destroy phase ≈ 14 min.
+
+## Learnings (2026-07-16 teardown)
+
+- **modtm state refresh is the long pole:** 181 modtm_module_source data sources each make outbound GitHub API calls during plan/refresh. With 181 of them, this takes ~30 min before any Azure resource deletion starts. Terraform process shows >100 CPU during this phase — it IS working, just not producing visible output. Do not kill the process.
+- **Networking total time:** 44 min (30 min modtm refresh + 14 min Azure destroy). Previous session recorded ~80 min cycles; 44 min is the bare destroy time with one region and firewall enabled.
+- **Foundry-byoVnet partial state:** If Foundry was never applied past the random_string/remote_state init, `terraform destroy` only removes those 2 local resources — instant and safe. No SAL/PE cleanup needed.
+- **vHub destroy:** 10m45s — normal. No InternalServerError this cycle.
+- **No soft-deleted Cognitive Services:** Environment was clean going in (Foundry was never deployed to Azure this cycle).
+- **Orphan RG check:** Use `az group list --query "[?starts_with(name, 'rg-')].name" -o tsv`. Our pattern is `rg-{type}-{region_abbr}-{suffix}`. Pre-existing `rg-shared00-krok` and `rg-arc00-krok` (no region abbr/suffix) are not ours — do not delete.
+
+## Most Recent Work (2026-07-15)
+
+- **2026-07-15 (fabric-setting-name-mapping):** Identified and corrected all four wrong `settingName` values in configure-fabric-tenant-settings.ps1. Research method: cross-referenced live API's 161-name response against Microsoft Learn (tenant-settings-index, service-admin-portal-developer, service-admin-portal-advanced-networking, fabric-switch). Findings: (1) `EnableFabric` → does not exist; "Microsoft Fabric" is a portal section header, not an API setting — removed from script. (2) `UsersCanCreateFabricItems` → `FabricGAWorkloads` (the actual "Users can create Fabric items" toggle = the Fabric admin switch). (3) `WorkspaceLevelPrivateEndpointSettings` → `WorkspaceBlockInboundAccess` (confirmed by Advanced Networking docs). (4) `ServicePrincipalsCanCallFabricPublicAPIs` → `ServicePrincipalAccessGlobalAPIs` (confirmed by Developer settings docs). Script now has 3 entries (not 4 — "Microsoft Fabric" and "Users can create Fabric items" were duplicates of the same API setting). Updated SKILL.md with verified mappings + wrong-name history. Decision drop written.
+
+- **2026-07-15 (fabric-script-api-fix):** Fixed critical bug in configure-fabric-tenant-settings.ps1. Root causes: (1) Script called per-setting GET in loop — API has only LIST endpoint. (2) Script issued PATCH, correct verb is POST + /update suffix. (3) No setting-name validation. (4) Error messages opaque (no status code/body). Fixed all four issues: replaced with single LIST + cache pattern, corrected verb/URL, added validation with clear warnings, improved error output (status, body, URL). Decision documented: Fabric Admin Tenant-Settings API Contract. Skill created: .squad/skills/fabric-admin-api/SKILL.md. Script uncommitted per workflow.
+
+## Career Summary
+
+**Infra Module Development (March–April 2026):** Built Networking platform LZ foundation (vWAN, vHubs, firewall, DNS resolver). Implemented two Foundry ALZs (byoVnet, managedVnet). Deployed + teardown validation (630 resources, ~80 min cycles). Discovered and documented Azure transient errors (InternalServerError on DNS policy, vHub provisioning), workarounds (retry, state rm + REST DELETE).
+
+**ContainerApps ALZ (April 2026):** Designed + built ContainerApps-byoVnet (11 files, three app modes: none/hello-world/mcp-toolbox). Fixed external_enabled bug, consolidated LAW for cost savings.
+
+**Fabric ALZ Milestone (April–July 2026):** Designed Fabric-byoVnet as simplified ALZ (single PE subnet, workspace-local KV, MPE auto-approval pattern). Implemented module (13 files, M1–M4 security mitigations). Coordinated 3-gate design review (Block Public Internet Access, MPE ID filtering, PE NSG rules). Renamed folder Fabric-byoVnet → Fabric-private (git mv + bulk string update). Documented API contract fix for admin tenant-settings PowerShell script. **First live deployment completed 2026-07-17** (26 resources, 3 MPEs approved).
+
+## Architectural Patterns Established
+
+- **Multi-region naming:** {resource}-{region_abbr}-{random_suffix} (e.g., kv00-sece-8357)
+- **Per-LZ soft-delete + 7-day retention:** Lab-friendly KV lifecycle (purge protection off)
+- **MPE auto-approval:** azapi_resource_list + `endswith` PE ID filter + azapi_resource_action PUT + check {} (filter uses `endswith(lower(pe.id), lower("{workspace_id}.{mpe_name}"))` — NOT equality with Fabric UUID)
+- **Workspace-local KV:** Eliminates orphaned PE on destroy; RBAC-only security
+- **DNS resolver policy VNet link retry:** Transient InternalServerError — safe to retry
+- **Fabric capacity UUID lookup:** `data "fabric_capacity" { display_name = arm_resource.name }` — ARM API doesn't expose Fabric UUID; Fabric API does
 
 ## Key Learnings
 
-- **vHub InternalServerError:** Resource exists in Failed provisioning state. Correct fix: 	erraform state rm, REST API DELETE from Azure, then re-apply.
-- **Foundry teardown:** legionservicelink SAL persists 5-10 min after Cognitive Services soft-delete purge. RG-delete + 	erraform state rm resolves.
-- **ACA:** Clean and predictable teardown (~16 min), no soft-delete issues.
-- **ACR cloud build:** Ideal for labs — builds server-side, no Docker Desktop needed.
-- **App LZ pattern:** Consolidate shared platform resources (LAW, DNS zones, KV) instead of duplicating.
-- **Fabric MPEs:** Always land in Pending. Use zapi_resource_list + strict ID filter + zapi_resource_action PATCH + check {} assertion.
-- **Fabric provider schema:** principal = { id, type } (nested block, not separate args), 	arget_private_link_resource_id (not ..._service_id). Always verify with 	erraform providers schema -json.
-- **PE subnet NSG:** Explicit allow rules (443 for HTTPS, 1433 for SQL) from VirtualNetwork + explicit deny-all. No NSG on Fabric delegation subnets (capacity is tenant-managed).
-- **DNS resolver policy VNet link:** Can hit Azure InternalServerError with circuit breaker ("exceeded maximum processing count") during initial deploy. Transient — re-apply resolves it (destroy + recreate).
+- Fabric Admin API: LIST-only read (no per-setting GET), POST /update for writes, Entra role + tenant provisioning gates mandatory
+- azapi cross-tenant auth: azapi 2.x uses DEFAULT az CLI account's tenant — always `az account set --subscription {target-sub}` before terraform commands when target sub is in a different tenant than your corporate account
+- Fabric capacity: use `data "fabric_capacity"` data source to get UUID, never use azurerm_fabric_capacity.id (ARM format, incompatible)
+- Fabric capacities don't support diagnostic settings: remove azurerm_monitor_diagnostic_setting
+- Workspace-level Fabric PE doesn't exist: tenant-only via PowerBI PLS; remove any pe targeting Microsoft.Fabric/privateLinkServicesForFabric
+- Fabric workspace creator auto-Admin: don't create explicit role assignment for the creating user
+- workspace_communication_policy: needs tenant-level Private Links; use on_failure = continue
+- vHub InternalServerError: terraform state rm + REST DELETE + re-apply
+- legionservicelink SAL: 5–10 min hold post-purge; always wait + sync RG delete
+- PE NSG: Explicit allow (443/1433 from VirtualNetwork) + explicit deny-all
 
 ## See Also
 
-- **decisions.md** — Architecture decisions and team direction
+- **decisions.md** — Architecture decisions, API contracts, design gates
 - **history-archive.md** — Detailed early work (March 2026)
-- Carl, Mordecai, Katia, SystemAI histories for parallel work
+- Mordecai, Carl, Katia, SystemAI histories for parallel efforts
 
-- **Fabric-private rename (2026-07-14):** `git mv Fabric-byoVnet Fabric-private` preserves history. Internal `Fabric-byoVnet` strings in mpe.tf/config.tf/main.tf/fabric.tf/configure-fabric-tenant-settings.ps1 are independent of the folder rename — bulk-replace via PowerShell.
-- **LZ-local KV pattern:** Put workspace-target KV in the LZ RG (RBAC-only, public access off, purge-protected, 7-day soft delete) + conventional `azurerm_private_endpoint` on pe_subnet using Networking's `dns_zone_vaultcore_id`. Repoint MPE 3 (target_private_link_resource_id, azapi_resource_list parent_id, azapi_resource_action resource_id, check resource_id) to `azurerm_key_vault.fabric_kv.id`. Eliminates orphaned PE connections on the shared Networking KV at destroy. Drop the `key_vault_present` check.
-- **Workspace communication policy via local-exec:** Fabric data-plane `PATCH /v1/workspaces/{id}/communicationPolicy` cannot be reached via azapi (not ARM). Use `terraform_data` + `local-exec pwsh` with `az account get-access-token --resource https://api.fabric.microsoft.com`. Gate with feature flag (default off), `triggers_replace = [workspace.id, flag]`, destroy-time best-effort revert to Allow (`on_failure = continue`), depends_on workspace PE. Drift invisible to TF.
-- **MPE repoint mechanics:** Auto-approval pattern is target-agnostic — only swap target_private_link_resource_id, azapi_resource_list parent_id, azapi_resource_action resource_id prefix, and check block resource_id. Strict ID-filter local (`lower(properties.privateEndpoint.id) == lower(mpe.id)`) is unchanged.
+
+- **2026-07-16 (full-env-teardown-pre-fabric):** Full environment teardown for clean Fabric testing slate. State discovery: Foundry-byoVnet had 2 resources (terraform_remote_state + random_string only — no Azure resources ever deployed), Foundry-managedVnet 0 resources, Fabric-private no state file, ContainerApps-byoVnet 0 resources, Networking 944 resources. Executed `terraform destroy -auto-approve` on Foundry-byoVnet (1 resource destroyed, instant), checked for soft-deleted AI Foundry resources (none found), then destroyed Networking (579 resources destroyed, 44.3 min). vHub took 10m45s. State refresh phase alone took ~30 min due to 181 modtm_module_source outbound calls to GitHub — normal for this module pattern, just slow. Post-destroy: no orphan resource groups matching our naming pattern. 5 pre-existing RGs remain (Default-ActivityLogAlerts, NetworkWatcherRG, rg-shared00-krok, rg-arc00-krok, McapsGovernance). Environment is clean. **Key timing insight:** modtm refresh phase = ~30 min of the 44 min total. Actual Azure destroy phase ≈ 14 min.
+
+## Learnings (2026-07-16 teardown)
+
+- **modtm state refresh is the long pole:** 181 modtm_module_source data sources each make outbound GitHub API calls during plan/refresh. With 181 of them, this takes ~30 min before any Azure resource deletion starts. Terraform process shows >100 CPU during this phase — it IS working, just not producing visible output. Do not kill the process.
+- **Networking total time:** 44 min (30 min modtm refresh + 14 min Azure destroy). Previous session recorded ~80 min cycles; 44 min is the bare destroy time with one region and firewall enabled.
+- **Foundry-byoVnet partial state:** If Foundry was never applied past the random_string/remote_state init, `terraform destroy` only removes those 2 local resources — instant and safe. No SAL/PE cleanup needed.
+- **vHub destroy:** 10m45s — normal. No InternalServerError this cycle.
+- **No soft-deleted Cognitive Services:** Environment was clean going in (Foundry was never deployed to Azure this cycle).
+- **Orphan RG check:** Use `az group list --query "[?starts_with(name, 'rg-')].name" -o tsv`. Our pattern is `rg-{type}-{region_abbr}-{suffix}`. Pre-existing `rg-shared00-krok` and `rg-arc00-krok` (no region abbr/suffix) are not ours — do not delete.
+
+## Most Recent Work (2026-07-15)
+
+- **2026-07-15 (fabric-setting-name-mapping):** Identified and corrected all four wrong `settingName` values in configure-fabric-tenant-settings.ps1. Research method: cross-referenced live API's 161-name response against Microsoft Learn (tenant-settings-index, service-admin-portal-developer, service-admin-portal-advanced-networking, fabric-switch). Findings: (1) `EnableFabric` → does not exist; "Microsoft Fabric" is a portal section header, not an API setting — removed from script. (2) `UsersCanCreateFabricItems` → `FabricGAWorkloads` (the actual "Users can create Fabric items" toggle = the Fabric admin switch). (3) `WorkspaceLevelPrivateEndpointSettings` → `WorkspaceBlockInboundAccess` (confirmed by Advanced Networking docs). (4) `ServicePrincipalsCanCallFabricPublicAPIs` → `ServicePrincipalAccessGlobalAPIs` (confirmed by Developer settings docs). Script now has 3 entries (not 4 — "Microsoft Fabric" and "Users can create Fabric items" were duplicates of the same API setting). Updated SKILL.md with verified mappings + wrong-name history. Decision drop written.
+
+- **2026-07-15 (fabric-script-api-fix):** Fixed critical bug in configure-fabric-tenant-settings.ps1. Root causes: (1) Script called per-setting GET in loop — API has only LIST endpoint. (2) Script issued PATCH, correct verb is POST + /update suffix. (3) No setting-name validation. (4) Error messages opaque (no status code/body). Fixed all four issues: replaced with single LIST + cache pattern, corrected verb/URL, added validation with clear warnings, improved error output (status, body, URL). Decision documented: Fabric Admin Tenant-Settings API Contract. Skill created: .squad/skills/fabric-admin-api/SKILL.md. Script uncommitted per workflow.
+
+## Career Summary
+
+**Infra Module Development (March–April 2026):** Built Networking platform LZ foundation (vWAN, vHubs, firewall, DNS resolver). Implemented two Foundry ALZs (byoVnet, managedVnet). Deployed + teardown validation (630 resources, ~80 min cycles). Discovered and documented Azure transient errors (InternalServerError on DNS policy, vHub provisioning), workarounds (retry, state rm + REST DELETE).
+
+**ContainerApps ALZ (April 2026):** Designed + built ContainerApps-byoVnet (11 files, three app modes: none/hello-world/mcp-toolbox). Fixed external_enabled bug, consolidated LAW for cost savings.
+
+**Fabric ALZ Milestone (April–July 2026):** Designed Fabric-byoVnet as simplified ALZ (single PE subnet, workspace-local KV, MPE auto-approval pattern). Implemented module (13 files, M1–M4 security mitigations). Coordinated 3-gate design review (Block Public Internet Access, MPE ID filtering, PE NSG rules). Renamed folder Fabric-byoVnet → Fabric-private (git mv + bulk string update). Documented API contract fix for admin tenant-settings PowerShell script.
+
+## Architectural Patterns Established
+
+- **Multi-region naming:** {resource}-{region_abbr}-{random_suffix} (e.g., kv00-sece-8357)
+- **Per-LZ soft-delete + 7-day retention:** Lab-friendly KV lifecycle (purge protection off)
+- **MPE auto-approval:** azapi_resource_list + strict ID filter + azapi_resource_action PATCH + check {}
+- **Workspace-local KV:** Eliminates orphaned PE on destroy; RBAC-only security
+- **DNS resolver policy VNet link retry:** Transient InternalServerError — safe to retry
+
+## Key Learnings
+
+- Fabric Admin API: LIST-only read (no per-setting GET), POST /update for writes, Entra role + tenant provisioning gates mandatory
+- vHub InternalServerError: terraform state rm + REST DELETE + re-apply
+- legionservicelink SAL: 5–10 min hold post-purge; always wait + sync RG delete
+- PE NSG: Explicit allow (443/1433 from VirtualNetwork) + explicit deny-all
+
+## See Also
+
+- **decisions.md** — Architecture decisions, API contracts, design gates
+- **history-archive.md** — Detailed early work (March 2026)
+- Mordecai, Carl, Katia, SystemAI histories for parallel efforts
