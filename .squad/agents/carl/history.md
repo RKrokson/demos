@@ -72,7 +72,27 @@ Donut successfully implemented the workspace-level PE fix design per the ADR. Th
 
 All inbox files merged into decisions.md; superseded 2026-04-28 entry marked with full resolution context.
 
+### REST API method/URL drift — recurrence pattern (2026-07-18)
+
+This has happened at minimum twice: an implementer reads a design doc that cites a specific HTTP
+method + URL, then writes code using a different method or a slightly different path based on REST
+convention intuition. The cited spec is overridden silently.
+
+**Confirmed instance:** `Fabric-private/workspace-policy.tf` (commit `4171dc3`). Design cited
+`PUT /v1/workspaces/{id}/networking/communicationPolicy`. Code wrote `PATCH /v1/workspaces/{id}/communicationPolicy`.
+Two errors — wrong method, missing `/networking/` path segment. `on_failure = continue` masked
+both. Ryan caught it from the portal. Fixed in `0471d6a`.
+
+**Root cause:** Implementers pattern-match REST conventions instead of treating the cited
+method+URL as a verbatim contract.
+
+**Remediation:** Created `.squad/skills/rest-api-from-design/SKILL.md` — codifies the rule
+(copy verbatim, cite source as a comment, `on_failure = fail` on mutating calls, read-back
+validation) and preserves this instance as a concrete prior failure example. Skill confidence:
+`medium` (second observation).
+
 ## See Also
 
 - `.squad/decisions.md` — All team decisions and approvals
 - `.squad/agents/donut/history.md`, `.squad/agents/mordecai/history.md` — Parallel implementation work
+- `.squad/skills/rest-api-from-design/SKILL.md` — REST API from design doc enforcement skill
