@@ -15,4 +15,8 @@ locals {
       : [data.external.current_user_upn[0].result.upn]
     )
   )
+
+  # network_mode decomposition — used to gate inbound and outbound resources independently
+  deploy_inbound  = contains(["inbound_only", "inbound_and_outbound"], var.network_mode)
+  deploy_outbound = contains(["outbound_only", "inbound_and_outbound"], var.network_mode)
 }

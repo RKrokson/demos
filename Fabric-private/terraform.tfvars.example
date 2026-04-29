@@ -20,4 +20,9 @@
 # capacity_admin_group_object_id   = "00000000-0000-0000-0000-000000000000"
 
 # ── Workspace content ────────────────────────
-# workspace_content_mode = "none"   # only 'none' supported; 'lakehouse' reserved for future
+# workspace_content_mode = "none"       # 'none' (default) = empty workspace; 'lakehouse' = deploys a native OneLake-backed Lakehouse
+
+# ── Network mode ─────────────────────────────
+# network_mode = "inbound_only"         # default: workspace PE + deny-public-access. No MPEs/storage/SQL/KV.
+#                                       # "outbound_only":        MPEs + storage + SQL + KV. No workspace PE. Good for orgs without inbound network rules enabled.
+#                                       # "inbound_and_outbound": full private connectivity in both directions.

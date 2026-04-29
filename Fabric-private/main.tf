@@ -1,4 +1,4 @@
-########## Fabric BYO VNet — Core resources & preconditions
+########## Fabric private — Core resources & preconditions
 ##########
 
 resource "random_string" "unique" {
@@ -65,13 +65,6 @@ check "vhub_present" {
   assert {
     condition     = data.terraform_remote_state.networking.outputs.vhub00_id != null
     error_message = "vhub00_id is null — Virtual Hub must be deployed in the Networking module."
-  }
-}
-
-check "key_vault_present" {
-  assert {
-    condition     = data.terraform_remote_state.networking.outputs.key_vault_id != null
-    error_message = "key_vault_id is null — Key Vault must be deployed in the Networking module."
   }
 }
 
