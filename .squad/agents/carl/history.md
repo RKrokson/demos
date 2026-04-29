@@ -117,3 +117,61 @@ For details, see .squad/skills/rest-api-from-design/SKILL.md.
 
 Fabric next design pass ready to spawn. Scope locked in decisions.md: native Lakehouse, three-way network_mode enum (inbound_only / outbound_only / inbound_and_outbound), and storage account upgrades (ADLS Gen 2 + Workspace Identity + Storage Blob Data Contributor) for outbound MPE path. Teardown complete; environment clean. See orchestration-log and session-log for context.
 
+## Learnings
+
+### fabric_workspace identity block — native provider support (2026-07-25)
+
+The `microsoft/fabric` Terraform provider supports workspace identity natively via an `identity` block on `fabric_workspace`:
+
+```hcl
+identity = {
+  type = "SystemAssigned"
+}
+```
+
+Read-only outputs: `identity.application_id`, `identity.service_principal_id`. This calls the Fabric REST API `POST /v1/workspaces/{id}/provisionIdentity` internally. No `azapi_resource_action` or `terraform_data` + `local-exec` fallback needed.
+
+Available since provider ~v1.9.x. PR #932 on the provider repo ("Allow workspace identity without capacity_id") confirms active maintenance.
+
+**Implication:** The rest-api-from-design skill is NOT needed for workspace identity provisioning. The provider handles it declaratively.
+
+### fabric_lakehouse — first-class provider resource (2026-07-25)
+
+`fabric_lakehouse` is GA in the `microsoft/fabric` provider. Required: `display_name`, `workspace_id`. Optional: `description`, `configuration.enable_schemas`, `definition` (for bootstrapping metadata). OneLake-backed by default — no external storage configuration needed for a basic lakehouse.
+
+### Entra SP propagation timing for RBAC (2026-07-25)
+
+When a Fabric workspace identity is provisioned, the service principal takes 30-60s to propagate in Entra ID. `azurerm_role_assignment` will fail with "principal not found" if it fires immediately. Mitigation: `time_sleep` (60s) + `principal_type = "ServicePrincipal"` on the role assignment (skips ARM Graph lookup). This pattern applies to any Terraform scenario where a freshly-created SP needs an immediate RBAC assignment.
+
+### network_mode three-way conditional pattern (2026-07-25)
+
+For modules with independent inbound and outbound private connectivity, a three-way enum (`inbound_only`, `outbound_only`, `inbound_and_outbound`) is cleaner than two separate booleans. Separate bools create an invalid fourth state (both false = nothing deployed) that requires a validation block to reject. A single enum with validation avoids invalid combos and reads clearly in tfvars. Derived locals (`deploy_inbound`, `deploy_outbound`) keep the `count` expressions DRY across files.
+
+---
+
+## Fabric Next Round: Design Pass & Implementation Complete (2026-04-29)
+
+**Status:** ✅ Design approved by Ryan; implementation delivered by Donut on squad/fabric-alz-impl (commit 82274ff, not yet pushed).
+
+### Design Decisions Approved
+
+1. **Lakehouse (native provider):** `fabric_lakehouse` resource (GA, first-class in microsoft/fabric provider). Default content_mode remains "none" — lakehouse is opt-in.
+2. **network_mode three-way enum:** Replaces `restrict_workspace_public_access` boolean. Values: `inbound_only` (default), `outbound_only`, `inbound_and_outbound`. Gated locals: `deploy_inbound`, `deploy_outbound`.
+3. **Workspace identity — always-on:** `identity { type = "SystemAssigned" }` block on `fabric_workspace`. Idempotent, no side effects. Provider handles via native API (no REST fallback).
+4. **ADLS Gen 2 upgrade:** `is_hns_enabled = true` on storage account (outbound-only, gated on `deploy_outbound`).
+5. **Identity propagation delay:** `time_sleep` (60s) + `principal_type = "ServicePrincipal"` on RBAC assignment to handle Entra ID propagation window.
+6. **Provider bumps:** `microsoft/fabric ~> 1.9`, `hashicorp/time ~> 0.12`.
+
+### Implementation Highlights (Donut)
+
+- **Files changed:** config.tf, variables.tf, locals.tf, fabric.tf, storage.tf (new), mpe.tf, workspace-policy.tf, outputs.tf, README.md, terraform.tfvars.example.
+- **Safe null-access pattern:** Used `one(resource[*].attribute)` + `try()` for count=0 resources in check blocks and locals.
+- **Pre-existing staged changes included:** main.tf comment rename, removed stale check block (related to module evolution).
+- **Edge case handling:** depends_on list reference (no [0] indexing); short-circuit assertions in check blocks.
+- **Status:** All 6 design asks delivered; ready for code review and merge.
+
+### Cross-Agent Learnings Shared
+
+- Donut confirmed safe patterns for conditional resources with count gating and check blocks.
+- Identity propagation timing now documented for future reference.
+
