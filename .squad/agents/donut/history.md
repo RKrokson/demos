@@ -101,3 +101,85 @@ Donut is the infrastructure developer driving module implementation and live dep
 **Named prior failure:** Fabric workspace-policy.tf bug (commit 4171dc3) — used PATCH instead of PUT, wrong URL path, on_failure=continue masked the error.
 
 For details, see .squad/skills/rest-api-from-design/SKILL.md.
+
+---
+
+## Learnings (2026-07-25 — network_mode + Lakehouse + workspace identity)
+
+### Workspace Identity — native provider support
+- **`identity` block on `fabric_workspace` is GA in microsoft/fabric ~> 1.9.** The provider handles `POST /v1/workspaces/{id}/provisionIdentity` internally. No `terraform_data` + REST workaround needed. Exposes `identity.application_id` and `identity.service_principal_id` as computed attributes.
+- **Always-on is the right default.** The identity block can't be conditionally included without a `dynamic` block, and the identity itself is free. Option A (always provision) is cleaner than Option B (dynamic block gated on condition). Applied here.
+- **provider version matters:** `identity` block requires `~> 1.9`. Pinning to `~> 1.0` would silently skip the attribute on older versions without validation error. Always pin to the minimum version that exposes the feature you're using.
+
+### time_sleep + principal_type = "ServicePrincipal" — Entra propagation pattern
+- **New service principal propagation delay is real:** Workspace identity provisioning creates an Entra SP. ARM RBAC can return "PrincipalNotFound" for up to ~60 seconds after creation if the role assignment fires immediately.
+- **`time_sleep` (60s) + `principal_type = "ServicePrincipal"` is the correct pattern.** `time_sleep` gates the role assignment. `principal_type = "ServicePrincipal"` tells ARM to skip the Graph lookup that fails during the propagation window and assign directly by object ID. Both are required; neither alone is sufficient.
+- **Captured as a reusable skill:** `.squad/skills/aad-identity-propagation/SKILL.md`
+
+### network_mode enum gating pattern
+- **`count = local.deploy_X ? 1 : 0` on every conditional resource.** Resources in the same conditional group can safely reference each other with `[0]` indexing — Terraform only evaluates the body when count > 0.
+- **`one(resource[*].attribute)` is the safe null-coalescing pattern for locals and check blocks.** Never use `[0]` in unconditionally-evaluated expressions (locals, check blocks, outputs). `one([])` returns `null`; `try(null.attribute, fallback)` catches the null dereference.
+- **check blocks can't be gated by count.** The workaround: assertion `condition = !local.deploy_X || <actual check>` short-circuits to `true` in non-applicable modes. Data source inside check block uses null-safe locals for resource_id; if it's a placeholder, the lookup fails gracefully (warning, not error) and the assertion still passes.
+- **Networking never gates.** Spoke VNet, subnets, NSG, vHub connection, DNS always deploy. The PE subnet exists but is empty in outbound_only mode — this is harmless.
+
+### ADLS Gen 2 + MPE blob endpoint
+- **`is_hns_enabled = true` on `StorageV2` enables hierarchical namespace.** This is a `ForceNew` attribute — can't be added to an existing storage account. Clean-slate lab means no migration needed.
+- **MPE `target_subresource_type` stays `"blob"`.** Fabric accesses ADLS Gen 2 via the blob endpoint internally. The `"dfs"` subresource is NOT needed for the MPE. This is validated in Carl's design doc.
+- **`is_hns_enabled` is cosmetically breaking for existing state.** Always check for existing deployed resources before adding this. For this lab (torn-down, clean-slate), it's trivial.
+
+### storage.tf refactor pattern
+- **Moving resources to a dedicated file for mode clarity is worth doing.** All outbound-gated resources in `storage.tf` make it immediately obvious which resources live or die with `deploy_outbound`. `fabric.tf` becomes readable as "Fabric items only." This pattern should be applied whenever a file grows to host two distinct lifecycle concerns.
+
+---
+
+## Fabric Next Round: Implementation Complete (2026-04-29)
+
+**Partner:** Carl (Architecture Lead)  
+**Branch:** squad/fabric-alz-impl  
+**Commit:** 82274ff (not yet pushed)  
+**Status:** ✅ All 6 design asks delivered
+
+### Implementation Summary
+
+**All changes per Carl's approved design:**
+
+1. ✅ Lakehouse — `fabric_lakehouse` resource gated on `workspace_content_mode == "lakehouse"`
+2. ✅ network_mode enum — Three-way conditional (`inbound_only`, `outbound_only`, `inbound_and_outbound`)
+3. ✅ Workspace identity — Always-on `identity { type = "SystemAssigned" }` block
+4. ✅ ADLS Gen 2 upgrade — `is_hns_enabled = true` on storage account (gated on `deploy_outbound`)
+5. ✅ Identity propagation delay — `time_sleep` (60s) + `principal_type = "ServicePrincipal"` pattern
+6. ✅ Provider bumps — `microsoft/fabric ~> 1.9`, `hashicorp/time ~> 0.12`
+
+### Files Changed
+
+| File | Action | Key Changes |
+|---|---|---|
+| `config.tf` | Modified | Provider bumps (fabric, time) |
+| `variables.tf` | Modified | Added `network_mode`, removed `restrict_workspace_public_access`, updated `workspace_content_mode` validation |
+| `locals.tf` | Modified | Added `deploy_inbound`, `deploy_outbound` |
+| `fabric.tf` | Modified | Added identity block, lakehouse resource, gated PE resources on `deploy_inbound` |
+| `storage.tf` | **Created** | All outbound resources (KV, KV PE, storage, SQL, role assignment, time_sleep) |
+| `mpe.tf` | Modified | Count gates on all MPE resources, safe null-access patterns, conditional check blocks |
+| `workspace-policy.tf` | Modified | Gating via `deploy_inbound`, triggers_replace uses `var.network_mode` |
+| `outputs.tf` | Modified | All conditional outputs guarded; added identity outputs |
+| `README.md` | Modified | New Variables/Outputs tables, Network Mode section, workspace identity docs |
+| `terraform.tfvars.example` | Modified | Added `network_mode` example |
+
+### Key Implementation Patterns
+
+1. **Safe null-access in locals & check blocks:** `one(resource[*].attribute)` + `try()` for count=0 resources
+2. **Check block assertions:** `condition = !local.deploy_X || <actual_check>` short-circuit pattern
+3. **[0] indexing inside co-conditioned resources:** Safe when both referencing and referenced resources have same `count` condition
+4. **Pre-existing staged changes:** `main.tf` comment rename and stale check block removal included (related to module evolution)
+
+### Notes
+
+- **purge-soft-deleted.ps1 TODO:** Script doesn't exist in module; TODO placed in fabric.tf as a comment instead
+- **depends_on list syntax:** Used list reference (`[azurerm_private_endpoint.pe_fabric_workspace]` not `[0]`) — valid Terraform, auto-null when count=0
+- **Ready for merge:** All infrastructure tests should pass; feature gates tested locally
+
+### Cross-Agent Learning Shared
+
+- Safe patterns for conditional resources when count gates are involved
+- Identity propagation timing critical for RBAC assignments on freshly-provisioned service principals
+

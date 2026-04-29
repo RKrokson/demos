@@ -506,3 +506,412 @@ The 2026-04-28 deployment incorrectly concluded "Fabric private links are tenant
 
 **Sequencing:** Carl designs first → Donut implements → Ryan validates. Hold until teardown completes.
 
+
+
+# Design: Fabric-private Next Round — Lakehouse, network_mode, Storage Upgrades
+
+**Author:** Carl (Lead / Architect)
+**Date:** 2026-07-25
+**Status:** Draft — pending Ryan approval
+**Module:** `Fabric-private/`
+**Branch target:** squad/fabric-alz-impl (new branch from current HEAD)
+
+---
+
+## 1. Native Fabric Lakehouse
+
+### Provider support — confirmed
+
+`fabric_lakehouse` is a first-class resource in `microsoft/fabric` provider (GA since ~1.x). Verified from the [provider docs](https://registry.terraform.io/providers/microsoft/fabric/latest/docs/resources/lakehouse).
+
+Required attributes: `display_name`, `workspace_id`.
+Optional: `description`, `configuration.enable_schemas`, `definition` (for bootstrapping metadata/shortcuts — not needed here).
+
+### Decision: single hardcoded lakehouse, no parameterization
+
+This is a demo lab. One lakehouse is enough to prove the pattern. Adding `count` or `for_each` over a name list adds variable surface area that nobody will use and makes the `network_mode` gating (§2) more complex for zero benefit.
+
+The existing `workspace_content_mode` variable already reserves `"lakehouse"` as a future value. We activate it now.
+
+### Resource shape
+
+```hcl
+# fabric.tf — new block, after fabric_workspace
+
+resource "fabric_lakehouse" "lab_lakehouse" {
+  count        = var.workspace_content_mode == "lakehouse" ? 1 : 0
+  display_name = "lakehouse-${random_string.unique.result}"
+  workspace_id = fabric_workspace.workspace.id
+  description  = "Lab Lakehouse — OneLake-backed, deployed by Fabric-private module"
+}
+```
+
+### File placement
+
+Lives in `fabric.tf` alongside the workspace and capacity — it's a workspace-scoped Fabric item, not a networking or storage concern.
+
+### Variable change
+
+Update `workspace_content_mode` validation to accept `"lakehouse"`:
+
+```hcl
+variable "workspace_content_mode" {
+  description = "Sample content to deploy in the workspace. 'none' ships an empty workspace. 'lakehouse' deploys a native OneLake-backed Lakehouse."
+  type        = string
+  default     = "none"
+  validation {
+    condition     = contains(["none", "lakehouse"], var.workspace_content_mode)
+    error_message = "Allowed values: 'none', 'lakehouse'."
+  }
+}
+```
+
+### Naming
+
+Pattern: `lakehouse-{4-digit-suffix}`. Matches our `{name}-{suffix}` convention. No region abbreviation — Fabric items are workspace-scoped, not region-scoped ARM resources.
+
+### Dependencies
+
+- `fabric_workspace.workspace` (direct reference via `workspace_id`)
+- No dependency on networking, MPEs, or storage. The lakehouse is OneLake-backed (Fabric-native storage), not a shortcut to the lab storage account.
+- Shortcut creation is **out of scope** — Ryan does that manually.
+
+### OneLake purge consideration
+
+Per decisions.md L5: when `lakehouse` mode is implemented, the `purge-soft-deleted.ps1` script needs a TODO for OneLake item purge. Donut should add that comment in this round.
+
+---
+
+## 2. Three-Way `network_mode` Conditional
+
+### Variable definition
+
+```hcl
+variable "network_mode" {
+  description = <<-EOT
+    Controls which private connectivity paths are deployed.
+      inbound_only        — workspace PE + deny-public-access policy. No MPEs, no storage account, no SQL, no KV. (Default)
+      outbound_only       — MPEs + storage + SQL + KV. No workspace PE, no communication policy. Workspace is publicly reachable.
+      inbound_and_outbound — both directions. Full private connectivity.
+  EOT
+  type        = string
+  default     = "inbound_only"
+  validation {
+    condition     = contains(["inbound_only", "outbound_only", "inbound_and_outbound"], var.network_mode)
+    error_message = "Allowed values: 'inbound_only', 'outbound_only', 'inbound_and_outbound'."
+  }
+}
+```
+
+### What `restrict_workspace_public_access` becomes
+
+This variable is **replaced** by `network_mode`. Previously it was a standalone bool. Now the communication policy fires when `network_mode` contains "inbound" — i.e., `inbound_only` or `inbound_and_outbound`. No separate toggle needed; the mode implies the policy.
+
+### Locals for gating
+
+Add to `locals.tf`:
+
+```hcl
+locals {
+  deploy_inbound  = contains(["inbound_only", "inbound_and_outbound"], var.network_mode)
+  deploy_outbound = contains(["outbound_only", "inbound_and_outbound"], var.network_mode)
+}
+```
+
+All conditional resources use `count = local.deploy_inbound ? 1 : 0` or `count = local.deploy_outbound ? 1 : 0`.
+
+### Resource-to-mode mapping (file by file)
+
+| File | Resource | `inbound_only` | `outbound_only` | `inbound_and_outbound` | Gating expression |
+|---|---|---|---|---|---|
+| **fabric.tf** | `azurerm_fabric_capacity` | ✅ | ✅ | ✅ | Always |
+| | `data.fabric_capacity.this` | ✅ | ✅ | ✅ | Always |
+| | `fabric_workspace.workspace` | ✅ | ✅ | ✅ | Always |
+| | `fabric_lakehouse.lab_lakehouse` | ✅ | ✅ | ✅ | `workspace_content_mode` (orthogonal) |
+| | `azapi_resource.fabric_private_link_service` | ✅ | ❌ | ✅ | `local.deploy_inbound` |
+| | `azurerm_private_endpoint.pe_fabric_workspace` | ✅ | ❌ | ✅ | `local.deploy_inbound` |
+| | `azurerm_key_vault.fabric_kv` | ❌ | ✅ | ✅ | `local.deploy_outbound` |
+| | `azurerm_private_endpoint.pe_fabric_kv` | ❌ | ✅ | ✅ | `local.deploy_outbound` |
+| **mpe.tf** | All MPE resources + approvals + checks | ❌ | ✅ | ✅ | `local.deploy_outbound` |
+| **workspace-policy.tf** | `terraform_data.workspace_communication_policy` | ✅ | ❌ | ✅ | `local.deploy_inbound` |
+| **networking.tf** | VNet, subnet, NSG, vHub connection, DNS | ✅ | ✅ | ✅ | Always (spoke is needed for both — PE subnet hosts workspace PE in inbound, and the spoke is still the platform connectivity path) |
+| **fabric.tf** | `azurerm_storage_account.lab_storage` | ❌ | ✅ | ✅ | `local.deploy_outbound` |
+| | `azurerm_mssql_server.lab_sql` | ❌ | ✅ | ✅ | `local.deploy_outbound` |
+| | `azurerm_mssql_database.lab_db` | ❌ | ✅ | ✅ | `local.deploy_outbound` |
+| **main.tf** | RG, random_string, remote_state, checks | ✅ | ✅ | ✅ | Always |
+
+### File refactoring note
+
+The storage account, SQL server, and SQL database currently live in `fabric.tf`. For clarity with the mode gating, Donut should consider moving them to a new `storage.tf` file. Not mandatory — the `count` gating works regardless of file placement — but it makes the "outbound resources" obvious at a glance. Call it out in the PR but don't block on it.
+
+### Networking in `outbound_only` mode
+
+The spoke VNet, subnet, NSG, vHub connection, and DNS config deploy in ALL modes. Rationale:
+- In `inbound_only`: the PE subnet hosts the workspace PE.
+- In `outbound_only`: the spoke is still needed for platform DNS resolution and future extensibility. The PE subnet exists but hosts no PEs. This is harmless — an empty subnet in a /20 block costs nothing.
+- Removing networking conditionally would add complexity for no cost savings and would break the "all ALZs have a spoke" invariant.
+
+### `outbound_only` — when and why
+
+This mode exists for a specific demo scenario: customer is fine with Fabric being publicly reachable (no workspace PE) but needs the workspace to reach Azure data sources (Storage, SQL, KV) over private connectivity via MPEs. This is common in orgs that haven't enabled workspace-level inbound network rules at the tenant level but still want outbound data-plane privacy.
+
+### Outputs gating
+
+All outputs referencing conditional resources must use `try()` or conditional expressions. Example:
+
+```hcl
+output "workspace_private_endpoint_ip" {
+  description = "Private IP of the workspace PE (null if network_mode excludes inbound)"
+  value       = local.deploy_inbound ? azurerm_private_endpoint.pe_fabric_workspace[0].private_service_connection[0].private_ip_address : null
+}
+```
+
+Donut applies this pattern to all conditional outputs.
+
+### README blurb for `outbound_only`
+
+Add to the Variables table and a new section:
+
+> **`outbound_only` mode:** Deploys Managed Private Endpoints (MPEs) from the Fabric workspace to Storage, SQL, and Key Vault, plus the backing resources themselves. The workspace remains publicly reachable — no workspace-level PE or deny-public-access policy is created. Use this when: (a) the Fabric tenant setting "Configure workspace-level inbound network rules" is not enabled, or (b) the customer accepts public Fabric access but requires private data-plane connectivity to Azure resources. This is a valid demo/POC pattern for organizations exploring Fabric's outbound private networking without committing to inbound lockdown.
+
+---
+
+## 3. Storage Upgrades for Outbound (MPE) Path
+
+### 3a. ADLS Gen 2 upgrade
+
+Change `azurerm_storage_account.lab_storage`:
+
+```hcl
+account_kind      = "StorageV2"       # unchanged
+is_hns_enabled    = true              # NEW — enables ADLS Gen 2 / hierarchical namespace
+```
+
+This is a one-line addition. `is_hns_enabled = true` on a `StorageV2` account enables the Data Lake Storage Gen 2 APIs (hierarchical namespace). The MPE `target_subresource_type` stays `"blob"` — ADLS Gen 2 blob endpoint works identically for PE/MPE purposes. The `"dfs"` subresource is not needed for the MPE because Fabric accesses ADLS Gen 2 via the blob endpoint internally.
+
+**Breaking change note:** `is_hns_enabled` is a ForceNew attribute in azurerm. Since the lab was just torn down and there's no deployed state, this is a clean-slate change. No import or state surgery needed.
+
+### 3b. Workspace Identity — provider support confirmed (no REST fallback needed)
+
+**Finding:** The `microsoft/fabric` provider's `fabric_workspace` resource has **native support** for workspace identity via an `identity` block:
+
+```hcl
+resource "fabric_workspace" "workspace" {
+  display_name = "fabric-workspace-${random_string.unique.result}"
+  capacity_id  = data.fabric_capacity.this.id
+  description  = "Fabric workspace for Private lab deployment"
+
+  identity = {
+    type = "SystemAssigned"
+  }
+}
+```
+
+Source: [fabric_workspace resource docs](https://registry.terraform.io/providers/microsoft/fabric/latest/docs/resources/workspace)
+
+The `identity` block exposes read-only attributes:
+- `identity.application_id` (String) — the Entra application ID
+- `identity.service_principal_id` (String) — the service principal object ID
+
+This is a declarative, state-tracked resource attribute. No `terraform_data` + REST API workaround. No `azapi_resource_action`. The provider handles the `POST /v1/workspaces/{id}/provisionIdentity` call internally.
+
+**Gating:** The identity block should only be present when `local.deploy_outbound` is true (identity is needed for the RBAC assignment to storage). However, `identity` is an optional nested block on the workspace — you can't conditionally include a block via `count`. Two options:
+
+- **Option A (recommended):** Always provision the identity regardless of mode. It's free, causes no side effects, and avoids dynamic block complexity. The RBAC assignment is still gated by `local.deploy_outbound`.
+- **Option B:** Use `dynamic "identity"` block gated on `local.deploy_outbound`. More precise but adds complexity for no real benefit in a lab.
+
+**Decision: Option A.** Always provision identity. It's idempotent, costs nothing, and simplifies the workspace resource to a single block with no dynamic magic.
+
+### 3c. RBAC: Storage Blob Data Contributor
+
+```hcl
+# storage.tf (or fabric.tf — wherever storage lives)
+
+resource "azurerm_role_assignment" "workspace_identity_storage" {
+  count                = local.deploy_outbound ? 1 : 0
+  scope                = azurerm_storage_account.lab_storage[0].id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = fabric_workspace.workspace.identity.service_principal_id
+  principal_type       = "ServicePrincipal"
+}
+```
+
+### 3d. Timing: Entra ID propagation delay
+
+Workspace identity provisioning creates a service principal in Entra ID. There's a well-known propagation delay (typically 30-60 seconds, sometimes longer) before the SP is visible to Azure RBAC. If `azurerm_role_assignment` fires immediately after identity creation, it can fail with "principal not found."
+
+**Strategy: `time_sleep` + explicit dependency chain.**
+
+```hcl
+resource "time_sleep" "wait_for_identity_propagation" {
+  count           = local.deploy_outbound ? 1 : 0
+  create_duration = "60s"
+  depends_on      = [fabric_workspace.workspace]
+
+  triggers = {
+    sp_id = fabric_workspace.workspace.identity.service_principal_id
+  }
+}
+
+resource "azurerm_role_assignment" "workspace_identity_storage" {
+  count                = local.deploy_outbound ? 1 : 0
+  scope                = azurerm_storage_account.lab_storage[0].id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = fabric_workspace.workspace.identity.service_principal_id
+  principal_type       = "ServicePrincipal"
+
+  depends_on = [time_sleep.wait_for_identity_propagation]
+}
+```
+
+**Why `time_sleep` over retry loops:**
+- Terraform has no native retry mechanism for `azurerm_role_assignment`.
+- A `local-exec` retry loop is brittle and non-declarative.
+- `time_sleep` is honest about what's happening — we're waiting for eventual consistency. 60 seconds covers the observed propagation window with margin.
+- `principal_type = "ServicePrincipal"` is critical — without it, ARM does a Graph lookup that fails during the propagation window. With it, ARM skips the lookup and trusts the caller.
+
+**Provider dependency:** `time_sleep` requires the `hashicorp/time` provider. Add to `config.tf`:
+
+```hcl
+time = {
+  source  = "hashicorp/time"
+  version = "~> 0.12"
+}
+```
+
+### 3e. Open risk: identity already exists
+
+If a workspace already has an identity provisioned (e.g., from a prior apply or manual portal action), adding the `identity` block should be idempotent — the provider should detect the existing identity and import it into state. Verify during first apply. If the provider errors on "identity already exists," the workaround is `terraform import` or a targeted state operation. Low risk — this is a clean-slate lab.
+
+---
+
+## 4. Open Questions for Ryan
+
+1. **`workspace_content_mode` default:** Should the default change from `"none"` to `"lakehouse"` for the next round, or keep `"none"` and let operators opt in via tfvars? I lean toward keeping `"none"` — lakehouse is additive and some demos don't need it.
+
+2. **Minimum provider version bump:** The `identity` block on `fabric_workspace` and the PR "Allow workspace identity without capacity_id" landed around v1.9.x. Our current constraint is `~> 1.0`. Should we pin to `~> 1.9` to guarantee identity support, or keep `~> 1.0` and let `terraform init` pull latest? I recommend `~> 1.9` — identity is load-bearing for the RBAC assignment.
+
+3. **`outbound_only` as default for any scenario?** Current default is `inbound_only`. If you want a different default for the next demo round, flag it. I'll keep `inbound_only` unless told otherwise.
+
+---
+
+## 5. Summary of Changes by File
+
+| File | Changes |
+|---|---|
+| `variables.tf` | Add `network_mode` (replace `restrict_workspace_public_access`). Update `workspace_content_mode` validation. |
+| `locals.tf` | Add `deploy_inbound`, `deploy_outbound` locals. |
+| `config.tf` | Add `hashicorp/time` provider. Bump `fabric` provider constraint to `~> 1.9`. |
+| `fabric.tf` | Add `fabric_lakehouse` (gated on `workspace_content_mode`). Add `identity` block to `fabric_workspace`. Gate workspace PE resources on `deploy_inbound`. Gate storage/SQL/KV on `deploy_outbound`. Add `is_hns_enabled = true` to storage. |
+| `mpe.tf` | Gate all MPE resources + approvals + checks on `deploy_outbound`. |
+| `workspace-policy.tf` | Replace `restrict_workspace_public_access` gating with `deploy_inbound`. |
+| `networking.tf` | No changes — always deploys. |
+| `main.tf` | No structural changes. |
+| `outputs.tf` | Conditional outputs for all mode-gated resources. |
+| `storage.tf` (new, optional) | Move storage + SQL + role assignment here for clarity. |
+| `README.md` | Document `network_mode`, `outbound_only` use case, lakehouse option, workspace identity. |
+
+---
+
+## 6. Dependency Chain (apply order)
+
+```
+RG + random_string
+  → Fabric capacity
+    → Fabric workspace (with identity block)
+      → [if lakehouse] fabric_lakehouse
+      → [if inbound] PL service → workspace PE → communication policy
+      → [if outbound] time_sleep (60s for identity propagation)
+        → Storage account (ADLS Gen 2) + SQL + KV
+          → Role assignment (Storage Blob Data Contributor)
+          → MPEs → PE connection lookups → approvals → checks
+          → KV PE
+```
+
+No circular dependencies. The `time_sleep` only blocks the role assignment, not the storage account creation itself.
+
+---
+
+## 7. What's NOT in Scope
+
+- **Shortcut creation** — manual (Ryan's ask)
+- **Tenant-level private link** — still deferred
+- **OneLake firewall / data exfiltration controls** — future
+- **`enable_schemas` on lakehouse** — not needed for basic demo; can add later as a variable if requested
+- **DFS subresource MPE** — Fabric uses blob endpoint internally; dfs MPE is unnecessary for this pattern
+
+
+
+
+# Donut Implementation Note — Fabric-private Next Round (2026-07-25)
+
+**Author:** Donut (Infra Dev)
+**Relates to:** `.squad/decisions/inbox/carl-fabric-next-round-design.md`
+**Branch:** squad/fabric-alz-impl
+**Commit:** 82274ff
+
+---
+
+## Decisions Made During Implementation
+
+### 1. check block data sources with count=0 resources
+
+**Decision:** Used `one(resource[*].attribute)` + `try(null.attribute, fallback)` in locals to null-safely access count=0 resources. In check blocks, used null-safe locals to construct `resource_id`, with `!local.deploy_outbound || <condition>` short-circuit in assertions.
+
+**Why:** `check {}` blocks don't support `count`. Can't use `[0]` indexing in unconditionally-evaluated expressions without risking a plan-time error. The `one(splat)` + `try()` pattern is the idiomatic Terraform solution. Check block data sources that receive a placeholder resource_id fail gracefully (warning only), and the assertion short-circuit ensures the check always passes in non-applicable modes.
+
+**Pattern:**
+```hcl
+# In locals — safe null access
+_lab_storage_id = one(azurerm_storage_account.lab_storage[*].id)
+
+# In check block
+resource_id = local._lab_storage_id != null ? (
+  "${local._lab_storage_id}/privateEndpointConnections/${coalesce(local.storage_pe_conn_name, "placeholder")}"
+) : "placeholder-not-deployed"
+
+# In assertion — short-circuit
+condition = !local.deploy_outbound || data.azapi_resource.mpe_storage_conn.output...status == "Approved"
+```
+
+### 2. [0] indexing inside count-gated resources
+
+**Decision:** Used `[0]` indexing freely inside resource bodies where both the referencing and referenced resources share the same `count = local.deploy_outbound ? 1 : 0` condition.
+
+**Why:** Terraform only evaluates resource body expressions when count > 0 and the resource is being instantiated. When both resources have count=0, the body of the dependent resource is never evaluated, so the `[0]` index is safe. This is standard Terraform practice for co-conditioned resources.
+
+### 3. pre-existing staged changes included in commit
+
+`main.tf` and `configure-fabric-tenant-settings.ps1` had pre-existing staged changes from a prior session:
+- `main.tf`: renamed comment, removed stale `check "key_vault_present"` (the Fabric LZ no longer references a Networking-layer KV)
+- `configure-fabric-tenant-settings.ps1`: corrected API setting names (EnableFabric → FabricGAWorkloads, etc.), added API contract documentation
+
+These were included in the same commit since they're directly related to the module's evolution and were already staged.
+
+### 4. purge-soft-deleted.ps1 does not exist
+
+Carl's design referenced adding a TODO comment to `purge-soft-deleted.ps1`. That script does not exist in the module. The TODO was placed as a comment in `fabric.tf` near the lakehouse resource instead.
+
+### 5. workspace_policy depends_on uses list reference (no [0])
+
+`depends_on = [azurerm_private_endpoint.pe_fabric_workspace]` references all instances of the resource (the list), not a single instance. When count=0, the depends_on is an empty dependency list — effectively a no-op. When count=1, it correctly depends on the single instance. This is valid Terraform syntax and doesn't require `[0]`.
+
+---
+
+## Files Changed
+
+| File | Action | Key changes |
+|---|---|---|
+| `config.tf` | Modified | `fabric ~> 1.9`, added `hashicorp/time ~> 0.12` |
+| `variables.tf` | Modified | Added `network_mode`, removed `restrict_workspace_public_access`, updated `workspace_content_mode` validation |
+| `locals.tf` | Modified | Added `deploy_inbound`, `deploy_outbound` |
+| `fabric.tf` | Modified | Added `identity` block, added `fabric_lakehouse`, gated PE resources on `deploy_inbound`, removed outbound resources |
+| `storage.tf` | Created | All outbound resources (KV, KV PE, storage ADLS Gen 2, SQL, role assignment, time_sleep) |
+| `mpe.tf` | Modified | count gates on all MPE resources, safe locals, conditional check blocks |
+| `workspace-policy.tf` | Modified | Gating via `deploy_inbound`, triggers_replace uses `var.network_mode` |
+| `outputs.tf` | Modified | All conditional outputs guarded; added identity outputs |
+| `README.md` | Modified | New Variables/Outputs tables, Network Mode section, workspace identity docs |
+| `terraform.tfvars.example` | Modified | Added `network_mode` example |
+
+
+
