@@ -54,13 +54,32 @@ variable "capacity_admin_group_object_id" {
   default     = null
 }
 
+## Network connectivity mode
+variable "network_mode" {
+  description = <<-EOT
+    Controls which private connectivity paths are deployed.
+      inbound_only         — Workspace PE + deny-public-access policy. No MPEs, no storage account, no SQL, no KV. (Default)
+      outbound_only        — MPEs + storage + SQL + KV. No workspace PE, no communication policy. Workspace is publicly reachable.
+                             Use this when the Fabric tenant setting "Configure workspace-level inbound network rules" is not enabled,
+                             or when the customer accepts public Fabric access but requires private data-plane connectivity to Azure
+                             resources. This is a valid demo/POC pattern for outbound-only private networking.
+      inbound_and_outbound — Both directions. Full private connectivity.
+  EOT
+  type        = string
+  default     = "inbound_only"
+  validation {
+    condition     = contains(["inbound_only", "outbound_only", "inbound_and_outbound"], var.network_mode)
+    error_message = "Allowed values: 'inbound_only', 'outbound_only', 'inbound_and_outbound'."
+  }
+}
+
 ## Workspace content
 variable "workspace_content_mode" {
-  description = "Sample content to deploy in the workspace. 'none' (default) ships an empty workspace. 'lakehouse' is reserved for a future release."
+  description = "Sample content to deploy in the workspace. 'none' (default) ships an empty workspace. 'lakehouse' deploys a native OneLake-backed Lakehouse — opt in via tfvars."
   type        = string
   default     = "none"
   validation {
-    condition     = contains(["none"], var.workspace_content_mode)
-    error_message = "Only 'none' is supported in this release. 'lakehouse' is reserved for a future release."
+    condition     = contains(["none", "lakehouse"], var.workspace_content_mode)
+    error_message = "Allowed values: 'none', 'lakehouse'."
   }
 }

@@ -18,7 +18,12 @@ terraform {
 
     fabric = {
       source  = "microsoft/fabric"
-      version = "~> 1.0"
+      version = "~> 1.9" # identity block + fabric_lakehouse require >= 1.9
+    }
+
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.12" # time_sleep for Entra ID propagation delay on identity RBAC
     }
   }
   required_version = ">= 1.8.3"

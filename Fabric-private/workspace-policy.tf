@@ -8,11 +8,11 @@
 # Drift caveat: if someone flips the policy in the portal, Terraform won't notice.
 
 resource "terraform_data" "workspace_communication_policy" {
-  count = var.restrict_workspace_public_access ? 1 : 0
+  count = local.deploy_inbound ? 1 : 0 # inbound gate — deny-public-access policy only applies when workspace PE is deployed
 
   triggers_replace = [
     fabric_workspace.workspace.id,
-    var.restrict_workspace_public_access,
+    var.network_mode,
   ]
 
   input = {

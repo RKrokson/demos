@@ -1,25 +1,31 @@
 # Application Landing Zone — Microsoft Fabric (Fabric-private)
 
-This is an optional application landing zone. It deploys a Microsoft Fabric capacity and workspace with private inbound connectivity (workspace-level PE) and private outbound connectivity (3 Managed Private Endpoints to Storage, SQL, and a workspace-local Key Vault) into its own spoke VNet.
+This is an optional application landing zone. It deploys a Microsoft Fabric capacity and workspace with configurable private connectivity via a `network_mode` variable. Three modes are supported: inbound-only (workspace PE), outbound-only (MPEs to Azure data sources), or both directions. The spoke VNet and platform connectivity always deploy regardless of mode.
 
 The module creates the VNet, subnets, and hub connection. You do not need to deploy this to use the Networking module on its own.
 
 ## What It Deploys
 
-| Resource                    | Purpose                                                                           |
-| --------------------------- | --------------------------------------------------------------------------------- |
-| Fabric Capacity (F2)        | Compute capacity for the workspace                                                |
-| Fabric Workspace            | Container for Fabric items                                                        |
-| Workspace PE                | Private inbound path to the workspace                                             |
-| Lab Storage Account         | Blob storage target for Fabric MPE                                                |
-| Lab Azure SQL Server + DB   | SQL target for Fabric MPE                                                         |
-| Workspace-Local Key Vault   | Secrets storage for the Fabric workspace (reached via MPE)                        |
-| 3 Managed Private Endpoints | Outbound private paths from Fabric to Storage (blob), SQL, and workspace-local KV |
-| Spoke VNet (Block 5)        | `172.20.80.0/20` with PE subnet                                                   |
-| NSG                         | Explicit allow rules on PE subnet (443, 1433)                                     |
-| vHub connection             | Connects spoke to platform Virtual WAN hub                                        |
-| DNS resolver policy link    | Private DNS resolution via platform DNS                                           |
-| Diagnostic settings         | Capacity logs/metrics to platform LAW                                             |
+Resources marked **[inbound]** require `network_mode` to include `inbound` (i.e., `inbound_only` or `inbound_and_outbound`).
+Resources marked **[outbound]** require `network_mode` to include `outbound` (i.e., `outbound_only` or `inbound_and_outbound`).
+Unmarked resources always deploy.
+
+| Resource                    | Mode       | Purpose                                                                           |
+| --------------------------- | ---------- | --------------------------------------------------------------------------------- |
+| Fabric Capacity (F2)        | Always     | Compute capacity for the workspace                                                |
+| Fabric Workspace            | Always     | Container for Fabric items (System-Assigned identity always provisioned)          |
+| Fabric Lakehouse            | Opt-in     | OneLake-backed Lakehouse (`workspace_content_mode = "lakehouse"`)                 |
+| Workspace PE                | [inbound]  | Private inbound path to the workspace                                             |
+| Communication policy        | [inbound]  | Deny-public-access policy on the workspace                                        |
+| Lab Storage Account (ADLS Gen 2) | [outbound] | Blob storage target for Fabric MPE; hierarchical namespace enabled           |
+| Lab Azure SQL Server + DB   | [outbound] | SQL target for Fabric MPE                                                         |
+| Workspace-Local Key Vault   | [outbound] | Secrets storage for the Fabric workspace (reached via MPE)                        |
+| Storage Blob Data Contributor RBAC | [outbound] | Workspace identity → lab storage account                                  |
+| 3 Managed Private Endpoints | [outbound] | Outbound private paths from Fabric to Storage (blob), SQL, and workspace-local KV |
+| Spoke VNet (Block 5)        | Always     | `172.20.80.0/20` with PE subnet                                                   |
+| NSG                         | Always     | Explicit allow rules on PE subnet (443, 1433)                                     |
+| vHub connection             | Always     | Connects spoke to platform Virtual WAN hub                                        |
+| DNS resolver policy link    | Always     | Private DNS resolution via platform DNS                                           |
 
 ## Prerequisites
 
@@ -93,48 +99,84 @@ terraform apply
 | `fabric_capacity_sku`              | `"F2"`               | Fabric capacity SKU                                               |
 | `capacity_admin_upn_list`          | `[]`                 | UPNs for capacity admins (or use group OID)                       |
 | `capacity_admin_group_object_id`   | `null`               | Entra group OID for capacity admins (recommended for shared labs) |
-| `workspace_content_mode`           | `"none"`             | Only `none` supported; `lakehouse` reserved for future            |
-| `restrict_workspace_public_access` | `true`               | Private-only by default — set to `false` to allow public access alongside the workspace PE |
+| `network_mode`                     | `"inbound_only"`     | Connectivity mode — see [Network Mode](#network-mode) below       |
+| `workspace_content_mode`           | `"none"`             | `"none"` = empty workspace; `"lakehouse"` = deploy a Fabric Lakehouse (opt-in) |
 
 For shared lab deployments, set `capacity_admin_group_object_id` to a security group containing all operators. The zero-config default uses the current `az` signed-in user.
 
+## Network Mode
+
+The `network_mode` variable controls which private connectivity paths are deployed. The spoke VNet, subnets, NSG, vHub connection, and DNS always deploy in all modes.
+
+### `inbound_only` (default)
+
+Deploys the workspace-level private endpoint and sets the workspace communication policy to deny public access. The workspace is accessible only via the PE (Bastion, VPN, or ExpressRoute with DNS resolution). No MPEs, storage account, SQL server, or Key Vault are deployed.
+
+Use this when: you want to lock down inbound access to the workspace and are deploying into an environment where the Fabric tenant setting "Configure workspace-level inbound network rules" is enabled.
+
+### `outbound_only`
+
+Deploys Managed Private Endpoints (MPEs) from the Fabric workspace to Storage (ADLS Gen 2), SQL, and Key Vault, plus the backing resources themselves. The workspace remains publicly reachable — no workspace-level PE or deny-public-access policy is created. The workspace System-Assigned identity receives Storage Blob Data Contributor on the lab storage account.
+
+Use this when: (a) the Fabric tenant setting "Configure workspace-level inbound network rules" is not enabled, or (b) the customer accepts public Fabric access but requires private data-plane connectivity to Azure resources. This is a valid demo/POC pattern for organizations exploring Fabric's outbound private networking without committing to inbound lockdown.
+
+### `inbound_and_outbound`
+
+Full private connectivity. Both the workspace PE (inbound lock-down) and the MPE path (outbound to storage/SQL/KV) are deployed. This is the complete private lab configuration.
+
+## Workspace Identity
+
+The Fabric workspace has a System-Assigned managed identity that is always provisioned regardless of `network_mode` — it is free and causes no side effects. The identity's service principal object ID is exported as `workspace_identity_service_principal_id`.
+
+In `outbound_only` and `inbound_and_outbound` modes, a `Storage Blob Data Contributor` role assignment is created on the lab storage account so the workspace can read and write data via the MPE path. A 60-second `time_sleep` guards against Entra ID propagation delay after identity provisioning.
+
+## Workspace Content
+
+The `workspace_content_mode` variable controls optional Fabric items deployed into the workspace:
+
+- `"none"` (default) — empty workspace, no Fabric items created
+- `"lakehouse"` — deploys a native OneLake-backed Lakehouse named `lakehouse-{suffix}`. Set `workspace_content_mode = "lakehouse"` in your tfvars to opt in.
+
 ## Outputs
 
-| Output                              | Purpose                                   |
-| ----------------------------------- | ----------------------------------------- |
-| `resource_group_id`                 | Resource group ID                         |
-| `fabric_capacity_id`                | Fabric capacity ID                        |
-| `fabric_workspace_id`               | Fabric workspace ID                       |
-| `storage_account_id`                | Lab storage account ID                    |
-| `sql_server_id`                     | Lab SQL server ID                         |
-| `key_vault_id`                      | Workspace-local Key Vault ID              |
-| `mpe_storage_id`                    | Storage blob MPE ID                       |
-| `mpe_sql_id`                        | SQL Server MPE ID                         |
-| `mpe_keyvault_id`                   | Key Vault MPE ID                          |
-| `workspace_private_link_service_id` | Fabric private link service ARM ID        |
-| `workspace_private_endpoint_id`     | Fabric workspace private endpoint ID      |
-| `workspace_private_endpoint_ip`     | Private IP assigned to the workspace PE   |
+| Output                                    | Mode       | Purpose                                          |
+| ----------------------------------------- | ---------- | ------------------------------------------------ |
+| `resource_group_id`                       | Always     | Resource group ID                                |
+| `fabric_capacity_id`                      | Always     | Fabric capacity ID                               |
+| `fabric_workspace_id`                     | Always     | Fabric workspace ID                              |
+| `workspace_identity_application_id`       | Always     | Workspace identity Entra application ID          |
+| `workspace_identity_service_principal_id` | Always     | Workspace identity service principal object ID   |
+| `storage_account_id`                      | [outbound] | Lab storage account ID (null otherwise)          |
+| `sql_server_id`                           | [outbound] | Lab SQL server ID (null otherwise)               |
+| `sql_database_id`                         | [outbound] | Lab SQL database ID (null otherwise)             |
+| `key_vault_id`                            | [outbound] | Workspace-local Key Vault ID (null otherwise)    |
+| `mpe_storage_id`                          | [outbound] | Storage blob MPE ID (null otherwise)             |
+| `mpe_sql_id`                              | [outbound] | SQL Server MPE ID (null otherwise)               |
+| `mpe_keyvault_id`                         | [outbound] | Key Vault MPE ID (null otherwise)                |
+| `workspace_private_link_service_id`       | [inbound]  | Fabric private link service ARM ID (null otherwise) |
+| `workspace_private_endpoint_id`           | [inbound]  | Fabric workspace private endpoint ID (null otherwise) |
+| `workspace_private_endpoint_ip`           | [inbound]  | Private IP assigned to the workspace PE (null otherwise) |
 
 ## Security Posture
 
+### Workspace Identity
+
+The workspace has a System-Assigned managed identity that is always provisioned. In `outbound_only` and `inbound_and_outbound` modes, this identity is granted `Storage Blob Data Contributor` on the lab storage account, enabling the workspace to read and write data via the MPE path without shared access keys.
+
 ### Private Connectivity
 
-The workspace has two connectivity paths:
+The workspace connectivity model depends on `network_mode`:
 
-- **Inbound:** The workspace-level private endpoint in your spoke VNet allows client connections via the private network. By default, the workspace is **private-only** — public access is blocked. Set `restrict_workspace_public_access = false` to allow public access alongside the private endpoint.
-- **Outbound:** The workspace runs in a Microsoft-managed VNet with no direct access to your network. It reaches shared lab resources (Storage, SQL) via 3 Managed Private Endpoints. The workspace reaches its own Key Vault (deployed in this resource group) via a dedicated MPE and DNS resolution.
+- **Inbound (`inbound_only`, `inbound_and_outbound`):** The workspace-level private endpoint in the spoke VNet allows connections via the private network. The workspace communication policy is set to deny public access — users must connect via the PE (Bastion, VPN, ExpressRoute, or any network with DNS resolution to the PE subnet).
+- **Outbound (`outbound_only`, `inbound_and_outbound`):** The workspace runs in a Microsoft-managed VNet and reaches shared lab resources (Storage, SQL, KV) via 3 Managed Private Endpoints. The workspace-local Key Vault is deployed in the Fabric LZ resource group and accessed exclusively via its MPE.
 
-The workspace-local Key Vault is used for workspace secrets. The workspace managed identity accesses it exclusively via the MPE; there is no dependency on or access to the shared Networking Key Vault.
+The spoke VNet and platform connectivity always deploy. In `outbound_only` mode, the PE subnet exists but hosts no private endpoints — this is harmless and preserves the "all ALZs have a spoke" platform invariant.
 
-### Private-Only Access (Default)
+### Private-Only Access (inbound modes)
 
-By default (`restrict_workspace_public_access = true`), the workspace blocks all public internet access. Users must connect via the private endpoint (Bastion, VPN, ExpressRoute, or any network with DNS resolution to the PE subnet). The Fabric portal shell (`app.fabric.microsoft.com`) still loads over the public internet, but workspace API calls are blocked unless the caller is on a network with the private endpoint. This is workspace-scoped and independent of any tenant-level settings.
-
-Prerequisites: The workspace private endpoint must be deployed and DNS (`privatelink.fabric.microsoft.com`) must resolve to the PE's private IP.
+When `network_mode` includes inbound (default), the workspace blocks all public internet access. The Fabric portal shell (`app.fabric.microsoft.com`) still loads over the public internet, but workspace API calls are blocked unless the caller is on a network with the private endpoint. This is workspace-scoped and independent of tenant-level settings.
 
 > **⏱ Propagation delay:** After `terraform apply`, the workspace communication policy (`defaultAction: Deny`) can take **up to 30 minutes** to take full effect per [Microsoft docs](https://learn.microsoft.com/en-us/fabric/security/security-workspace-level-private-links-set-up). The workspace may still be reachable from the public internet briefly after apply completes — this is expected behavior, not a bug.
-
-To allow public access alongside the private endpoint (the old default), set `restrict_workspace_public_access = false` in your tfvars.
 
 ### Tenant-Level Private Link — Out of Scope
 
