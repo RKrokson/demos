@@ -38,7 +38,19 @@ Donut is the infrastructure developer driving module implementation and live dep
 - **MPE PE connection filter:** Fabric UUID ≠ ARM PE path. Use `endswith(lower(conn.id), lower("{workspace_id}.{mpe_name}"))` for matching.
 - **Fabric workspace creator auto-Admin:** Don't create explicit role assignment — creator already has Admin.
 
-### Teardown (2026-07-16)
+### Fabric SSMS Connection Strings (2026-07-18 LATEST)
+- **SSMS Fabric-aware connection bug:** When SSMS connects to Lakehouse SQL endpoint, it makes a pre-TDS metadata call via `FabricWorkspaceApi.GetAsync`. With regular connection string (e.g., `{id}.datawarehouse.fabric.microsoft.com`), SSMS calls public `api.fabric.microsoft.com` → gets blocked by workspace deny-public policy. Solution: Use workspace-level private-link format with z{xy} prefix.
+- **z{xy} format:** Insert `.z${first_2_chars_of_workspace_id_without_dashes}.` before `.datawarehouse.`. Example workspace ID `9627b1aa-...` → `z96`. So `{id}.datawarehouse.fabric.microsoft.com` becomes `{id}.z96.datawarehouse.fabric.microsoft.com`. SSMS recognizes prefix, routes metadata call through workspace PE FQDN (`{id-no-dashes}.z96.w.api.fabric.microsoft.com`), which resolves to PE private IP (172.20.80.5) via private DNS zone. Succeeds.
+- **DNS gap by design:** `.z96.datawarehouse.fabric.microsoft.com` has NO private DNS A record. Fabric routing recognizes z96 prefix and transparently routes TDS traffic to workspace PE. Expected behavior, not misconfiguration.
+- **Terraform outputs added:** New outputs `lakehouse_sql_connection_string` (public, for reference) and `lakehouse_sql_connection_string_private_link` (z{xy} format, for SSMS). IaC formula: `replace(..., ".datawarehouse.", ".z${substr(replace(workspace_id, "-", ""), 0, 2)}.datawarehouse.")`
+- **Rule:** For any workspace with deny-public inbound policy, always use z{xy} format for client tool connection strings. Regular format will always fail from private networks if tool makes control-plane metadata call before SQL connection.
+
+### Fabric Deploy Findings (2026-04-29)
+- **Lakehouse display_name hyphen bug:** display_name rejects hyphens (letters/numbers/underscores only). Changed `lakehouse-${random_string}` → `Lakehouse_${random_string}`.
+- **workspace_communication_policy race condition:** Terraform scheduled workspace PE, lakehouse, and MPEs in parallel. PE completed first → deny-public fired early → item creation calls blocked. Fixed by adding lakehouse + MPEs to depends_on of `terraform_data.workspace_communication_policy`. Deny-public now fires only after all items created.
+- **Terraform import gap:** No import support for fabric resources. Recovery: REST delete orphans, taint communication_policy, destroy PE+PLS+policy, re-apply.
+
+
 - **modtm refresh is the long pole:** 181 modtm_module_source data sources → ~30 min of GitHub calls. Total Networking destroy: 44 min (30 min refresh + 14 min Azure).
 - **vHub destroy:** 10m45s — normal.
 - **Foundry-byoVnet partial state:** If never applied past random_string/remote_state, destroy is instant — no Azure cleanup needed.
@@ -97,6 +109,40 @@ Donut is the infrastructure developer driving module implementation and live dep
 **All agents:** A new skill .squad/skills/rest-api-from-design/SKILL.md has been created to prevent recurring REST implementation errors. This affects anyone writing REST calls in Terraform, GitHub Actions, or shell scripts.
 
 **Trigger:** Apply when implementing a REST call whose method + URL appears in a design doc or vendor docs. Key rule: use on_failure = fail on all state-mutating calls (POST/PUT/PATCH/DELETE); never substitute your own HTTP conventions.
+
+---
+
+## Learnings: Fabric SSMS z{xy} Connection String (2026-07-18)
+
+### SSMS Requires z{xy} Private Link Format — Not an IaC Bug
+
+**What we found:** SSMS failing with `RequestDeniedByInboundPolicy` from `FabricWorkspaceApi.GetAsync` is NOT caused by a wrong communicationPolicy body. The policy (`{"inbound":{"publicAccessRules":{"defaultAction":"Deny"}}}`) is correct and confirmed live via GET. The workspace PE and DNS zone are correctly provisioned (confirmed: five A records in `privatelink.fabric.microsoft.com` pointing to 172.20.80.5).
+
+**Root cause:** SSMS's Fabric-aware pre-flight call to `api.fabric.microsoft.com` (generic public endpoint) goes via public internet even from the private VNet. The deny-public policy blocks it. Workspace PE DNS does NOT cover `api.fabric.microsoft.com` — only workspace-specific FQDNs like `{wsid-no-dashes}.z96.w.api.fabric.microsoft.com`.
+
+**Fix:** Use the private link format of the SQL endpoint connection string in SSMS. Add `.z{xy}.` before `.datawarehouse.` (where xy = first two chars of workspace GUID without dashes). SSMS then routes its metadata call through the workspace-specific FQDN, which resolves to the PE private IP.
+
+**Rule:** For any Fabric workspace with deny-public inbound: `terraform output lakehouse_sql_connection_string_private_link` is the SSMS server name. Never use the regular connection string.
+
+### DNS Zone Architecture (workspace-level PE)
+
+The `privatelink.fabric.microsoft.com` zone gets five A records per workspace PE:
+- `{wsid}.z{xy}.w.api` — control plane REST API ✅ (SSMS metadata uses this)
+- `{wsid}.z{xy}.blob`, `.c`, `.dfs`, `.onelake` — data plane endpoints ✅
+- `.datawarehouse` — **NOT in zone by design.** Fabric's public routing handles `z{xy}.datawarehouse` TDS traffic transparently via PE. No private DNS record needed for SQL/TDS to work.
+
+### Two-Tier Fabric API Architecture
+
+Fabric has two API tiers for workspace-level PE:
+1. **Workspace-specific FQDNs** (`{wsid}.z{xy}.*.fabric.microsoft.com`) → private IP via PE. These are covered by private DNS zone. Data and control-plane calls using these FQDNs route privately.
+2. **Generic control plane** (`api.fabric.microsoft.com`) → public IP. NOT covered by workspace PE. Always goes via public internet. The deny-public policy blocks calls from public-internet sources. The communicationPolicy management API (GET/PUT `/networking/communicationPolicy`) is deliberately exempt from the deny-public rule, but generic workspace API calls (GET `/v1/workspaces/{id}`) are NOT exempt.
+
+### IaC Changes (2026-07-18)
+
+- **outputs.tf:** Added `lakehouse_sql_connection_string` (public) and `lakehouse_sql_connection_string_private_link` (z{xy} format) outputs for Lakehouse items.
+- **README.md:** Added "Connecting via SSMS (inbound modes)" section.
+- **fabric-workspace-private-link/SKILL.md:** Added Step 4 documenting z{xy} SSMS requirement.
+- **.squad/decisions/inbox/donut-fabric-ssms-z96-connection-string.md:** Full incident writeup.
 
 **Named prior failure:** Fabric workspace-policy.tf bug (commit 4171dc3) — used PATCH instead of PUT, wrong URL path, on_failure=continue masked the error.
 
