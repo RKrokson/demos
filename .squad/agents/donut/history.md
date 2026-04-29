@@ -183,3 +183,61 @@ For details, see .squad/skills/rest-api-from-design/SKILL.md.
 - Safe patterns for conditional resources when count gates are involved
 - Identity propagation timing critical for RBAC assignments on freshly-provisioned service principals
 
+---
+
+## End-to-End Deploy: Networking LZ + Fabric-private ALZ (2026-04-29)
+
+**Branch:** squad/fabric-alz-impl  
+**Mode:** network_mode=inbound_and_outbound, workspace_content_mode=lakehouse  
+**Suffix:** 2679  
+**Outcome:** ✅ Full deploy succeeded after two code bugs found and fixed in-flight
+
+### Deploy Summary
+
+| Phase | Resources | Time | Notes |
+|---|---|---|---|
+| Networking LZ | 944 in state | ~15 min Azure ops | dns_policy_dns_vnet_link tainted once (transient ISE) — re-apply fixed |
+| Fabric-private | 28 managed | ~8 min total | Two bugs hit; multiple re-apply cycles needed |
+
+**Key outputs:**
+- Networking RG: `rg-net00-sece-3051`, Firewall IP: `172.30.0.132`, DNS inbound: `172.20.16.4`
+- Fabric RG: `rg-fabric00-sece-2679`, Workspace ID: `9627b1aa-93c7-4d3d-8a17-7d00182c2dce`
+- Workspace PE IP: `172.20.80.5`, Lakehouse: `Lakehouse_2679` (ID: `aa2f9be8`)
+- All 3 MPEs Approved/Succeeded. Workspace PE Succeeded. RBAC confirmed.
+
+### Bug 1: Fabric Lakehouse display_name rejects hyphens — FIXED
+
+**Symptom:** `fabric_lakehouse` apply fails with `InvalidInput` — "DisplayName is Invalid for ArtifactType."  
+**Root cause:** Fabric item display_name only allows letters, numbers, underscores. Hyphens are valid for workspace names (looser rules) but NOT for Fabric items (lakehouses, etc.).  
+**Fix:** `fabric.tf` line ~51 — changed `"lakehouse-${random_string.unique.result}"` → `"Lakehouse_${random_string.unique.result}"`.  
+**Rule going forward:** Fabric item display names: use letters/numbers/underscores only. Workspace names: hyphens OK.
+
+### Bug 2: workspace_communication_policy race condition — FIXED
+
+**Symptom:** After first partial apply, re-apply of remaining resources (`fabric_lakehouse`, `mpe_keyvault`) fails with `RequestDeniedByInboundPolicy`. Even after manually setting communicationPolicy to Allow via REST, re-apply still fails — Fabric auto-reverts to Deny within ~5–10 seconds once the workspace PE is Connected.  
+**Root cause:** `workspace_communication_policy` had `depends_on = [azurerm_private_endpoint.pe_fabric_workspace]` only. In a parallel apply, workspace PE can complete before lakehouse/MPEs → Terraform fires the deny-public policy while those resources are still being created → all subsequent Fabric API calls blocked from public internet.  
+**Fix:** `workspace-policy.tf` — added `fabric_lakehouse.lab_lakehouse`, `fabric_workspace_managed_private_endpoint.mpe_storage`, `mpe_sql`, `mpe_keyvault` to `depends_on` of `terraform_data.workspace_communication_policy`. Deny-public now fires only AFTER all Fabric items are successfully created.  
+**Platform behavior (important):** Once a workspace PE is Connected/Approved, the Fabric platform auto-enforces deny-public for workspace management APIs regardless of the communicationPolicy setting. Manual Allow via REST reverts to Deny within ~5 seconds. This is by-design platform enforcement — no workaround from public internet; the ordering fix is the only solution.
+
+### Recovery Procedure (for future reference when stuck in deny-public state)
+
+1. Delete orphaned Fabric items via REST (`DELETE /v1/workspaces/{id}/items/{itemId}`, `DELETE /v1/workspaces/{id}/managedPrivateEndpoints/{mpeId}`)
+2. Taint `terraform_data.workspace_communication_policy[0]` in state
+3. Targeted destroy: `azurerm_private_endpoint.pe_fabric_workspace[0]`, `azapi_resource.fabric_private_link_service[0]`, `terraform_data.workspace_communication_policy[0]`
+4. Apply with fixed `depends_on` — Fabric items + PE all create in parallel; communication_policy runs last
+
+### Provider Gaps — No Import Support
+
+- `fabric_workspace_managed_private_endpoint`: `terraform import` returns "Resource Import Not Implemented." Recovery: delete via REST + re-create.
+- `fabric_lakehouse`: Import blocked when workspace deny-public is active (`RequestDeniedByInboundPolicy`). Even with brief Allow window, import initialization (>10s) exceeds the ~5s revert window. Recovery: delete via REST + re-create.
+
+### Timing Reference (inbound_and_outbound + lakehouse, Sweden Central)
+
+| Resource | Time |
+|---|---|
+| `azapi_resource.fabric_private_link_service` | ~17s |
+| `azurerm_private_endpoint.pe_fabric_workspace` | ~1m13s |
+| `fabric_lakehouse.lab_lakehouse` | ~1m22s |
+| `fabric_workspace_managed_private_endpoint.mpe_keyvault` | ~4–5 min |
+| Full Fabric-private apply (clean) | ~8 min |
+
