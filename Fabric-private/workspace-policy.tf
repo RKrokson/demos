@@ -64,5 +64,12 @@ resource "terraform_data" "workspace_communication_policy" {
 
   depends_on = [
     azurerm_private_endpoint.pe_fabric_workspace,
+    # Ensure all Fabric items are created BEFORE deny-public fires.
+    # Once the workspace PE is connected, Fabric auto-enforces deny-public access
+    # within seconds — MPE and item creation must complete first.
+    fabric_lakehouse.lab_lakehouse,
+    fabric_workspace_managed_private_endpoint.mpe_storage,
+    fabric_workspace_managed_private_endpoint.mpe_sql,
+    fabric_workspace_managed_private_endpoint.mpe_keyvault,
   ]
 }

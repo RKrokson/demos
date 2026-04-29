@@ -48,7 +48,7 @@ resource "fabric_workspace" "workspace" {
 
 resource "fabric_lakehouse" "lab_lakehouse" {
   count        = var.workspace_content_mode == "lakehouse" ? 1 : 0
-  display_name = "lakehouse-${random_string.unique.result}"
+  display_name = "Lakehouse_${random_string.unique.result}"
   workspace_id = fabric_workspace.workspace.id
   description  = "Lab Lakehouse — OneLake-backed, deployed by Fabric-private module"
 }
