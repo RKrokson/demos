@@ -98,6 +98,75 @@ Additionally, create-time provisioner had `on_failure = continue`, which silentl
 
 ---
 
+### Copilot Directive — Tenant Settings Configuration Lab-Acceptable
+
+**Status:** Approved — user directive  
+**Date:** 2026-04-29  
+**Author:** Ryan Krokson (via Copilot)
+
+SystemAI's Medium security finding on `Fabric-private/configure-fabric-tenant-settings.ps1` (tenant-wide enablement of Fabric tenant settings) is **lab-acceptable — do not fix**. This repo is a lab/POC; tenant scoping is a production concern, not a lab concern. Captured for team memory so future reviewers don't re-flag it.
+
+---
+
+### Fabric-private Destroy — Two-Phase Pattern Required (Donut — Infrastructure)
+
+**Status:** Validated ✅  
+**Date:** 2026-04-29  
+**Author:** Donut (Infrastructure Dev)  
+**Type:** Operational Pattern / Destroy Runbook Update
+
+When `restrict_workspace_public_access = true` is active, destroying Fabric-private requires a two-phase approach:
+
+**Phase 1:** Flip inbound policy to Allow → poll MPE endpoint until accessible (5–8 min lag normal) → delete all MPEs via REST with retries → state-rm MPEs → terraform destroy.
+
+**Phase 2:** Poll workspace DELETE endpoint until accessible → DELETE workspace via REST → state-rm workspace → terraform destroy.
+
+**Key findings:**
+- `communicationPolicy GET` returns Allow after flip, but data-plane enforcement continues 5–8 min. Do not use policy GET as a gate — poll the actual endpoint.
+- Policy enforcement is inconsistent during propagation — retry loops required.
+- `fabric_workspace` DELETE is data-plane. Can remain blocked up to ~15 min.
+- MPE DELETE returning HTTP 200 does not guarantee deletion — operation is async.
+
+Full runbook: `.squad/skills/lz-teardown/SKILL.md`
+
+---
+
+### Lakehouse Comment Fix — Fabric-private/fabric.tf (Donut — Infrastructure)
+
+**Status:** Applied ✅  
+**Date:** 2026-04-29  
+**Author:** Donut (Infrastructure Dev)  
+**File:** `Fabric-private/fabric.tf` lines 37–48
+
+**Changes:**
+
+1. Naming comment corrected: `Lakehouse_{4-digit-suffix}` (capital L, underscore). Fabric item names only allow [A-Za-z0-9_]; hyphens fail API validation.
+
+2. NOTE + TODO replaced with Known Limitation note: "terraform destroy leaves OneLake data in soft-delete (~90-day retention). Acceptable for lab — each deploy uses unique suffix, non-sensitive demo data. No purge script planned."
+
+**Reason:** Clarifies correct naming pattern and replaces misleading TODO with accurate limitation statement reflecting Ryan's decision not to build purge script.
+
+---
+
+### SystemAI Finding — Fabric Tenant Settings Scope (SystemAI — Security Review)
+
+**Status:** Noted — lab-acceptable, production guardrails required  
+**Severity:** Medium  
+**Date:** 2026-04-29  
+**Author:** SystemAI  
+**Component:** `Fabric-private/configure-fabric-tenant-settings.ps1`
+
+**Finding:** Helper script enables Fabric tenant settings globally (`FabricGAWorkloads`, `WorkspaceBlockInboundAccess`, `ServicePrincipalAccessGlobalAPIs`). Acceptable in dedicated lab, but real shared-tenant risk.
+
+**Recommended for production:**
+1. Support security-group scoping with required group object ID parameter
+2. Split into lab quick-start and production paths
+3. Add explicit tenant-wide blast radius confirmation
+
+**Lab decision:** No blocker for this repo's POC intent. Keep as reference for production guidance.
+
+---
+
 ## Archived Decisions
 
 ### 1. Landing Zone Architecture Framing (Carl — Lead/Architect)
