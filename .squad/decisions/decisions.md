@@ -914,4 +914,162 @@ Carl's design referenced adding a TODO comment to `purge-soft-deleted.ps1`. That
 | `terraform.tfvars.example` | Modified | Added `network_mode` example |
 
 
+---
+
+# Donut Deploy Findings — 2026-04-29
+
+**From:** Donut (Infra Dev)  
+**Branch:** squad/fabric-alz-impl  
+**Deploy:** Networking LZ + Fabric-private ALZ (network_mode=inbound_and_outbound, workspace_content_mode=lakehouse)  
+**Status:** Two code bugs found and fixed. Full deploy succeeded.
+
+---
+
+## Finding 1: Fabric Lakehouse display_name rejects hyphens (CODE FIXED)
+
+**Severity:** Medium — causes apply failure on first deploy  
+**File:** `Fabric-private/fabric.tf`
+
+**What happened:** `fabric_lakehouse` resource failed with `InvalidInput` — "DisplayName is Invalid for ArtifactType. DisplayName: `lakehouse-2679`".
+
+**Root cause:** Fabric item display_name only allows letters, numbers, and underscores. Hyphens are valid for workspace names (and Azure resource names) but are rejected by Fabric for items (lakehouses, datasets, etc.).
+
+**Fix applied (this session):** Changed display_name from `"lakehouse-${random_string.unique.result}"` → `"Lakehouse_${random_string.unique.result}"`.
+
+**Action for team:** None needed — fix is committed. Note for any future Fabric item display_name values: letters/numbers/underscores only.
+
+---
+
+## Finding 2: workspace_communication_policy race condition (CODE FIXED)
+
+**Severity:** High — causes silent/partial deploy requiring manual recovery  
+**File:** `Fabric-private/workspace-policy.tf`
+
+**What happened:** After workspace PE was connected and Approved, all subsequent `terraform apply` calls for Fabric items (lakehouse, MPEs) failed with `RequestDeniedByInboundPolicy`, even when communicationPolicy was manually set to "Allow" via REST.
+
+**Root cause:** Two independent issues compounding:
+
+1. **Code:** `workspace_communication_policy` depended only on `azurerm_private_endpoint.pe_fabric_workspace`. Lakehouse + MPEs depended only on `fabric_workspace`. Terraform scheduled them all in parallel — if the workspace PE completed before the Fabric items, Terraform fired deny-public early, blocking the still-running item creation calls.
+
+2. **Platform behavior:** Once a workspace PE is Connected/Approved, the Fabric platform auto-enforces deny-public for workspace management APIs regardless of the communicationPolicy setting. Manually setting Allow via REST reverts to Deny within ~5 seconds — this is by-design, not a bug. There is no way to create Fabric workspace items from public internet once the workspace PE is connected.
+
+**Fix applied (this session):** Added `fabric_lakehouse.lab_lakehouse`, `mpe_storage`, `mpe_sql`, and `mpe_keyvault` to `depends_on` of `terraform_data.workspace_communication_policy`. Deny-public now fires only after all Fabric items are successfully created.
+
+**Action for team:**
+- Fix is committed — no further code change needed.
+- **Important operational note:** The deny-public auto-enforcement after workspace PE connection is a permanent platform behavior. All future Fabric item creation (lakehouses, datasets, MPEs) must complete BEFORE the workspace PE is connected and approved, or must go through the workspace private endpoint. Keep the `depends_on` ordering correct if adding new Fabric item types.
+
+---
+
+## Finding 3: Provider gap — terraform import not supported for Fabric resources
+
+**Severity:** Low — operational friction only, no code change needed  
+**Resources affected:** `fabric_workspace_managed_private_endpoint`, `fabric_lakehouse`
+
+**What happened:** When Fabric resources were created outside Terraform state (due to partial apply + failure), `terraform import` returned "Resource Import Not Implemented" for the MPE. For the lakehouse, import is theoretically possible but blocked in practice by the deny-public enforcement (import read fails with `RequestDeniedByInboundPolicy` after ~5s revert window).
+
+**Recovery procedure (documented in history.md):**
+1. Delete orphaned items via REST
+2. Taint communication_policy in Terraform state
+3. Targeted destroy of workspace PE + PLS + communication_policy
+4. Re-apply (fixed ordering ensures items create before deny-public fires)
+
+**Action for team:** No code change. Be aware that if Fabric resources land outside state (interrupted apply, provider crash), the only recovery path is REST deletion + re-create. Consider adding a warning comment near the MPE resources in `mpe.tf`.
+
+---
+
+## Validation Results (post-deploy)
+
+All checks passed:
+
+| Check | Result |
+|---|---|
+| Workspace PE provisioning state | Succeeded |
+| Workspace identity RBAC (Storage Blob Data Contributor) | Assigned (SP: `1af09b16`) |
+| MPE mpe-storage-blob-2679 | Approved/Succeeded |
+| MPE mpe-sql-2679 | Approved/Succeeded |
+| MPE mpe-keyvault-2679 | Approved/Succeeded |
+| Lakehouse `Lakehouse_2679` | Created (ID: `aa2f9be8`) |
+| terraform output | All 15 outputs populated |
+
+---
+
+## Key Resource IDs (suffix 2679)
+
+- Workspace: `9627b1aa-93c7-4d3d-8a17-7d00182c2dce`
+- Lakehouse: `aa2f9be8-8f3a-4a4c-8aea-bb198eeb5b79`
+- Workspace PE IP: `172.20.80.5`
+- Fabric capacity: `/subscriptions/.../Microsoft.Fabric/capacities/fabriccap2679`
+- Storage: `fabstor2679`, SQL: `fabsql2679`, KV: `kv-fabric-sece-2679`
+
+---
+
+# Finding: SSMS Requires z{xy} Private-Link Connection String Format
+
+**Status:** Finding captured — no IaC policy bug  
+**Date:** 2026-07-18  
+**Branch:** squad/fabric-alz-impl  
+**Author:** Donut (Infrastructure Dev)
+
+## Symptom
+
+SSMS returns `Microsoft.SqlServer.Management.Fabric.FabricApiException: Request is denied due to inbound communication policy` when trying to connect to the Lakehouse SQL endpoint from the spoke VM via Bastion. The SQL endpoint DNS resolves to a private IP (workspace PE is working). Stack trace is in `FabricWorkspaceApi.GetAsync` / `GetFabricWorkspaceForConnectionAsync`.
+
+## Investigation
+
+**Confirmed live:**
+- `GET /v1/workspaces/{id}/networking/communicationPolicy` → `{"inbound":{"publicAccessRules":{"defaultAction":"Deny"}}}` — policy body correct, matches docs exactly.
+- `GET /v1/workspaces/{id}` (from public internet) → `RequestDeniedByInboundPolicy` — policy IS active.
+- Private DNS zone `privatelink.fabric.microsoft.com` has A records for: `.z96.w.api`, `.z96.blob`, `.z96.c`, `.z96.dfs`, `.z96.onelake` — all pointing to 172.20.80.5. No `.datawarehouse` record (this is by design — see below).
+- From public internet, `{workspaceid-no-dashes}.z96.w.api.fabric.microsoft.com` resolves to `20.150.160.125` (public IP). From the VM (using private DNS zone), it resolves to `172.20.80.5`.
+
+## Root Cause
+
+**Not an IaC bug. Policy body is correct. Workspace PE is correctly provisioned.**
+
+SSMS's Fabric-aware connection feature (`FabricWorkspaceApi.GetAsync`) calls the Fabric control-plane API before making the SQL (TDS) connection. When SSMS is given the **regular** SQL endpoint connection string (without z{xy} prefix), it has no private-link context and calls `api.fabric.microsoft.com` (the generic public endpoint) for workspace metadata. This traffic:
+1. Leaves the VM via Azure Firewall to the public internet
+2. Hits the Fabric API with a public-internet source IP
+3. Gets blocked by `defaultAction: Deny` → `RequestDeniedByInboundPolicy`
+
+**The z{xy} fix:** When SSMS receives the workspace-level private-link format of the SQL endpoint connection string (with `.z96.` inserted), it knows it is a private-link connection. It then routes its workspace metadata call through the workspace-specific control-plane FQDN (`{workspaceid-no-dashes}.z96.w.api.fabric.microsoft.com`) instead of `api.fabric.microsoft.com`. That FQDN resolves to the PE private IP (172.20.80.5) via the private DNS zone, and the metadata call succeeds through the PE path.
+
+## The .datawarehouse DNS Gap (by Design)
+
+The docs explicitly note: "The warehouse/SQL endpoint FQDN is not available as part of the DNS configurations for the private endpoint." The `.z96.datawarehouse.fabric.microsoft.com` TDS hostname doesn't have a DNS A record in the private zone — Fabric's public routing recognizes the `z96` prefix and transparently routes TDS traffic to the workspace PE. This is expected behavior, not a misconfiguration.
+
+## Connection Strings (this deployment)
+
+| Format | Value |
+|---|---|
+| Regular (public) | `akcciftlvaeedneno4jf5yqct4-vkyspfwhsm6u3cqxpuabqlbnzy.datawarehouse.fabric.microsoft.com` |
+| Private link (use in SSMS) | `akcciftlvaeedneno4jf5yqct4-vkyspfwhsm6u3cqxpuabqlbnzy.z96.datawarehouse.fabric.microsoft.com` |
+
+z{xy} = `z96` (first two characters of workspace GUID `9627b1aa...` without dashes).
+
+## Fixes Applied
+
+1. **outputs.tf** — Added `lakehouse_sql_connection_string` (public) and `lakehouse_sql_connection_string_private_link` (z{xy} format) outputs so the correct SSMS connection string is always discoverable via `terraform output`.
+2. **README.md** — Added "Connecting via SSMS (inbound modes)" section documenting the z{xy} requirement and how to get the private link connection string.
+
+## IaC Formula
+
+```hcl
+replace(
+  fabric_lakehouse.lab_lakehouse[0].properties.sql_endpoint_properties.connection_string,
+  ".datawarehouse.",
+  ".z${substr(replace(fabric_workspace.workspace.id, "-", ""), 0, 2)}.datawarehouse."
+)
+```
+
+## Action for Ryan
+
+1. Run `terraform output lakehouse_sql_connection_string_private_link` from `Fabric-private/`  
+2. Use that connection string as the **server name** in SSMS (auth: Entra, port 1433)  
+3. Connect from the VM via Bastion — should resolve to PE and succeed
+
+## Rule
+
+For any Fabric workspace with deny-public inbound policy: always use the workspace-level private link format (`z{xy}`) for all SQL endpoint / warehouse connection strings in client tools. The regular connection string will always fail from private networks if the client tool makes a Fabric control-plane API call before the SQL connection.
+
 
