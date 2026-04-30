@@ -1073,3 +1073,44 @@ replace(
 For any Fabric workspace with deny-public inbound policy: always use the workspace-level private link format (`z{xy}`) for all SQL endpoint / warehouse connection strings in client tools. The regular connection string will always fail from private networks if the client tool makes a Fabric control-plane API call before the SQL connection.
 
 
+
+---
+
+# Decision: Fabric-private tfvars — Explicit capacity_admin_upn_list
+
+**Status:** Applied ✅  
+**Date:** 2026-04-30  
+**Author:** Donut (Infrastructure Dev)  
+**File:** `Fabric-private/terraform.tfvars`
+
+## Context
+
+`Fabric-private/main.tf` line 27: the `data.external.current_user_upn` data source only runs
+when `capacity_admin_upn_list = []` (the default). It calls `az ad signed-in-user show` via
+`pwsh`, which requires a valid Graph API token for the krokson.xyz tenant.
+
+During a repeat deploy session, running `az login` to refresh a stale CAE token switches the
+active CLI account from `ryan@krokson.xyz` to `rykrokso@microsoft.com`. The external data source
+would then either fail (CAE) or return the wrong UPN (`rykrokso@microsoft.com`) for the capacity
+admin.
+
+## Decision
+
+Set `capacity_admin_upn_list = ["ryan@krokson.xyz"]` explicitly in `Fabric-private/terraform.tfvars`.
+This sets `count = 0` on the data source, bypassing the Graph API call entirely on all future
+deploys. The UPN is stable for this lab and is already documented in the original tfvars comment.
+
+## Impact
+
+- No functional change to deployed resources.  
+- Eliminates a class of auth-related deploy failures on repeat deploys.  
+- `terraform.tfvars` is gitignored — this is a local lab setting.
+
+## New Transients Observed (2026-04-30) — For Playbook
+
+1. **`az login` account switch:** Always run `az account set --subscription <id>` after any `az login`
+   call to restore the correct auth context before re-running apply.
+2. **Workspace identity `InternalError`:** Transient on brand-new capacity. Resolved on first re-apply.
+3. **MPE `UnknownError` (storage + SQL):** Transient Fabric MPE API error. Resolved within 2-3 re-applies.
+   KV → storage → SQL is the typical resolution order.
+
