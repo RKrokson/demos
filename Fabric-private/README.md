@@ -4,6 +4,22 @@ This is an optional application landing zone. It deploys a Microsoft Fabric capa
 
 The module creates the VNet, subnets, and hub connection. You do not need to deploy this to use the Networking module on its own.
 
+## Architecture
+
+![Fabric ALZ](../Diagrams/fabric-alz.png)
+
+_Source: [fabric-alz.excalidraw](../Diagrams/fabric-alz.excalidraw) — open in [Excalidraw](https://excalidraw.com) to edit._
+
+This diagram shows the `inbound_and_outbound` configuration. Left to right:
+
+1. **Platform LZ**: Virtual WAN Hub, Azure Firewall (optional), DNS Private Resolver, Azure Bastion + Jump VM
+2. **Fabric Spoke VNet**: The PE subnet hosts the workspace-level private endpoint and Key Vault ARM PE. Outbound-target resources (Key Vault, Storage ADLS Gen2, SQL Server) live in the same VNet with `public_network_access_enabled = false`.
+3. **Microsoft Fabric (managed VNet)**: Fabric Workspace with F2 Capacity, System-Assigned Identity, optional Lakehouse, and 3 Managed Private Endpoints that connect to resources in the spoke.
+
+Inbound (solid green): Remote client → Bastion → Jump VM → Workspace PE → Fabric Workspace (deny-public policy active).
+
+Outbound (dashed purple): Fabric Workspace → MPE (blob/sqlServer/vault) → Storage / SQL / Key Vault.
+
 ## What It Deploys
 
 Resources marked **[inbound]** require `network_mode` to include `inbound` (i.e., `inbound_only` or `inbound_and_outbound`).
@@ -156,6 +172,8 @@ The `workspace_content_mode` variable controls optional Fabric items deployed in
 | `workspace_private_link_service_id`       | [inbound]  | Fabric private link service ARM ID (null otherwise) |
 | `workspace_private_endpoint_id`           | [inbound]  | Fabric workspace private endpoint ID (null otherwise) |
 | `workspace_private_endpoint_ip`           | [inbound]  | Private IP assigned to the workspace PE (null otherwise) |
+| `lakehouse_sql_connection_string`         | [lakehouse] | SQL endpoint connection string (public format; null if no lakehouse) |
+| `lakehouse_sql_connection_string_private_link` | [lakehouse] | SQL endpoint connection string in z{xy} private link format — use this in SSMS with inbound mode (null if no lakehouse) |
 
 ## Security Posture
 
@@ -177,6 +195,28 @@ The spoke VNet and platform connectivity always deploy. In `outbound_only` mode,
 When `network_mode` includes inbound (default), the workspace blocks all public internet access. The Fabric portal shell (`app.fabric.microsoft.com`) still loads over the public internet, but workspace API calls are blocked unless the caller is on a network with the private endpoint. This is workspace-scoped and independent of tenant-level settings.
 
 > **⏱ Propagation delay:** After `terraform apply`, the workspace communication policy (`defaultAction: Deny`) can take **up to 30 minutes** to take full effect per [Microsoft docs](https://learn.microsoft.com/en-us/fabric/security/security-workspace-level-private-links-set-up). The workspace may still be reachable from the public internet briefly after apply completes — this is expected behavior, not a bug.
+
+### Connecting via SSMS (inbound modes)
+
+When the workspace has `defaultAction: Deny`, SSMS **must** use the workspace-level private link format of the SQL endpoint connection string, not the regular one. This is because SSMS makes a Fabric control-plane API call (`FabricWorkspaceApi.GetAsync`) before it opens the SQL connection. With the regular connection string, SSMS calls `api.fabric.microsoft.com` (public endpoint) for that metadata call — the deny-public policy blocks it with `RequestDeniedByInboundPolicy`. With the private link format (z{xy} prefix), SSMS routes the metadata call through the workspace-specific FQDN (`{workspaceid}.z{xy}.w.api.fabric.microsoft.com`), which resolves to the PE private IP via the private DNS zone.
+
+**Step 1 — Get the private link connection string:**
+
+```sh
+terraform output lakehouse_sql_connection_string_private_link
+```
+
+Or read the `lakehouse_sql_connection_string` output and insert `.z{xy}.` before `.datawarehouse.` (where `{xy}` = the first two characters of the workspace GUID without dashes — from `terraform output fabric_workspace_id`).
+
+**Step 2 — Connect in SSMS:**
+
+| Field | Value |
+|---|---|
+| Server name | `{output from step 1}` |
+| Authentication | Microsoft Entra — MFA, or Password |
+| Port | 1433 (default) |
+
+The VM must be on the network connected via the workspace PE (Bastion session works). DNS on the VM must resolve workspace-specific FQDNs to the PE private IP (verified by `nslookup {workspaceid-no-dashes}.z{xy}.w.api.fabric.microsoft.com` returning `172.20.80.5`).
 
 ### Tenant-Level Private Link — Out of Scope
 
