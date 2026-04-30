@@ -4,6 +4,10 @@
 **Stack:** Markdown, technical documentation  
 **Created:** 2026-03-27
 
+## Most Recent Work (2026-07-18)
+
+- **2026-07-18 (fabric-alz-diagram):** Created `Diagrams/fabric-alz.excalidraw` — full architecture diagram for the Fabric-private ALZ. Shows all three panels (Platform LZ, Fabric Spoke VNet, Microsoft-managed Fabric), inbound PE path (green solid arrows), outbound MPE path (purple dashed arrows), RBAC arrow (gray dashed), deny-public badge, Lakehouse optional dotted box, and mode legend. Added Architecture section to `Fabric-private/README.md` with `.png` reference (aspirational — export from Excalidraw) and `.excalidraw` source link. Diagram uses basic shapes with color coding (no icon library scripts needed — clean labels are more readable at README scale).
+
 ## Most Recent Work (2026-07-15)
 
 - **2026-07-15 (fabric-prereq-rewrite):** Rewrote Fabric-private README Prerequisites section to document two silent-failure gates: (1) Entra directory role required (not Azure RBAC), (2) Tenant Fabric provisioning required (Free/trial/F-SKU). Each gate has verification step + clear error mode. Added links to Entra admin center. Gate order prevents troubleshooting dead-ends. Decision documented: Fabric Admin Access Model & Prerequisites Restructure. README updated, uncommitted per workflow.
@@ -39,6 +43,9 @@
 - Silent-failure debugging: Empty API responses indicate missing prerequisites, not bad credentials
 - Lab environment design: Private-by-default contradicts module purpose; flip defaults
 - Documentation ROI: 5-variable focus vs 13-row tables saves readers 80% cognitive load
+- Excalidraw diagrams: Manual JSON (colored rectangles + arrows) outperforms icon-library scripts for architecture diagrams at README scale. Icons add noise; clear labels + color coding add signal. Use `fontFamily: 5` (Excalifont) on all text elements.
+- Diagram README pattern: PNG reference (aspirational, export from Excalidraw) + `.excalidraw` source link + 5-line prose summary. Reuse for all future ALZ diagrams.
+- Color convention for Azure diagrams: blue=networking, green=private endpoints, orange=data resources, purple=Fabric, red=deny-public policy, yellow=legend/callouts.
 
 ## See Also
 
