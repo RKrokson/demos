@@ -6,7 +6,7 @@ The module creates the VNet, subnets, and hub connection. You do not need to dep
 
 ## Architecture
 
-![Fabric ALZ](../Diagrams/fabric-alz.png)
+![Fabric ALZ](../Diagrams/fabric-alz.svg)
 
 _Source: [fabric-alz.excalidraw](../Diagrams/fabric-alz.excalidraw) — open in [Excalidraw](https://excalidraw.com) to edit._
 
