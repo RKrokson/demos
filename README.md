@@ -21,7 +21,7 @@ This repo follows a two-tier landing zone pattern:
 | `Foundry-byoVnet/`        | Application | AI Foundry with private endpoints in a BYO VNet               | [README](./Foundry-byoVnet/README.md)        |
 | `Foundry-managedVnet/`    | Application | AI Foundry with private endpoints in a Microsoft-managed VNet | [README](./Foundry-managedVnet/README.md)    |
 | `ContainerApps-byoVnet/`  | Application | Container Apps with ACR in a BYO VNet                         | [README](./ContainerApps-byoVnet/README.md)  |
-| `Fabric-byoVnet/`         | Application | Microsoft Fabric with workspace PE (private inbound) + 3 MPEs to shared platform resources (Storage, SQL, KV). Sweden Central. | [README](./Fabric-byoVnet/README.md) |
+| `Fabric-private/`         | Application | Microsoft Fabric with workspace PE (private inbound) + 3 MPEs to LZ-local resources (Storage, SQL, KV). Sweden Central. | [README](./Fabric-private/README.md) |
 
 Future modules will follow the same application landing zone pattern. See the [Adding a New Application Landing Zone](./docs/adding-application-landing-zone.md) guide.
 
@@ -49,10 +49,10 @@ Future modules will follow the same application landing zone pattern. See the [A
 
 4. (Optional) Deploy an **application landing zone**. Each module is independent:
    ```sh
-   cd ../Foundry-byoVnet   # or ../Foundry-managedVnet, ../ContainerApps-byoVnet, or ../Fabric-byoVnet
+   cd ../Foundry-byoVnet   # or ../Foundry-managedVnet, ../ContainerApps-byoVnet, or ../Fabric-private
    terraform init && terraform apply
    ```
-   **Note:** Application landing zones require `add_private_dns00 = true` in Networking's tfvars to enable private DNS resolution. Fabric-byoVnet also requires tenant-level Fabric settings configured before deploy (see its README).
+   **Note:** Application landing zones require `add_private_dns00 = true` in Networking's tfvars to enable private DNS resolution. Fabric-private also requires tenant-level Fabric settings configured before deploy (see its README).
 
 See each module's README for details.
 
@@ -69,7 +69,7 @@ See each module's README for details.
 2. **Purge the soft-deleted AI Foundry resource.** The subnet service association link blocks Networking deletion until this is done. Wait ~10 minutes after purge completes.
    - [Purge a deleted resource](https://learn.microsoft.com/en-us/azure/ai-services/recover-purge-resources?tabs=azure-cli#purge-a-deleted-resource)
 
-3. If you destroyed **Fabric-byoVnet**, clear the Networking Key Vault's PE connection slots before re-deploying. Key Vault has a 25-connection limit, and stale MPE connections count against it. See `Fabric-byoVnet/README.md` for the cleanup procedure.
+3. If you destroyed **Fabric-private**, clear the LZ-local Key Vault's PE connection slots before re-deploying. Key Vault has a 25-connection limit, and stale MPE connections count against it. See `Fabric-private/README.md` for the cleanup procedure.
 
 4. Destroy the platform:
    ```sh
