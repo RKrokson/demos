@@ -14,7 +14,18 @@ Donut is the infrastructure developer driving module implementation and live dep
 
 ---
 
-## Most Recent Work (2026-04-29 Fabric-private + Networking Teardown)
+## Most Recent Work (2026-04-30 Fabric-private + Networking Teardown — Background Agent donut-10)
+
+- **Task:** Full teardown of Fabric-private (deny-public active) + Networking (firewall + DNS, two regions)
+- **Duration:** ~3.2 hours wall clock (~70 min Azure-side work)
+- **Mode:** Background agent (claude-sonnet-4.6)
+- **Outcome:** SUCCESS. Zero orphans. All RGs deleted. Both state files at 0 resources. Lab fully destroyed.
+- **Status:** Agent manually stopped post-disconnect/reconnect to allow Scribe post-run documentation + commit.
+- **Key Incident:** During Networking destroy (~45 min mark, 944 → 46 resources), transient client-side DNS resolution failure (`dial tcp: lookup management.azure.com: no such host`). Root cause: network connectivity blip (client-side only). Azure had already accepted delete operations. Resolution: verified connectivity, re-ran `terraform destroy -refresh=false -auto-approve`. Terraform resumed from 46 resources, destroyed all remaining (exit code 0).
+- **Fabric notes:** Two-phase pattern executed cleanly. SQL MPE needed 3 DELETE attempts (expected). Workspace DELETE was immediately successful on Phase 2 (policy had fully propagated during the 10-min KV soft-delete in Phase 1). Policy propagation: ~4:40 (14×20s polls).
+- **Pattern established:** Any `dial tcp: lookup ... no such host` during destroy = client connectivity issue. Do not perform manual state surgery. Verify connectivity and re-run.
+
+## Most Recent Work Archive: 2026-04-29 Fabric-private + Networking Teardown
 
 - **Task:** Full teardown of Fabric-private + Networking with deny-public-access inbound policy active
 - **Duration:** ~20–30 min (two-phase pattern with manual MPE/workspace REST deletions)
@@ -24,6 +35,15 @@ Donut is the infrastructure developer driving module implementation and live dep
 ---
 
 ## Key Learnings — Recent Sessions
+
+### Networking Destroy — Client DNS Blip (2026-07-25)
+- **Symptom:** `terraform destroy` exits with code 1 mid-run with `dial tcp: lookup management.azure.com: no such host` on Private DNS zone async-delete status polls. Resources partially destroyed (e.g. 944 → 46 in state).
+- **Cause:** Transient client-side DNS/network connectivity loss during long-running destroy. Has nothing to do with Azure state.
+- **Fix:** Verify `management.azure.com` is reachable, then immediately re-run `terraform destroy -refresh=false -auto-approve`. Terraform picks up from remaining state — no manual state surgery needed.
+- **Key check:** After connectivity restored, count state resources before retrying so you know what to expect.
+
+### Fabric Two-Phase Destroy — Workspace DELETE timing observation (2026-07-25)
+- The KV soft-delete (10+ min) in Phase 1 doubles as an inadvertent wait for workspace data-plane propagation. By the time Phase 1 finishes, the workspace DELETE call in Phase 2 succeeds on the first attempt. No separate polling loop needed for workspace DELETE when Phase 1 runs in full.
 
 ### Fabric PE Pattern (2026-07-17)
 - **Microsoft.Fabric/privateLinkServicesForFabric IS valid:** Workspace-level PE anchor type (API 2024-06-01, global). Distinct from tenant-level `Microsoft.PowerBI/privateLinkServicesForPowerBI`.
