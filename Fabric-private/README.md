@@ -151,7 +151,7 @@ In `outbound_only` and `inbound_and_outbound` modes, the workspace gets `Storage
 The `workspace_content_mode` variable controls optional Fabric items:
 
 - `"none"` (default) — empty workspace
-- `"lakehouse"` — deploys an OneLake-backed Lakehouse named `lakehouse-{suffix}`
+- `"lakehouse"` — deploys a OneLake-backed Lakehouse named `Lakehouse_{suffix}`
 
 ## Outputs
 
