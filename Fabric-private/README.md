@@ -208,11 +208,15 @@ terraform output lakehouse_sql_connection_string_private_link
 
 Or read the `lakehouse_sql_connection_string` output and insert `.z{xy}.` before `.datawarehouse.` (where `{xy}` = the first two characters of the workspace GUID without dashes — from `terraform output fabric_workspace_id`).
 
+The resulting SQL endpoint FQDN will look like:
+- **Before (public):** `{GUID}-{GUID}.datawarehouse.fabric.microsoft.com`
+- **After (private link):** `{GUID}-{GUID}.z{xy}.datawarehouse.fabric.microsoft.com` ← This goes into SSMS
+
 **Step 2 — Connect in SSMS:**
 
 | Field | Value |
 |---|---|
-| Server name | `{output from step 1}` |
+| Server name | `{output from step 1}` (the `.z{xy}.datawarehouse.` FQDN) |
 | Authentication | Microsoft Entra — MFA, or Password |
 | Port | 1433 (default) |
 
