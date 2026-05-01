@@ -69,9 +69,7 @@ See each module's README for details.
 2. **Purge the soft-deleted AI Foundry resource.** The subnet service association link blocks Networking deletion until this is done. Wait ~10 minutes after purge completes.
    - [Purge a deleted resource](https://learn.microsoft.com/en-us/azure/ai-services/recover-purge-resources?tabs=azure-cli#purge-a-deleted-resource)
 
-3. If you destroyed **Fabric-private**, clear the LZ-local Key Vault's PE connection slots before re-deploying. Key Vault has a 25-connection limit, and stale MPE connections count against it. See `Fabric-private/README.md` for the cleanup procedure.
-
-4. Destroy the platform:
+3. Destroy the platform:
    ```sh
    cd ../Networking
    terraform destroy
