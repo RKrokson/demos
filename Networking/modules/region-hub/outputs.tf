@@ -83,3 +83,15 @@ output "bastion_host_id" {
   description = "Bastion Host ID"
   value       = azurerm_bastion_host.bastion.id
 }
+
+# ── Private DNS Zone IDs (Fabric ALZ) ───────────────────────────
+
+output "private_dns_zone_fabric_id" {
+  description = "Private DNS Zone ID for privatelink.fabric.microsoft.com (null if Private DNS not deployed)"
+  value       = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.fabric.microsoft.com" : null
+}
+
+output "private_dns_zone_sql_id" {
+  description = "Private DNS Zone ID for privatelink.database.windows.net (null if Private DNS not deployed)"
+  value       = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net" : null
+}

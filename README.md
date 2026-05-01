@@ -21,6 +21,7 @@ This repo follows a two-tier landing zone pattern:
 | `Foundry-byoVnet/`        | Application | AI Foundry with private endpoints in a BYO VNet               | [README](./Foundry-byoVnet/README.md)        |
 | `Foundry-managedVnet/`    | Application | AI Foundry with private endpoints in a Microsoft-managed VNet | [README](./Foundry-managedVnet/README.md)    |
 | `ContainerApps-byoVnet/`  | Application | Container Apps with ACR in a BYO VNet                         | [README](./ContainerApps-byoVnet/README.md)  |
+| `Fabric-private/`         | Application | Microsoft Fabric with workspace PE (private inbound) + 3 MPEs to LZ-local resources (Storage, SQL, KV). Sweden Central. | [README](./Fabric-private/README.md) |
 
 Future modules will follow the same application landing zone pattern. See the [Adding a New Application Landing Zone](./docs/adding-application-landing-zone.md) guide.
 
@@ -48,10 +49,10 @@ Future modules will follow the same application landing zone pattern. See the [A
 
 4. (Optional) Deploy an **application landing zone**. Each module is independent:
    ```sh
-   cd ../Foundry-byoVnet   # or ../Foundry-managedVnet or ../ContainerApps-byoVnet
+   cd ../Foundry-byoVnet   # or ../Foundry-managedVnet, ../ContainerApps-byoVnet, or ../Fabric-private
    terraform init && terraform apply
    ```
-   **Note:** Application landing zones require `add_private_dns00 = true` in Networking's tfvars to enable private DNS resolution.
+   **Note:** Application landing zones require `add_private_dns00 = true` in Networking's tfvars to enable private DNS resolution. Fabric-private also requires tenant-level Fabric settings configured before deploy (see its README).
 
 See each module's README for details.
 
