@@ -34,13 +34,14 @@ The main risks are identity churn, regional blast radius, preview API drift, rec
 | 4 | Foundry managed-VNet multi-region | Applies the regional pattern to the second Foundry architecture |
 | 5 | Private AI Gateway | Strongest current customer and pre-sales demand |
 | 6 | Fabric multi-region | Reuses the regional pattern for independent Fabric estates |
-| 7 | Copilot Studio private networking | High strategic value, but requires a feasibility spike |
-| 8 | Azure Databricks private networking | Strong demo value with more networking and cleanup complexity |
-| 9 | AKS application landing zone | Useful and well-supported, but currently the lowest business priority |
+| 7 | Container Apps multi-region | Completes regional support across the existing application landing zones |
+| 8 | Copilot Studio private networking | High strategic value, but requires a feasibility spike |
+| 9 | Azure Databricks private networking | Strong demo value with more networking and cleanup complexity |
+| 10 | AKS application landing zone | Useful and well-supported, but currently the lowest business priority |
 
-Packages 1 and 2 are independent and can be implemented in parallel. Fabric can begin after package 1, but AI Gateway remains ahead of it because demand is stronger.
+Package 1 must complete before the Foundry changes because it replaces the platform-to-ALZ contract used by the current modules. Fabric can begin after package 1, but AI Gateway remains ahead of it because demand is stronger.
 
-Each package receives its own feature design and implementation plan. This roadmap is not an implementation plan for all nine packages.
+Each package receives its own feature design and implementation plan. This roadmap is not an implementation plan for all ten packages.
 
 ## Regional platform contract
 
@@ -55,10 +56,13 @@ Each entry will provide:
 - Firewall-enabled status
 - DNS server IP
 - DNS resolver policy ID
+- Regional private DNS zone IDs required by application private endpoints
 
 Region 0 is always enabled. Region 1 remains in the map but reports `enabled = false` and null resource values when `create_vhub01 = false`.
 
-Existing scalar outputs remain available for backward compatibility. Shared outputs such as the Log Analytics workspace and private DNS zone IDs remain top-level outputs.
+The regional scalar outputs will be replaced by `alz_regions`. Package 1 migrates every existing application landing zone to the new map and removes the obsolete region-specific outputs in the same change. The lab does not retain a permanent compatibility layer.
+
+Truly shared outputs, such as the Log Analytics workspace, remain top-level. Private DNS zone IDs move into each regional entry because Networking creates regional Private DNS resources and application private endpoints must use the selected region's zones.
 
 Application landing zones consume this contract through `terraform_remote_state`. Networking does not deploy or own workload resources.
 
@@ -68,9 +72,14 @@ Existing application landing zones remain independent root modules:
 
 - `Foundry-byoVnet/`
 - `Foundry-managedVnet/`
+- `ContainerApps-byoVnet/`
 - `Fabric-private/`
 
-Each root module derives its enabled regions from `alz_regions` and composes region-scoped resources internally. Region 0 is always deployed. Region 1 follows the Networking state.
+Every application landing zone exposes a `deploy_region1` boolean that defaults to `false`. Region 0 is always deployed. Region 1 deploys only when `deploy_region1 = true` and `alz_regions.region1.enabled = true`.
+
+Networking region 1 being available does not automatically create a second workload region. If an application landing zone sets `deploy_region1 = true` while Networking region 1 is unavailable, a Terraform check fails with a specific prerequisite error.
+
+Each root module derives its selected regions from `alz_regions` and its own `deploy_region1` variable, then composes region-scoped resources internally.
 
 Refactoring existing resources into child modules is allowed to be a breaking upgrade. The README for each affected module will tell users to destroy an existing deployment before adopting the refactored version.
 
@@ -82,7 +91,9 @@ New workloads remain root-level application landing zones with their own state, 
 
 Add the `alz_regions` output and document it in `Networking/README.md`. The output must be null-safe when region 1, Firewall, or Private DNS is disabled.
 
-This package does not change existing Networking resources or application landing zones.
+Migrate Foundry BYO VNet, Foundry managed VNet, Container Apps, and Fabric to read their region-0 platform and Private DNS values from `alz_regions`. Remove the superseded region-specific scalar outputs after all current consumers are updated.
+
+This package changes the platform-to-ALZ data contract but does not change deployed workload resource behavior.
 
 ### 2. Foundry BYO optional data services
 
@@ -96,7 +107,7 @@ Public Microsoft documentation may lag this Foundry behavior, so the final imple
 
 ### 3. Foundry BYO VNet multi-region
 
-Deploy one independent Foundry stack for each enabled region. Both stacks use the same model and project configuration in the first milestone.
+Deploy one independent Foundry stack in region 0. When `deploy_region1 = true`, deploy a second stack only if Networking region 1 is available. Both stacks use the same model and project configuration in the first milestone.
 
 Each region owns its resource group, spoke VNet, delegated subnet, private-endpoint subnet, Foundry resource, project, model deployment, private endpoints, and regional diagnostics.
 
@@ -104,7 +115,7 @@ Cross-region agent state, synchronized projects, automatic failover, and traffic
 
 ### 4. Foundry managed-VNet multi-region
 
-Apply the same regional composition pattern to `Foundry-managedVnet/`.
+Apply the same `deploy_region1` regional composition pattern to `Foundry-managedVnet/`.
 
 Each region has an independent Foundry resource, project, Microsoft-managed agent network, private-endpoint spoke, and model deployment. Shared configuration does not imply shared state or automatic failover.
 
@@ -114,12 +125,12 @@ Create a separate `AI-Gateway/` application landing zone.
 
 The module deploys one Azure API Management Standard v2 instance in region 0. APIM uses an inbound private endpoint and outbound VNet integration. Public gateway access is disabled after the private endpoint is ready.
 
-AI Gateway consumes a uniform `foundry_regions` output from either Foundry module:
+AI Gateway exposes `deploy_region1 = false` and consumes a uniform `foundry_regions` output from either Foundry module:
 
-- With one enabled Foundry region, APIM configures one backend.
-- With two enabled Foundry regions, APIM configures a priority-ranked backend pool with circuit breakers.
+- With `deploy_region1 = false`, APIM configures only the region-0 backend.
+- With `deploy_region1 = true`, APIM configures a priority-ranked backend pool with circuit breakers and requires the selected Foundry state to contain region 1.
 
-The region-0 gateway spoke connects to `vhub00`. APIM reaches both Foundry private endpoints through the platform's vWAN routing and Private DNS.
+The region-0 gateway spoke connects to the region-0 vHub. APIM reaches every selected Foundry private endpoint through the platform's vWAN routing and Private DNS.
 
 The first milestone includes:
 
@@ -137,13 +148,21 @@ The design borrows the centralized gateway and multi-region backend pattern from
 
 ### 6. Fabric multi-region
 
-Deploy a separate Fabric capacity, workspace, spoke VNet, private endpoint, and optional outbound resources in each enabled region.
+Deploy a Fabric capacity, workspace, spoke VNet, private endpoint, and optional outbound resources in region 0.
 
-The default remains an F2 capacity. Region 1 creates a second F2 capacity only when Networking region 1 is enabled.
+The default remains an F2 capacity. A second independent Fabric estate is created only when `deploy_region1 = true` and Networking region 1 is available.
 
 The two Fabric estates are independent. Workspace replication, cross-region shortcuts, shared workspaces, and disaster recovery are out of scope.
 
-### 7. Copilot Studio private networking
+### 7. Container Apps multi-region
+
+Apply the same `deploy_region1` regional composition pattern to `ContainerApps-byoVnet/`.
+
+Region 0 retains the existing Container Apps environment, Azure Container Registry, spoke VNet, private endpoints, and selected `app_mode`. When region 1 is enabled for the ALZ, deploy an independent regional stack with the same application mode.
+
+Cross-region application routing, shared registries, and application-level failover are out of scope.
+
+### 8. Copilot Studio private networking
 
 Start with a bounded feasibility and design package that produces a go/no-go recommendation before any deployment code is written.
 
@@ -159,19 +178,21 @@ The package must establish:
 
 Implementation begins only after the spike proves that the design can be repeated reliably in this lab repository.
 
-### 8. Azure Databricks private networking
+Any new Copilot Studio landing zone must expose `deploy_region1`, defaulting to `false`. Its feasibility package must determine how the ALZ variable maps to the Power Platform geography and enterprise-policy requirement for one or two Azure regions.
+
+### 9. Azure Databricks private networking
 
 Create an application landing zone for a private Databricks workspace used in Foundry and Databricks integration tests.
 
-The first milestone uses the minimum transit-VNet and workspace-VNet pattern required for private UI/API access and VNet-injected compute. Serverless Network Connectivity Configurations and broader data-platform scenarios are added only when the target demo requires them.
+The first milestone uses the minimum transit-VNet and workspace-VNet pattern required for private UI/API access and VNet-injected compute. It exposes `deploy_region1`, defaulting to `false`, and creates a second independent workspace stack only when explicitly enabled. Serverless Network Connectivity Configurations and broader data-platform scenarios are added only when the target demo requires them.
 
 Cleanup documentation must cover private endpoints, browser-authentication dependencies, and workspace deletion order.
 
-### 9. AKS application landing zone
+### 10. AKS application landing zone
 
 Create a cost-controlled private AKS cluster in a dedicated spoke.
 
-The first milestone includes basic observability and an optional sample agent workload. Production baseline features such as WAF, complex ingress, multi-region orchestration, and large node pools remain out of scope.
+The first milestone includes basic observability, an optional sample agent workload, and `deploy_region1 = false`. Enabling region 1 creates a second independent cluster rather than a multi-cluster orchestration layer. Production baseline features such as WAF, complex ingress, multi-region orchestration, and large node pools remain out of scope.
 
 ## Cross-stack data flow
 
@@ -185,7 +206,9 @@ Both Foundry modules publish the same `foundry_regions` structure. Each enabled 
 - Model deployment names
 - Azure region name and abbreviation
 
-AI Gateway reads the selected Foundry state and Networking state. It validates that every enabled Foundry region exists and is enabled in Networking before configuring backends.
+Each application landing zone selects region 0 plus optional region 1 from `alz_regions`. Networking advertises availability; the ALZ's `deploy_region1` variable decides whether the workload uses that availability.
+
+AI Gateway reads the selected Foundry state and Networking state. It validates that every requested Foundry backend exists and that its region is enabled in Networking before configuring APIM.
 
 Fabric and future application landing zones read Networking state directly. They do not consume or modify Foundry resources unless a later integration feature explicitly requires it.
 
@@ -193,7 +216,8 @@ Fabric and future application landing zones read Networking state directly. They
 
 Terraform `check` blocks will fail with specific messages when:
 
-- Region 1 is requested by a workload but is unavailable in Networking
+- `deploy_region1 = true` but Networking region 1 is unavailable
+- AI Gateway requests region 1 but the selected Foundry deployment does not include it
 - Required vHub, DNS server, resolver policy, or private DNS outputs are null
 - Foundry reports a region that does not match Networking
 - AI Gateway receives zero Foundry backends
@@ -205,10 +229,11 @@ Invalid configurations must fail during planning when Terraform has enough infor
 ## Cost controls
 
 - Networking region 1 remains disabled by default
+- Every application landing zone defaults `deploy_region1` to `false`
 - Foundry uses existing low-capacity model defaults unless a package design changes them
-- Foundry data services remain enabled by default for compatibility, but can be removed as one bundle
+- Foundry data services remain enabled by default to preserve the current deployment behavior, but can be removed as one bundle
 - AI Gateway deploys one APIM instance, not one per Foundry region
-- Fabric region 1 creates a second capacity only when the platform and Fabric region are enabled
+- Fabric region 1 creates a second capacity only when both Networking and the Fabric ALZ enable it
 - New landing zones use the smallest practical lab SKUs and document recurring cost drivers
 
 ## Validation
@@ -231,15 +256,22 @@ Deployment validation must cover:
 | Foundry managed | One region and two regions |
 | AI Gateway | One private backend, two private backends, and forced primary-backend failure |
 | Fabric | One independent estate and two independent estates |
+| Container Apps | One regional stack and two independent regional stacks for each supported `app_mode` |
 | New landing zones | Private connectivity, cleanup, and documented prerequisite checks |
+
+Every multi-region application landing zone must also prove these control cases:
+
+- Networking has two regions and `deploy_region1 = false`: only region 0 is planned.
+- Networking has two regions and `deploy_region1 = true`: both workload regions are planned.
+- Networking has one region and `deploy_region1 = true`: planning fails with the expected prerequisite message.
 
 For AI Gateway, deployment testing must prove:
 
 - A private client can reach APIM
 - APIM can reach every enabled private Foundry endpoint
 - Private DNS resolves every enabled endpoint from the APIM integration path
-- Managed identity authenticates to both Foundry resources
-- A failed or throttled primary backend routes to the secondary backend
+- Managed identity authenticates to every configured Foundry resource
+- When `deploy_region1 = true`, a failed or throttled primary backend routes to the secondary backend
 
 This repository has no Terraform test files, TFLint configuration, or CI workflow. Those tools are not added as part of this roadmap.
 
