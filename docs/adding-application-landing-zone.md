@@ -45,7 +45,7 @@ resource "azurerm_resource_group" "rg" {
 
 ## Available Platform Outputs
 
-The Networking module exposes resource group info, subnet IDs, hub IDs, Log Analytics, and private DNS zone IDs. See the full list in the [Networking README outputs table](../Networking/README.md#outputs--platform-to-alz-contract).
+The Networking module exposes resource group info, hub IDs, Log Analytics, and private DNS zone IDs. See the full list in the [Networking README outputs table](../Networking/README.md#outputs--platform-to-alz-contract).
 
 Key outputs you will likely need:
 
