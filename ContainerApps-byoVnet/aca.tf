@@ -3,7 +3,7 @@
 
 # Container Apps Environment — internal load balancer, workload profiles enabled
 resource "azurerm_container_app_environment" "aca_env" {
-  name                           = "${var.aca_environment_name}-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
+  name                           = "${var.aca_environment_name}-${local.platform_region0.region_abbr}-${random_string.unique.result}"
   location                       = azurerm_resource_group.rg_aca00.location
   resource_group_name            = azurerm_resource_group.rg_aca00.name
   log_analytics_workspace_id     = data.terraform_remote_state.networking.outputs.log_analytics_workspace_id

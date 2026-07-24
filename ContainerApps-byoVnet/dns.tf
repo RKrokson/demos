@@ -32,6 +32,6 @@ resource "azurerm_private_dns_zone_virtual_network_link" "aca_env_dns_platform_v
   name                  = "aca-env-dns-to-dns-vnet-${random_string.unique.result}"
   resource_group_name   = azurerm_resource_group.rg_aca00.name
   private_dns_zone_name = azurerm_private_dns_zone.aca_env_dns.name
-  virtual_network_id    = data.terraform_remote_state.networking.outputs.dns_vnet00_id
+  virtual_network_id    = local.platform_region0.dns_vnet_id
   tags                  = local.common_tags
 }
