@@ -84,14 +84,23 @@ output "bastion_host_id" {
   value       = azurerm_bastion_host.bastion.id
 }
 
-# ── Private DNS Zone IDs (Fabric ALZ) ───────────────────────────
+# ── Private DNS Zone IDs ─────────────────────────────────────────
 
-output "private_dns_zone_fabric_id" {
-  description = "Private DNS Zone ID for privatelink.fabric.microsoft.com (null if Private DNS not deployed)"
-  value       = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.fabric.microsoft.com" : null
-}
-
-output "private_dns_zone_sql_id" {
-  description = "Private DNS Zone ID for privatelink.database.windows.net (null if Private DNS not deployed)"
-  value       = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net" : null
+output "private_dns_zone_ids" {
+  description = "Private DNS Zone IDs for application landing zones; values are null when Private DNS is disabled"
+  value = {
+    blob              = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net" : null
+    file              = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.windows.net" : null
+    table             = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.table.core.windows.net" : null
+    queue             = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.queue.core.windows.net" : null
+    vaultcore         = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net" : null
+    cognitiveservices = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.cognitiveservices.azure.com" : null
+    openai            = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.openai.azure.com" : null
+    services_ai       = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.services.ai.azure.com" : null
+    search            = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.search.windows.net" : null
+    documents         = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.documents.azure.com" : null
+    acr               = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io" : null
+    fabric            = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.fabric.microsoft.com" : null
+    sql               = var.add_private_dns ? "${var.resource_group_id}/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net" : null
+  }
 }
