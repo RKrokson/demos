@@ -24,7 +24,7 @@ resource "azurerm_storage_account" "storage_account" {
   }
 
   ## Network access configuration
-  public_network_access_enabled = false
+  public_network_access_enabled   = false
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
   tags                            = local.common_tags

@@ -1,14 +1,16 @@
 # Copilot instructions for this repository
 
-This repository is Terraform for Azure platform and application landing zones used for demos, labs, and POCs. It is not production infrastructure.
+This repository contains Terraform for Azure platform and application landing zones used for demos, labs, and POCs. It is not production infrastructure.
 
 ## Commands
 
-Run Terraform commands from the module folder you are changing, not from the repository root.
+All active root modules require Terraform >= 1.11. Run Terraform from the module folder you are changing, not from the repository root.
 
 ```powershell
 .\setSubscription.ps1
-cd Networking
+# setSubscription.ps1 uses setx; open a new shell before relying on ARM_SUBSCRIPTION_ID.
+
+Set-Location .\Networking
 terraform init
 terraform fmt -check
 terraform validate
@@ -16,47 +18,55 @@ terraform plan
 terraform apply
 ```
 
-Common checks:
+Use this as the smallest module-scoped check, equivalent to running a single test in this repository:
 
 ```powershell
-terraform fmt -check -recursive
-cd <module-folder>
+Set-Location .\Foundry-byoVnet # replace with the module being changed
 terraform init -backend=false
+terraform fmt -check
 terraform validate
 ```
 
-There is no dedicated test suite in this repo. Treat module-scoped `terraform validate` as the single-module check. Use `terraform plan` only when Azure auth, subscription, and prerequisite state are available.
+Run the repository-wide format check from the root:
+
+```powershell
+terraform fmt -check -recursive
+```
+
+There are no `.tftest.hcl` files, standalone test suite, repository TFLint configuration, or CI workflows. Do not invent `terraform test`, TFLint, or CI commands. Use `terraform plan` only when Azure authentication, subscription context, and prerequisite state are available.
 
 ## Architecture
 
-The repo uses a two-tier landing-zone model:
+The repository uses a two-tier landing-zone model:
 
-- `Networking/` is the platform landing zone. It deploys Azure Virtual WAN, virtual hubs, shared spoke VNets, a test VM, Log Analytics, and optional Azure Firewall, Private DNS Resolver, and a second region.
-- Application landing zones live in root-level folders such as `Foundry-byoVnet/`, `Foundry-managedVnet/`, `ContainerApps-byoVnet/`, and `Fabric-private/`. Each creates its own spoke VNet and connects to the platform vHub.
-- Application modules read platform outputs with `data "terraform_remote_state" "networking"` from `../Networking/terraform.tfstate`. Deploy `Networking/` first.
-- Private networking workloads generally require `add_private_dns00 = true` in `Networking/terraform.tfvars`. Existing app modules enforce this with Terraform `check` blocks.
-- `Networking/modules/region-hub/` is an internal child module used by the platform layer to avoid duplicating per-region hub, firewall, DNS, Bastion, and VM resources.
+- `Networking/` is the platform landing zone. It deploys Azure Virtual WAN, a shared Log Analytics workspace, and one or two regional stacks. `Networking/modules/region-hub/` owns each region's vHub, shared spoke, optional Firewall and Private DNS Resolver, Bastion, and test VM. Region 0 is always created; region 1 is gated by `create_vhub01`.
+- Root-level application landing zones (`Foundry-byoVnet/`, `Foundry-managedVnet/`, `ContainerApps-byoVnet/`, and `Fabric-private/`) create workload resources and a dedicated spoke VNet connected to the platform vHub.
+- Application modules consume `../Networking/terraform.tfstate` through `data "terraform_remote_state" "networking"`. Deploy `Networking/` first. State is local by default, so do not assume a remote backend exists.
+- Existing application modules require platform Private DNS and enforce required outputs with Terraform `check` blocks. Set `add_private_dns00 = true` before deploying them.
+- `Foundry-managedVnet/` still creates a spoke for private endpoints and platform connectivity, but the Foundry agent network itself is Microsoft-managed. Its optional `foundry_mvnet_fw_aoao` path uses PowerShell, Azure CLI, and AzAPI to configure approved outbound access.
 
-Destroy application landing zones before destroying `Networking/`. Foundry modules require purging soft-deleted AI Foundry resources before the platform subnet can be removed. Fabric has its own capacity, workspace, SQL, and Key Vault cleanup notes in `Fabric-private/README.md`.
+Destroy application landing zones before `Networking/`. `Foundry-byoVnet/` requires purging the soft-deleted Foundry resource before its delegated subnet can be removed. `Fabric-private/README.md` owns its capacity, workspace, SQL, and Key Vault cleanup sequence.
 
 ## Repository conventions
 
 - Terraform state is local by default. `config.tf` files include commented Azure Storage backend blocks; do not assume remote state is configured.
-- Providers are pinned per module. `Networking/` accepts broader AzureRM/AzAPI 4.x/2.x ranges, while application modules typically pin `azurerm ~> 4.26.0`, `azapi ~> 2.3.0`, and `random ~> 3.5`.
-- The AzureRM provider sets `prevent_deletion_if_contains_resources = false` for lab cleanup. Do not copy that into production guidance without calling out the risk.
-- Most app modules name resources with `{base-name}-{azure_region_0_abbr}-{random_string.unique.result}`. The platform uses `local.suffix = random_string.unique.id`.
-- Common tags are defined in `locals.tf` and applied to taggable resources:
-  `environment = "non-prod"`, `managed_by = "terraform"`, `project = "azure-infra-poc"`.
-- Each new application landing zone gets the next free `/20` block from `docs/ip-addressing.md`. Defaults are hardcoded in module variables, and subnets must stay inside the assigned block.
+- Provider constraints intentionally differ by module. `Networking/` accepts AzureRM 4.x and AzAPI 2.x; the Foundry modules pin AzAPI `~> 2.4`; Container Apps and Fabric pin AzAPI `~> 2.3.0`; Fabric also requires `microsoft/fabric ~> 1.9` with preview enabled. Preserve each module's `config.tf` instead of normalizing versions across the repository.
+- The AzureRM provider sets `prevent_deletion_if_contains_resources = false` for lab cleanup. Do not present this as a production default.
+- Application resources generally use `{base-name}-{azure_region_0_abbr}-{random_string.unique.result}`. The platform uses `local.suffix = random_string.unique.id`.
+- Common tags live in `locals.tf` and are applied to taggable resources: `environment = "non-prod"`, `managed_by = "terraform"`, and `project = "azure-infra-poc"`.
+- Each application landing zone owns a `/20` block from `docs/ip-addressing.md`. Pick the next free block, keep all default subnets inside it, and update the address authority when adding a landing zone.
 - New application landing zones should follow `docs/adding-application-landing-zone.md`: root-level workload folder, `config.tf`, `locals.tf`, `main.tf`, `variables.tf`, `outputs.tf`, `README.md`, remote state from `../Networking/terraform.tfstate`, README update, and module-specific cleanup notes.
-- Private DNS outputs from `Networking/outputs.tf` are null-safe when DNS is disabled. App modules should check required outputs before creating private endpoints or DNS policy links.
-- `ContainerApps-byoVnet` has three `app_mode` values: `none`, `hello-world`, and `mcp-toolbox`. The `mcp-toolbox` mode uses `terraform_data` with a PowerShell `local-exec` to clone, build, and push an image via `az acr build`.
-- `Fabric-private` gates resources with `local.deploy_inbound` and `local.deploy_outbound` from `network_mode`. Managed private endpoints are created pending and then approved through AzAPI resource actions filtered by PE resource ID.
+- Application spokes use the platform output contract consistently: vHub connections derive `internet_security_enabled` from `add_firewall00`, private-endpoint subnets use the inverse for `default_outbound_access_enabled`, VNet DNS uses `dns_server_ip00`, and resolver policy links use `dns_resolver_policy00_id`.
+- Networking outputs for optional DNS, firewall, and region-1 resources are null-safe. Application modules should validate required outputs with `check` blocks before creating dependent resources.
+- `ContainerApps-byoVnet` supports `app_mode = "none"`, `"hello-world"`, or `"mcp-toolbox"`. The MCP mode uses `terraform_data` with a PowerShell `local-exec` to clone source and run `az acr build`.
+- `Fabric-private` decomposes `network_mode` into `local.deploy_inbound` and `local.deploy_outbound`. Its managed private endpoints are approved through AzAPI by matching the target connection to the Fabric MPE resource ID; never approve the first pending connection by position or state alone.
+- Some resources cannot be expressed fully through providers. Preserve the error handling, dependency ordering, and read-back checks in `terraform_data`/`local-exec` flows for Foundry managed-network setup and Fabric workspace communication policy.
+- Terraform state, `.tfvars`, plan files, and `.terraform/` are intentionally ignored. Do not commit or rewrite local state as part of normal code changes.
 
 ## Documentation sources to keep in sync
 
 - Root `README.md` owns the landing-zone table, prerequisites, deploy order, destroy order, and high-level disclaimer.
-- `Networking/README.md` owns the platform-to-application output contract and vWAN/private DNS/firewall behavior.
+- `Networking/README.md` owns the platform-to-application output contract and vWAN, Private DNS, and Firewall behavior.
 - `docs/ip-addressing.md` is the IP address authority.
 - `docs/adding-application-landing-zone.md` is the template for new application landing zones.
 - Each module README owns module-specific prerequisites, variables, outputs, and cleanup steps.
