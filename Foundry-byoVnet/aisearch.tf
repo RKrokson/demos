@@ -60,7 +60,7 @@ resource "azurerm_private_endpoint" "pe-aisearch" {
   private_dns_zone_group {
     name = "${azapi_resource.ai_search.name}-dns-config"
     private_dns_zone_ids = [
-      data.terraform_remote_state.networking.outputs.dns_zone_search_id
+      local.platform_region0.private_dns_zone_ids.search
     ]
   }
 }

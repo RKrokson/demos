@@ -95,9 +95,9 @@ resource "azurerm_private_endpoint" "pe-aifoundry" {
   private_dns_zone_group {
     name = "${azapi_resource.foundry.name}-dns-config"
     private_dns_zone_ids = [
-      data.terraform_remote_state.networking.outputs.dns_zone_cognitiveservices_id,
-      data.terraform_remote_state.networking.outputs.dns_zone_services_ai_id,
-      data.terraform_remote_state.networking.outputs.dns_zone_openai_id
+      local.platform_region0.private_dns_zone_ids.cognitiveservices,
+      local.platform_region0.private_dns_zone_ids.services_ai,
+      local.platform_region0.private_dns_zone_ids.openai
     ]
   }
 }
