@@ -43,21 +43,19 @@ Rename either to `terraform.tfvars`, set values to `true`, then `terraform plan`
 
 ## Downstream Dependencies
 
-Application landing zone modules (`Foundry-byoVnet/`, `Foundry-managedVnet/`) consume this module's outputs via `terraform_remote_state` (local backend, reads `./terraform.tfstate`). Each Foundry module creates its own spoke VNet and subnets — no Networking toggle is required. If you need private DNS resolution for Foundry, set `add_private_dns00 = true`.
+Application landing zone modules (`Foundry-byoVnet/`, `Foundry-managedVnet/`, `ContainerApps-byoVnet/`, and `Fabric-private/`) consume `alz_regions.region0` via `terraform_remote_state` (local backend, reads `./terraform.tfstate`). Each module creates its own spoke VNet and subnets. If a workload needs private DNS resolution, set `add_private_dns00 = true`.
 
 ## Outputs — Platform-to-ALZ Contract
 
 Application landing zones consume these outputs via `terraform_remote_state`. See the full list in `outputs.tf`.
 
-| Output                                                  | Purpose                                                     |
-| ------------------------------------------------------- | ----------------------------------------------------------- |
-| `rg_net00_id`, `rg_net00_name`, `rg_net00_location`     | Networking resource group                                   |
-| `vhub00_id`, `vhub01_id`                                | Virtual hub IDs (vhub01 is null if `create_vhub01 = false`) |
-| `log_analytics_workspace_id`                            | Log Analytics (firewall logs go here)                       |
-| `dns_resolver_policy00_id`, `dns_inbound_endpoint00_ip` | Private DNS (null if disabled)                              |
-| `firewall_private_ip00`                                 | Firewall private IP (null if not deployed)                  |
+| Output | Purpose |
+|---|---|
+| `alz_regions` | Region 0 and optional region 1 resource group, vHub, Firewall, DNS, and Private DNS zone contract |
+| `log_analytics_workspace_id` | Shared Log Analytics workspace used by application diagnostics |
+| `vm_admin_username`, `vm_admin_password` | Credentials for the platform test VMs |
 
-DNS zone IDs are also available for all `privatelink.*` zones (blob, file, table, queue, vault, Cognitive Services, OpenAI, Search, Cosmos DB). All outputs are null-safe when features are disabled.
+`alz_regions.region0` is always enabled. `alz_regions.region1.enabled` matches `create_vhub01`; its resource-derived values are null when region 1 is disabled. Application landing zones select their own deployment regions and must not assume that Networking region 1 automatically enables a second workload region.
 
 ## CIDR Allocation
 
