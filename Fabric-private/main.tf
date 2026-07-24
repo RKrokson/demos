@@ -32,8 +32,8 @@ data "external" "current_user_upn" {
 ##
 
 resource "azurerm_resource_group" "rg_fabric00" {
-  name     = "${var.resource_group_name}-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
-  location = data.terraform_remote_state.networking.outputs.rg_net00_location
+  name     = "${var.resource_group_name}-${local.platform_region0.region_abbr}-${random_string.unique.result}"
+  location = local.platform_region0.resource_group_location
   tags     = local.common_tags
 }
 
@@ -42,28 +42,28 @@ resource "azurerm_resource_group" "rg_fabric00" {
 
 check "dns_prerequisite" {
   assert {
-    condition     = data.terraform_remote_state.networking.outputs.dns_server_ip00 != null
+    condition     = local.platform_region0.dns_server_ip != null
     error_message = "Private DNS must be enabled in the Networking module (add_private_dns00 = true) before deploying this landing zone."
   }
 }
 
 check "fabric_dns_zone_present" {
   assert {
-    condition     = data.terraform_remote_state.networking.outputs.dns_zone_fabric_id != null
+    condition     = local.platform_region0.private_dns_zone_ids.fabric != null
     error_message = "dns_zone_fabric_id is null in Networking remote state. Ensure the Networking module exposes privatelink.fabric.microsoft.com zone output."
   }
 }
 
 check "sql_dns_zone_present" {
   assert {
-    condition     = data.terraform_remote_state.networking.outputs.dns_zone_sql_id != null
+    condition     = local.platform_region0.private_dns_zone_ids.sql != null
     error_message = "dns_zone_sql_id is null in Networking remote state. Ensure the Networking module exposes privatelink.database.windows.net zone output."
   }
 }
 
 check "vhub_present" {
   assert {
-    condition     = data.terraform_remote_state.networking.outputs.vhub00_id != null
+    condition     = local.platform_region0.vhub_id != null
     error_message = "vhub00_id is null — Virtual Hub must be deployed in the Networking module."
   }
 }

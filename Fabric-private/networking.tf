@@ -3,7 +3,7 @@
 
 # Fabric spoke VNet (Block 5)
 resource "azurerm_virtual_network" "fabric_vnet" {
-  name                = "${var.fabric_vnet_name}-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
+  name                = "${var.fabric_vnet_name}-${local.platform_region0.region_abbr}-${random_string.unique.result}"
   address_space       = var.fabric_vnet_address_space
   location            = azurerm_resource_group.rg_fabric00.location
   resource_group_name = azurerm_resource_group.rg_fabric00.name
@@ -12,18 +12,18 @@ resource "azurerm_virtual_network" "fabric_vnet" {
 
 # PE subnet — hosts the workspace-level private endpoint
 resource "azurerm_subnet" "pe_subnet" {
-  name                            = "${var.pe_subnet_name}-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}"
+  name                            = "${var.pe_subnet_name}-${local.platform_region0.region_abbr}"
   resource_group_name             = azurerm_resource_group.rg_fabric00.name
   virtual_network_name            = azurerm_virtual_network.fabric_vnet.name
   address_prefixes                = var.pe_subnet_address
-  default_outbound_access_enabled = !data.terraform_remote_state.networking.outputs.add_firewall00
+  default_outbound_access_enabled = !local.platform_region0.firewall_enabled
 }
 
 # NSG for PE subnet — explicit allow rules (M4 security requirement)
 # No Fabric delegation subnet exists — Fabric MPEs live in Fabric's managed network,
 # not our VNet. This NSG applies ONLY to the PE subnet.
 resource "azurerm_network_security_group" "pe_subnet_nsg" {
-  name                = "${var.pe_subnet_name}-nsg-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
+  name                = "${var.pe_subnet_name}-nsg-${local.platform_region0.region_abbr}-${random_string.unique.result}"
   location            = azurerm_resource_group.rg_fabric00.location
   resource_group_name = azurerm_resource_group.rg_fabric00.name
   tags                = local.common_tags
@@ -102,22 +102,22 @@ resource "azurerm_subnet_network_security_group_association" "pe_subnet_nsg_asso
 # Connect Fabric spoke VNet to vHub
 resource "azurerm_virtual_hub_connection" "vhub_connection_to_fabric" {
   name                      = "vhub00-to-${var.fabric_vnet_name}-${random_string.unique.result}"
-  virtual_hub_id            = data.terraform_remote_state.networking.outputs.vhub00_id
+  virtual_hub_id            = local.platform_region0.vhub_id
   remote_virtual_network_id = azurerm_virtual_network.fabric_vnet.id
-  internet_security_enabled = data.terraform_remote_state.networking.outputs.add_firewall00
+  internet_security_enabled = local.platform_region0.firewall_enabled
 }
 
 # Custom DNS servers on VNet — platform decides the IP (firewall or resolver)
 resource "azurerm_virtual_network_dns_servers" "fabric_vnet_dns" {
   virtual_network_id = azurerm_virtual_network.fabric_vnet.id
-  dns_servers        = [data.terraform_remote_state.networking.outputs.dns_server_ip00]
+  dns_servers        = [local.platform_region0.dns_server_ip]
 }
 
 # Link VNet to DNS resolver policy
 resource "azapi_resource" "dns_resolver_policy_fabric_vnet_link" {
   type      = "Microsoft.Network/dnsResolverPolicies/virtualNetworkLinks@2023-07-01-preview"
   name      = "vnet-link-to-dns-policy-${var.fabric_vnet_name}-${random_string.unique.result}"
-  parent_id = data.terraform_remote_state.networking.outputs.dns_resolver_policy00_id
+  parent_id = local.platform_region0.dns_resolver_policy_id
   location  = azurerm_resource_group.rg_fabric00.location
 
   body = {

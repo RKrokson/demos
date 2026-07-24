@@ -11,7 +11,7 @@
 
 resource "azurerm_key_vault" "fabric_kv" {
   count               = local.deploy_outbound ? 1 : 0 # outbound gate — KV is the MPE target, not needed for inbound-only
-  name                = "kv-fabric-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
+  name                = "kv-fabric-${local.platform_region0.region_abbr}-${random_string.unique.result}"
   resource_group_name = azurerm_resource_group.rg_fabric00.name
   location            = azurerm_resource_group.rg_fabric00.location
   tenant_id           = data.azurerm_client_config.current.tenant_id
@@ -43,7 +43,7 @@ resource "azurerm_private_endpoint" "pe_fabric_kv" {
   private_dns_zone_group {
     name = "fabric-kv-dns-config"
     private_dns_zone_ids = [
-      data.terraform_remote_state.networking.outputs.dns_zone_vaultcore_id
+      local.platform_region0.private_dns_zone_ids.vaultcore
     ]
   }
 }

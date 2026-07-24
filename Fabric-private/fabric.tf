@@ -103,7 +103,7 @@ resource "azurerm_private_endpoint" "pe_fabric_workspace" {
   private_dns_zone_group {
     name = "fabric-workspace-dns-config"
     private_dns_zone_ids = [
-      data.terraform_remote_state.networking.outputs.dns_zone_fabric_id
+      local.platform_region0.private_dns_zone_ids.fabric
     ]
   }
 }
