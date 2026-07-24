@@ -54,7 +54,7 @@ resource "azurerm_private_endpoint" "pe-cosmosdb" {
   private_dns_zone_group {
     name = "${azurerm_cosmosdb_account.cosmosdb.name}-dns-group"
     private_dns_zone_ids = [
-      data.terraform_remote_state.networking.outputs.dns_zone_documents_id
+      local.platform_region0.private_dns_zone_ids.documents
     ]
   }
 }

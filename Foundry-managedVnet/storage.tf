@@ -53,7 +53,7 @@ resource "azurerm_private_endpoint" "pe-storage-blob" {
   private_dns_zone_group {
     name = "${azurerm_storage_account.storage_account.name}-blob-dns-group"
     private_dns_zone_ids = [
-      data.terraform_remote_state.networking.outputs.dns_zone_blob_id
+      local.platform_region0.private_dns_zone_ids.blob
     ]
   }
 }
@@ -78,7 +78,7 @@ resource "azurerm_private_endpoint" "pe-storage_file" {
   private_dns_zone_group {
     name = "${azurerm_storage_account.storage_account.name}-file-dns-group"
     private_dns_zone_ids = [
-      data.terraform_remote_state.networking.outputs.dns_zone_file_id
+      local.platform_region0.private_dns_zone_ids.file
     ]
   }
 }
@@ -103,7 +103,7 @@ resource "azurerm_private_endpoint" "pe-storage_table" {
   private_dns_zone_group {
     name = "${azurerm_storage_account.storage_account.name}-table-dns-group"
     private_dns_zone_ids = [
-      data.terraform_remote_state.networking.outputs.dns_zone_table_id
+      local.platform_region0.private_dns_zone_ids.table
     ]
   }
 }
@@ -128,7 +128,7 @@ resource "azurerm_private_endpoint" "pe-storage_queue" {
   private_dns_zone_group {
     name = "${azurerm_storage_account.storage_account.name}-queue-dns-group"
     private_dns_zone_ids = [
-      data.terraform_remote_state.networking.outputs.dns_zone_queue_id
+      local.platform_region0.private_dns_zone_ids.queue
     ]
   }
 }
