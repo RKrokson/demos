@@ -50,21 +50,21 @@ check "dns_prerequisite" {
 check "fabric_dns_zone_present" {
   assert {
     condition     = local.platform_region0.private_dns_zone_ids.fabric != null
-    error_message = "dns_zone_fabric_id is null in Networking remote state. Ensure the Networking module exposes privatelink.fabric.microsoft.com zone output."
+    error_message = "alz_regions.region0.private_dns_zone_ids.fabric is null in Networking remote state. Ensure the Networking module exposes privatelink.fabric.microsoft.com zone output."
   }
 }
 
 check "sql_dns_zone_present" {
   assert {
     condition     = local.platform_region0.private_dns_zone_ids.sql != null
-    error_message = "dns_zone_sql_id is null in Networking remote state. Ensure the Networking module exposes privatelink.database.windows.net zone output."
+    error_message = "alz_regions.region0.private_dns_zone_ids.sql is null in Networking remote state. Ensure the Networking module exposes privatelink.database.windows.net zone output."
   }
 }
 
 check "vhub_present" {
   assert {
     condition     = local.platform_region0.vhub_id != null
-    error_message = "vhub00_id is null — Virtual Hub must be deployed in the Networking module."
+    error_message = "alz_regions.region0.vhub_id is null — Virtual Hub must be deployed in the Networking module."
   }
 }
 
