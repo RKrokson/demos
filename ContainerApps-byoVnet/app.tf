@@ -9,7 +9,7 @@
 
 resource "azurerm_container_app" "hello_world" {
   count                        = var.app_mode == "hello-world" ? 1 : 0
-  name                         = "hello-world-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
+  name                         = "hello-world-${local.platform_region0.region_abbr}-${random_string.unique.result}"
   container_app_environment_id = azurerm_container_app_environment.aca_env.id
   resource_group_name          = azurerm_resource_group.rg_aca00.name
   revision_mode                = "Single"
@@ -72,7 +72,7 @@ resource "terraform_data" "docker_build" {
 
 resource "azurerm_container_app" "mcp_toolbox" {
   count                        = var.app_mode == "mcp-toolbox" ? 1 : 0
-  name                         = "mcp-toolbox-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
+  name                         = "mcp-toolbox-${local.platform_region0.region_abbr}-${random_string.unique.result}"
   container_app_environment_id = azurerm_container_app_environment.aca_env.id
   resource_group_name          = azurerm_resource_group.rg_aca00.name
   revision_mode                = "Single"

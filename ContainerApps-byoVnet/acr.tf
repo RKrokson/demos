@@ -3,7 +3,7 @@
 
 # User-assigned managed identity for ACA to pull from ACR
 resource "azurerm_user_assigned_identity" "aca_identity" {
-  name                = "id-aca-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
+  name                = "id-aca-${local.platform_region0.region_abbr}-${random_string.unique.result}"
   location            = azurerm_resource_group.rg_aca00.location
   resource_group_name = azurerm_resource_group.rg_aca00.name
   tags                = local.common_tags
@@ -31,7 +31,7 @@ resource "azurerm_role_assignment" "acr_pull" {
 # DNS zone (privatelink.azurecr.io) is owned by the Networking module's AVM private DNS —
 # PE records auto-register there via the dns_zone_group.
 resource "azurerm_private_endpoint" "acr_pe" {
-  name                = "pe-acr-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
+  name                = "pe-acr-${local.platform_region0.region_abbr}-${random_string.unique.result}"
   location            = azurerm_resource_group.rg_aca00.location
   resource_group_name = azurerm_resource_group.rg_aca00.name
   subnet_id           = azurerm_subnet.pe_subnet.id
@@ -46,12 +46,12 @@ resource "azurerm_private_endpoint" "acr_pe" {
 
   private_dns_zone_group {
     name                 = "acr-dns-zone-group"
-    private_dns_zone_ids = [data.terraform_remote_state.networking.outputs.dns_zone_acr_id]
+    private_dns_zone_ids = [local.platform_region0.private_dns_zone_ids.acr]
   }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "diag_acr" {
-  name               = "diag-acr-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
+  name               = "diag-acr-${local.platform_region0.region_abbr}-${random_string.unique.result}"
   target_resource_id = azurerm_container_registry.acr.id
 
   log_analytics_workspace_id = data.terraform_remote_state.networking.outputs.log_analytics_workspace_id
