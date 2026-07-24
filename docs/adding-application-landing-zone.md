@@ -27,14 +27,18 @@ data "terraform_remote_state" "networking" {
     path = "../Networking/terraform.tfstate"
   }
 }
+
+locals {
+  platform_region0 = data.terraform_remote_state.networking.outputs.alz_regions.region0
+}
 ```
 
 Then reference platform outputs like this:
 
 ```hcl
 resource "azurerm_resource_group" "rg" {
-  name     = "rg-myworkload-${data.terraform_remote_state.networking.outputs.azure_region_0_abbr}-${random_string.unique.result}"
-  location = data.terraform_remote_state.networking.outputs.rg_net00_location
+  name     = "rg-myworkload-${local.platform_region0.region_abbr}-${random_string.unique.result}"
+  location = local.platform_region0.resource_group_location
   tags     = local.common_tags
 }
 ```
@@ -45,14 +49,14 @@ The Networking module exposes resource group info, subnet IDs, hub IDs, Log Anal
 
 Key outputs you will likely need:
 
-- `rg_net00_name`, `rg_net00_location`, and `azure_region_0_abbr` for resource group, region, and naming
-- `vhub00_id` for connecting your spoke VNet to the platform hub
-- `add_firewall00` to set `internet_security_enabled` on hub connections
-- `dns_resolver_policy00_id` and `dns_inbound_endpoint00_ip` for private DNS integration
-- `dns_zone_*` outputs for private endpoint DNS zone links
+- `alz_regions.<region>.resource_group_*` and `region_abbr` for location and naming
+- `alz_regions.<region>.vhub_id` for the spoke connection
+- `alz_regions.<region>.firewall_enabled` for `internet_security_enabled`
+- `alz_regions.<region>.dns_server_ip`, `dns_resolver_policy_id`, and `dns_vnet_id` for DNS integration
+- `alz_regions.<region>.private_dns_zone_ids` for private endpoint zone groups
 - `log_analytics_workspace_id` for shared diagnostics
 
-Each ALZ module creates its own spoke VNet and subnets. DNS zone outputs return `null` when `add_private_dns00 = false` in the Networking module.
+Each ALZ module creates its own spoke VNet and subnets. Optional values in `alz_regions` are `null` when the corresponding Networking feature is disabled.
 
 ## Naming Conventions
 
@@ -68,7 +72,7 @@ resource "random_string" "unique" {
 }
 ```
 
-Use the region abbreviation from platform outputs (`data.terraform_remote_state.networking.outputs.azure_region_0_abbr`) and append the random string to avoid collisions.
+Use `local.platform_region0.region_abbr` and append the random string to avoid collisions.
 
 ## Provider Configuration
 
