@@ -20,6 +20,7 @@
 - Do not commit state, `.tfvars`, plan files, or `.terraform/`.
 - Preserve unrelated working-tree changes, especially `.github/copilot-instructions.md` and `Foundry-managedVnet/storage.tf`.
 - Execute this plan in an isolated worktree created with the `using-git-worktrees` skill; the current root worktree contains unrelated changes.
+- Keep plan documents portable: derive the repository root at runtime and never embed local absolute paths, usernames, home directories, or session identifiers.
 - Every commit must include the required Copilot trailers.
 
 ---
@@ -140,7 +141,7 @@ locals {
 Run:
 
 ```powershell
-Set-Location C:\github\anp
+Set-Location (git rev-parse --show-toplevel)
 rg 'output "(rg_net00_|azure_region_0_abbr|vhub0[01]_id|dns_zone_|add_firewall00|dns_resolver_policy00_id|dns_inbound_endpoint00_ip|firewall_private_ip00|dns_vnet00_id|dns_server_ip00)' Networking\outputs.tf
 rg 'output "private_dns_zone_ids"' Networking\modules\region-hub\outputs.tf
 ```
@@ -230,7 +231,7 @@ Do not remove the existing scalar outputs yet. They keep intermediate commits us
 Run:
 
 ```powershell
-Set-Location C:\github\anp\Networking
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Networking')
 terraform init -backend=false
 terraform fmt
 terraform fmt -check
@@ -242,14 +243,11 @@ Expected: initialization succeeds, formatting is clean, and validation reports `
 - [ ] **Step 5: Commit the contract**
 
 ```powershell
-git -C C:\github\anp add Networking\modules\region-hub\outputs.tf Networking\outputs.tf
-@'
-feat(networking): add regional ALZ output contract
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-Copilot-Session: a8b61622-73a7-4118-a0e4-03989f28d424
-'@ | git -C C:\github\anp commit -F -
+git -C (git rev-parse --show-toplevel) add Networking\modules\region-hub\outputs.tf Networking\outputs.tf
+git -C (git rev-parse --show-toplevel) commit -m "feat(networking): add regional ALZ output contract"
 ```
+
+The executing agent adds the required commit trailers using its current session metadata.
 
 ---
 
@@ -273,7 +271,7 @@ Copilot-Session: a8b61622-73a7-4118-a0e4-03989f28d424
 Run:
 
 ```powershell
-Set-Location C:\github\anp
+Set-Location (git rev-parse --show-toplevel)
 rg 'terraform_remote_state\.networking\.outputs\.(rg_net00_location|azure_region_0_abbr|vhub00_id|add_firewall00|dns_server_ip00|dns_resolver_policy00_id|dns_zone_)' Foundry-byoVnet -g '*.tf'
 ```
 
@@ -313,9 +311,9 @@ Leave `data.terraform_remote_state.networking.outputs.log_analytics_workspace_id
 Run:
 
 ```powershell
-Set-Location C:\github\anp
+Set-Location (git rev-parse --show-toplevel)
 rg 'terraform_remote_state\.networking\.outputs\.(rg_net00_location|azure_region_0_abbr|vhub00_id|add_firewall00|dns_server_ip00|dns_resolver_policy00_id|dns_zone_)' Foundry-byoVnet -g '*.tf'
-Set-Location C:\github\anp\Foundry-byoVnet
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Foundry-byoVnet')
 terraform init -backend=false
 terraform fmt
 terraform fmt -check
@@ -327,14 +325,11 @@ Expected: `rg` returns no matches; Terraform validation succeeds.
 - [ ] **Step 5: Commit the Foundry BYO migration**
 
 ```powershell
-git -C C:\github\anp add Foundry-byoVnet\locals.tf Foundry-byoVnet\main.tf Foundry-byoVnet\networking.tf Foundry-byoVnet\aisearch.tf Foundry-byoVnet\cosmosdb.tf Foundry-byoVnet\storage.tf Foundry-byoVnet\foundry.tf
-@'
-refactor(foundry): consume regional platform contract
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-Copilot-Session: a8b61622-73a7-4118-a0e4-03989f28d424
-'@ | git -C C:\github\anp commit -F -
+git -C (git rev-parse --show-toplevel) add Foundry-byoVnet\locals.tf Foundry-byoVnet\main.tf Foundry-byoVnet\networking.tf Foundry-byoVnet\aisearch.tf Foundry-byoVnet\cosmosdb.tf Foundry-byoVnet\storage.tf Foundry-byoVnet\foundry.tf
+git -C (git rev-parse --show-toplevel) commit -m "refactor(foundry): consume regional platform contract"
 ```
+
+The executing agent adds the required commit trailers using its current session metadata.
 
 ---
 
@@ -358,7 +353,7 @@ Copilot-Session: a8b61622-73a7-4118-a0e4-03989f28d424
 Run:
 
 ```powershell
-Set-Location C:\github\anp
+Set-Location (git rev-parse --show-toplevel)
 rg 'terraform_remote_state\.networking\.outputs\.(rg_net00_location|azure_region_0_abbr|vhub00_id|add_firewall00|dns_server_ip00|dns_resolver_policy00_id|dns_zone_)' Foundry-managedVnet -g '*.tf'
 ```
 
@@ -401,9 +396,9 @@ Leave `log_analytics_workspace_id` references unchanged. Before editing `Foundry
 Run:
 
 ```powershell
-Set-Location C:\github\anp
+Set-Location (git rev-parse --show-toplevel)
 rg 'terraform_remote_state\.networking\.outputs\.(rg_net00_location|azure_region_0_abbr|vhub00_id|add_firewall00|dns_server_ip00|dns_resolver_policy00_id|dns_zone_)' Foundry-managedVnet -g '*.tf'
-Set-Location C:\github\anp\Foundry-managedVnet
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Foundry-managedVnet')
 terraform init -backend=false
 terraform fmt
 terraform fmt -check
@@ -417,14 +412,11 @@ Expected: `rg` returns no matches; Terraform validation succeeds.
 Stage only the listed files, not unrelated changes:
 
 ```powershell
-git -C C:\github\anp add Foundry-managedVnet\locals.tf Foundry-managedVnet\main.tf Foundry-managedVnet\networking.tf Foundry-managedVnet\aisearch.tf Foundry-managedVnet\cosmosdb.tf Foundry-managedVnet\storage.tf Foundry-managedVnet\foundry.tf
-@'
-refactor(foundry): migrate managed VNet platform contract
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-Copilot-Session: a8b61622-73a7-4118-a0e4-03989f28d424
-'@ | git -C C:\github\anp commit -F -
+git -C (git rev-parse --show-toplevel) add Foundry-managedVnet\locals.tf Foundry-managedVnet\main.tf Foundry-managedVnet\networking.tf Foundry-managedVnet\aisearch.tf Foundry-managedVnet\cosmosdb.tf Foundry-managedVnet\storage.tf Foundry-managedVnet\foundry.tf
+git -C (git rev-parse --show-toplevel) commit -m "refactor(foundry): migrate managed VNet platform contract"
 ```
+
+The executing agent adds the required commit trailers using its current session metadata.
 
 ---
 
@@ -448,7 +440,7 @@ Copilot-Session: a8b61622-73a7-4118-a0e4-03989f28d424
 Run:
 
 ```powershell
-Set-Location C:\github\anp
+Set-Location (git rev-parse --show-toplevel)
 rg 'terraform_remote_state\.networking\.outputs\.(rg_net00_location|azure_region_0_abbr|vhub00_id|add_firewall00|dns_server_ip00|dns_resolver_policy00_id|dns_vnet00_id|dns_zone_)' ContainerApps-byoVnet -g '*.tf'
 ```
 
@@ -484,9 +476,9 @@ Leave all `log_analytics_workspace_id` references unchanged.
 Run:
 
 ```powershell
-Set-Location C:\github\anp
+Set-Location (git rev-parse --show-toplevel)
 rg 'terraform_remote_state\.networking\.outputs\.(rg_net00_location|azure_region_0_abbr|vhub00_id|add_firewall00|dns_server_ip00|dns_resolver_policy00_id|dns_vnet00_id|dns_zone_)' ContainerApps-byoVnet -g '*.tf'
-Set-Location C:\github\anp\ContainerApps-byoVnet
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'ContainerApps-byoVnet')
 terraform init -backend=false
 terraform fmt
 terraform fmt -check
@@ -498,14 +490,11 @@ Expected: `rg` returns no matches; Terraform validation succeeds.
 - [ ] **Step 5: Commit the Container Apps migration**
 
 ```powershell
-git -C C:\github\anp add ContainerApps-byoVnet\locals.tf ContainerApps-byoVnet\main.tf ContainerApps-byoVnet\networking.tf ContainerApps-byoVnet\aca.tf ContainerApps-byoVnet\acr.tf ContainerApps-byoVnet\app.tf ContainerApps-byoVnet\dns.tf
-@'
-refactor(container-apps): consume regional platform contract
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-Copilot-Session: a8b61622-73a7-4118-a0e4-03989f28d424
-'@ | git -C C:\github\anp commit -F -
+git -C (git rev-parse --show-toplevel) add ContainerApps-byoVnet\locals.tf ContainerApps-byoVnet\main.tf ContainerApps-byoVnet\networking.tf ContainerApps-byoVnet\aca.tf ContainerApps-byoVnet\acr.tf ContainerApps-byoVnet\app.tf ContainerApps-byoVnet\dns.tf
+git -C (git rev-parse --show-toplevel) commit -m "refactor(container-apps): consume regional platform contract"
 ```
+
+The executing agent adds the required commit trailers using its current session metadata.
 
 ---
 
@@ -527,7 +516,7 @@ Copilot-Session: a8b61622-73a7-4118-a0e4-03989f28d424
 Run:
 
 ```powershell
-Set-Location C:\github\anp
+Set-Location (git rev-parse --show-toplevel)
 rg 'terraform_remote_state\.networking\.outputs\.(rg_net00_location|azure_region_0_abbr|vhub00_id|add_firewall00|dns_server_ip00|dns_resolver_policy00_id|dns_zone_)' Fabric-private -g '*.tf'
 ```
 
@@ -564,9 +553,9 @@ Leave `log_analytics_workspace_id` references unchanged.
 Run:
 
 ```powershell
-Set-Location C:\github\anp
+Set-Location (git rev-parse --show-toplevel)
 rg 'terraform_remote_state\.networking\.outputs\.(rg_net00_location|azure_region_0_abbr|vhub00_id|add_firewall00|dns_server_ip00|dns_resolver_policy00_id|dns_zone_)' Fabric-private -g '*.tf'
-Set-Location C:\github\anp\Fabric-private
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Fabric-private')
 terraform init -backend=false
 terraform fmt
 terraform fmt -check
@@ -578,14 +567,11 @@ Expected: `rg` returns no matches; Terraform validation succeeds.
 - [ ] **Step 5: Commit the Fabric migration**
 
 ```powershell
-git -C C:\github\anp add Fabric-private\locals.tf Fabric-private\main.tf Fabric-private\networking.tf Fabric-private\fabric.tf Fabric-private\storage.tf
-@'
-refactor(fabric): consume regional platform contract
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-Copilot-Session: a8b61622-73a7-4118-a0e4-03989f28d424
-'@ | git -C C:\github\anp commit -F -
+git -C (git rev-parse --show-toplevel) add Fabric-private\locals.tf Fabric-private\main.tf Fabric-private\networking.tf Fabric-private\fabric.tf Fabric-private\storage.tf
+git -C (git rev-parse --show-toplevel) commit -m "refactor(fabric): consume regional platform contract"
 ```
+
+The executing agent adds the required commit trailers using its current session metadata.
 
 ---
 
@@ -606,7 +592,7 @@ Copilot-Session: a8b61622-73a7-4118-a0e4-03989f28d424
 Run:
 
 ```powershell
-Set-Location C:\github\anp
+Set-Location (git rev-parse --show-toplevel)
 rg 'terraform_remote_state\.networking\.outputs\.(rg_net00_id|rg_net00_name|rg_net00_location|azure_region_0_abbr|vhub00_id|vhub01_id|add_firewall00|dns_resolver_policy00_id|dns_inbound_endpoint00_ip|firewall_private_ip00|dns_vnet00_id|dns_server_ip00|dns_zone_)' -g '*.tf'
 ```
 
@@ -715,26 +701,26 @@ In `.github/copilot-instructions.md`, preserve all current user changes and repl
 Run:
 
 ```powershell
-Set-Location C:\github\anp
+Set-Location (git rev-parse --show-toplevel)
 terraform fmt -check -recursive
 
-Set-Location C:\github\anp\Networking
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Networking')
 terraform init -backend=false
 terraform validate
 
-Set-Location C:\github\anp\Foundry-byoVnet
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Foundry-byoVnet')
 terraform init -backend=false
 terraform validate
 
-Set-Location C:\github\anp\Foundry-managedVnet
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Foundry-managedVnet')
 terraform init -backend=false
 terraform validate
 
-Set-Location C:\github\anp\ContainerApps-byoVnet
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'ContainerApps-byoVnet')
 terraform init -backend=false
 terraform validate
 
-Set-Location C:\github\anp\Fabric-private
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Fabric-private')
 terraform init -backend=false
 terraform validate
 ```
@@ -746,7 +732,7 @@ Expected: the recursive format check and all five validations succeed.
 Run:
 
 ```powershell
-Set-Location C:\github\anp
+Set-Location (git rev-parse --show-toplevel)
 rg 'terraform_remote_state\.networking\.outputs\.(rg_net00_id|rg_net00_name|rg_net00_location|azure_region_0_abbr|vhub00_id|vhub01_id|add_firewall00|dns_resolver_policy00_id|dns_inbound_endpoint00_ip|firewall_private_ip00|dns_vnet00_id|dns_server_ip00|dns_zone_)' -g '*.tf' -g '*.md' -g '!docs/superpowers/**'
 rg 'output "(rg_net00_|azure_region_0_abbr|vhub0[01]_id|dns_zone_|add_firewall00|dns_resolver_policy00_id|dns_inbound_endpoint00_ip|firewall_private_ip00|dns_vnet00_id|dns_server_ip00)' Networking\outputs.tf
 rg '\b(rg_net00_id|rg_net00_name|rg_net00_location|azure_region_0_abbr|vhub00_id|vhub01_id|dns_resolver_policy00_id|dns_inbound_endpoint00_ip|firewall_private_ip00|dns_vnet00_id|dns_server_ip00|dns_zone_[a-z0-9_]+)\b' Networking\README.md docs\adding-application-landing-zone.md .github\copilot-instructions.md
@@ -759,7 +745,7 @@ Expected: all three commands return no matches.
 First review and apply the Networking output-only plan so downstream remote state contains `alz_regions`:
 
 ```powershell
-Set-Location C:\github\anp\Networking
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Networking')
 terraform plan -out=regional-contract.tfplan
 terraform show -no-color regional-contract.tfplan
 ```
@@ -781,16 +767,16 @@ Remove-Item .\regional-contract.tfplan
 Then run each ALZ plan:
 
 ```powershell
-Set-Location C:\github\anp\Foundry-byoVnet
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Foundry-byoVnet')
 terraform plan
 
-Set-Location C:\github\anp\Foundry-managedVnet
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Foundry-managedVnet')
 terraform plan
 
-Set-Location C:\github\anp\ContainerApps-byoVnet
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'ContainerApps-byoVnet')
 terraform plan
 
-Set-Location C:\github\anp\Fabric-private
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Fabric-private')
 terraform plan
 ```
 
@@ -801,11 +787,8 @@ Expected: changing the remote-state access path does not change existing region-
 Stage only package files:
 
 ```powershell
-git -C C:\github\anp add Networking\outputs.tf Networking\README.md docs\adding-application-landing-zone.md .github\copilot-instructions.md
-@'
-docs(networking): finalize regional ALZ contract
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-Copilot-Session: a8b61622-73a7-4118-a0e4-03989f28d424
-'@ | git -C C:\github\anp commit -F -
+git -C (git rev-parse --show-toplevel) add Networking\outputs.tf Networking\README.md docs\adding-application-landing-zone.md .github\copilot-instructions.md
+git -C (git rev-parse --show-toplevel) commit -m "docs(networking): finalize regional ALZ contract"
 ```
+
+The executing agent adds the required commit trailers using its current session metadata.
