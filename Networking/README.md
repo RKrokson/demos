@@ -57,6 +57,21 @@ Application landing zones consume these outputs via `terraform_remote_state`. Se
 
 `alz_regions.region0` is always enabled. `alz_regions.region1.enabled` matches `create_vhub01`; its resource-derived values are null when region 1 is disabled. Application landing zones select their own deployment regions and must not assume that Networking region 1 automatically enables a second workload region.
 
+### Inspect a deployed region
+
+Run this example from `Networking/` after Terraform has created or refreshed the configured state. Set `$regionName` to the region you want to inspect:
+
+```powershell
+$regionName = 'region0' # or 'region1'
+$alz = terraform output -json alz_regions | ConvertFrom-Json
+$region = $alz.$regionName
+
+$region | Format-List *
+$region.private_dns_zone_ids | Format-List *
+```
+
+The first list shows the selected region's resource group, vHub, Firewall, and DNS fields. The second list expands the Private DNS zone names and values. A disabled region 1 remains visible with `enabled = false` and null resource-derived values.
+
 ## CIDR Allocation
 
 Each region uses a `172.2x.0.0/16` supernet split into `/20` blocks. Virtual hub prefixes use a separate `172.30.x.x` range. Full allocation scheme is in [docs/ip-addressing.md](../docs/ip-addressing.md).
