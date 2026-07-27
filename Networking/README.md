@@ -59,7 +59,7 @@ Application landing zones consume these outputs via `terraform_remote_state`. Se
 
 ### Inspect a deployed region
 
-Run this example from `Networking/` after Terraform has created or refreshed the configured state. Set `$regionName` to the region you want to inspect:
+Run this example from `Networking/` after applying the current Networking configuration so the configured state contains the `alz_regions` output. Set `$regionName` to the region you want to inspect:
 
 ```powershell
 $regionName = 'region0' # or 'region1'
