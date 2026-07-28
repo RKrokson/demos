@@ -13,6 +13,7 @@ The text must state that the command runs from `Networking/`, where Terraform ca
 ## Example
 
 ```powershell
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Networking')
 $alz = terraform output -json alz_regions | ConvertFrom-Json
 
 foreach ($regionName in 'region0', 'region1') {

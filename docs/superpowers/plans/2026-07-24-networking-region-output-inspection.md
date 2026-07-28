@@ -87,9 +87,10 @@ Expected: no whitespace errors; the diff changes only the existing inspection su
 
 - [ ] **Step 4: Verify the documented commands when state is available**
 
-From `Networking/`, run:
+Run:
 
 ```powershell
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'Networking')
 $alz = terraform output -json alz_regions | ConvertFrom-Json
 
 foreach ($regionName in 'region0', 'region1') {
