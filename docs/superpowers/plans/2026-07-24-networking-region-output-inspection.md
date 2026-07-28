@@ -18,13 +18,14 @@
 - Display a heading and the full region contract with `Format-List *` for each region.
 - Display each region's `private_dns_zone_ids` separately with `Format-List *`.
 - Do not display the separate VM credential outputs.
+- Derive the repository root in every runnable PowerShell block in this plan.
 - Keep Superpowers documents portable and free of machine-specific paths, usernames, home directories, email addresses, or session identifiers.
 
 ---
 
 ## File map
 
-- Modify `Networking/README.md`: document how to inspect one regional platform contract from Terraform state.
+- Modify `Networking/README.md`: document how to inspect both regional platform contracts from Terraform state.
 
 ---
 
@@ -39,9 +40,10 @@
 
 - [ ] **Step 1: Confirm the example requires manual region selection**
 
-Run from the repository root:
+Run:
 
 ```powershell
+Set-Location (git rev-parse --show-toplevel)
 Select-String -Path Networking\README.md -SimpleMatch "`$regionName = 'region0' # or 'region1'"
 ```
 
@@ -49,29 +51,29 @@ Expected: one match in the existing inspection example.
 
 - [ ] **Step 2: Replace the inspection subsection**
 
-Replace the existing `Inspect a deployed region` subsection with:
+Replace the existing `Inspect a deployed region` subsection with the added lines in this literal Markdown diff:
 
-````markdown
-### Inspect a deployed region
-
-Run this example from `Networking/` after applying the current Networking configuration so the configured state contains the `alz_regions` output. It displays both regions without requiring any edits:
-
-```powershell
-$alz = terraform output -json alz_regions | ConvertFrom-Json
-
-foreach ($regionName in 'region0', 'region1') {
-  $region = $alz.$regionName
-  $regionLabel = $regionName -replace 'region', 'Region '
-
-  Write-Host "`n=== $regionLabel ==="
-  $region | Format-List *
-
-  Write-Host "--- Private DNS zone IDs ---"
-  $region.private_dns_zone_ids | Format-List *
-}
-```
-
-For each region, the first list shows its resource group, vHub, Firewall, and DNS fields. The second list expands its Private DNS zone names and values. A disabled region 1 remains visible with `enabled = false` and null resource-derived values.
+````diff
++### Inspect a deployed region
++
++Run this example from `Networking/` after applying the current Networking configuration so the configured state contains the `alz_regions` output. It displays both regions without requiring any edits:
++
++```powershell
++$alz = terraform output -json alz_regions | ConvertFrom-Json
++
++foreach ($regionName in 'region0', 'region1') {
++  $region = $alz.$regionName
++  $regionLabel = $regionName -replace 'region', 'Region '
++
++  Write-Host "`n=== $regionLabel ==="
++  $region | Format-List *
++
++  Write-Host "--- Private DNS zone IDs ---"
++  $region.private_dns_zone_ids | Format-List *
++}
++```
++
++For each region, the first list shows its resource group, vHub, Firewall, and DNS fields. The second list expands its Private DNS zone names and values. A disabled region 1 remains visible with `enabled = false` and null resource-derived values.
 ````
 
 - [ ] **Step 3: Review the documentation change**
@@ -79,6 +81,7 @@ For each region, the first list shows its resource group, vHub, Firewall, and DN
 Run:
 
 ```powershell
+Set-Location (git rev-parse --show-toplevel)
 git diff --check
 git diff -- Networking\README.md
 ```
@@ -128,6 +131,7 @@ Expected: no matches.
 Stage only the README:
 
 ```powershell
+Set-Location (git rev-parse --show-toplevel)
 git add Networking\README.md
 git commit -m "docs(networking): show both regional outputs"
 ```
