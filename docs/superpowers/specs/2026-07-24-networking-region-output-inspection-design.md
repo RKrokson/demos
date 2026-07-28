@@ -10,25 +10,11 @@ Add an `Inspect a deployed region` subsection directly after the explanation of 
 
 The text must state that the command runs from `Networking/`, where Terraform can read the configured state backend.
 
-## Example
+## README command contract
 
-```powershell
-Set-Location (Join-Path (git rev-parse --show-toplevel) 'Networking')
-$alz = terraform output -json alz_regions | ConvertFrom-Json
+The README keeps the working-directory requirement in its surrounding text rather than changing directories inside the command. The operator starts in `Networking/`, and the copied command begins by reading `alz_regions`.
 
-foreach ($regionName in 'region0', 'region1') {
-  $region = $alz.$regionName
-  $regionLabel = $regionName -replace 'region', 'Region '
-
-  Write-Host "`n=== $regionLabel ==="
-  $region | Format-List *
-
-  Write-Host "--- Private DNS zone IDs ---"
-  $region.private_dns_zone_ids | Format-List *
-}
-```
-
-The fixed loop makes the example a single copy-and-paste command for the complete regional status. Each iteration displays the region's resource group, vHub, Firewall, and DNS fields, then expands the nested Private DNS zone map instead of leaving it as a compact PowerShell object.
+The command reads the Terraform output once, loops over `region0` and `region1`, and prints a heading for each region. Each iteration displays the full regional contract, then expands the nested Private DNS zone map instead of leaving it as a compact PowerShell object.
 
 ## Behavior and limits
 
