@@ -59,15 +59,21 @@ Application landing zones consume these outputs via `terraform_remote_state`. Se
 
 ### Inspect a deployed region
 
-Run this example from `Networking/` after applying the current Networking configuration so the configured state contains the `alz_regions` output. Set `$regionName` to the region you want to inspect:
+Run this example from `Networking/` after applying the current Networking configuration so the configured state contains the `alz_regions` output. It displays both regions without requiring any edits:
 
 ```powershell
-$regionName = 'region0' # or 'region1'
 $alz = terraform output -json alz_regions | ConvertFrom-Json
-$region = $alz.$regionName
 
-$region | Format-List *
-$region.private_dns_zone_ids | Format-List *
+foreach ($regionName in 'region0', 'region1') {
+  $region = $alz.$regionName
+  $regionLabel = $regionName -replace 'region', 'Region '
+
+  Write-Host "`n=== $regionLabel ==="
+  $region | Format-List *
+
+  Write-Host "--- Private DNS zone IDs ---"
+  $region.private_dns_zone_ids | Format-List *
+}
 ```
 
 The first list shows the selected region's resource group, vHub, Firewall, and DNS fields. The second list expands the Private DNS zone names and values. A disabled region 1 remains visible with `enabled = false` and null resource-derived values.
