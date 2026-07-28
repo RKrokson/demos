@@ -76,7 +76,7 @@ foreach ($regionName in 'region0', 'region1') {
 }
 ```
 
-The first list shows the selected region's resource group, vHub, Firewall, and DNS fields. The second list expands the Private DNS zone names and values. A disabled region 1 remains visible with `enabled = false` and null resource-derived values.
+For each region, the first list shows its resource group, vHub, Firewall, and DNS fields. The second list expands its Private DNS zone names and values. A disabled region 1 remains visible with `enabled = false` and null resource-derived values.
 
 ## CIDR Allocation
 
