@@ -140,6 +140,8 @@ Use this when the Fabric tenant setting "Configure workspace-level inbound netwo
 
 Both the workspace private endpoint (inbound) and managed private endpoints to data targets (outbound) are deployed. This gives full private connectivity.
 
+For either outbound mode, Terraform approves each managed private endpoint and then reads the target connection back. The apply stops if Terraform cannot confirm an `Approved` status. Resources created earlier in the apply remain in state; resolve the Azure approval or propagation issue, then rerun `terraform apply`.
+
 ## Workspace Identity
 
 The Fabric workspace has a System-Assigned managed identity (always provisioned). Its service principal object ID is exported as `workspace_identity_service_principal_id`.
