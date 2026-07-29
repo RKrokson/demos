@@ -27,6 +27,8 @@ cd Networking
 terraform init && terraform apply
 ```
 
+If this checkout just upgraded to the `alz_regions` contract, run `terraform apply` here before planning any application landing zone so the local state contains `alz_regions`.
+
 **Optional:** Create a `terraform.tfvars` to enable Firewall and Private DNS. Two examples:
 
 - `terraform.tfvars.example` — Just the toggles
@@ -50,7 +52,7 @@ Application landing zone modules (`Foundry-byoVnet/`, `Foundry-managedVnet/`, `C
 Application landing zones consume these outputs via `terraform_remote_state`. See the full list in `outputs.tf`.
 
 | Output | Purpose |
-|---|---|
+| ------ | ------- |
 | `alz_regions` | Region 0 and optional region 1 resource group, vHub, Firewall, DNS, and Private DNS zone contract |
 | `log_analytics_workspace_id` | Shared Log Analytics workspace used by application diagnostics |
 | `vm_admin_username`, `vm_admin_password` | Credentials for the platform test VMs |
@@ -80,12 +82,7 @@ For each region, the first list shows its resource group, vHub, Firewall, and DN
 
 ## CIDR Allocation
 
-Each region uses a `172.2x.0.0/16` supernet split into `/20` blocks. Virtual hub prefixes use a separate `172.30.x.x` range. Full allocation scheme is in [docs/ip-addressing.md](../docs/ip-addressing.md).
-
-| Region   | vHub Prefix     | Shared VNet     | DNS VNet         | Foundry-byoVnet  | Foundry-managedVnet | Future       |
-| -------- | --------------- | --------------- | ---------------- | ---------------- | ------------------- | ------------ |
-| Region 0 | `172.30.0.0/23` | `172.20.0.0/20` | `172.20.16.0/20` | `172.20.32.0/20` | `172.20.48.0/20`    | `172.20.64+` |
-| Region 1 | `172.30.2.0/23` | `172.21.0.0/20` | `172.21.16.0/20` | Reserved         | Reserved            | `172.21.64+` |
+Each region uses a `172.2x.0.0/16` supernet split into `/20` blocks, and the vHub prefixes use a separate `172.30.x.x` range. The authoritative per-ALZ allocations live in [docs/ip-addressing.md](../docs/ip-addressing.md); update that file instead of duplicating the blocks here.
 
 ## Module Structure
 

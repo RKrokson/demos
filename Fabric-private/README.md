@@ -136,11 +136,11 @@ Deploys managed private endpoints from the Fabric workspace to Storage, SQL, and
 
 Use this when the Fabric tenant setting "Configure workspace-level inbound network rules" is not enabled, or when you want private data-plane connectivity to Azure resources but accept public workspace access. This pattern works for organizations exploring Fabric's outbound networking without inbound lockdown.
 
+For either outbound mode, Terraform approves each managed private endpoint and reads the target connection back. If a connection stays pending, approve it manually with `az network private-endpoint-connection approve --id <connection-resource-id>`, then rerun `terraform apply`. Resources created earlier in the apply remain in state; resolve the Azure approval or propagation issue first.
+
 ### `inbound_and_outbound`
 
 Both the workspace private endpoint (inbound) and managed private endpoints to data targets (outbound) are deployed. This gives full private connectivity.
-
-For either outbound mode, Terraform approves each managed private endpoint and then reads the target connection back. The apply stops if Terraform cannot confirm an `Approved` status. Resources created earlier in the apply remain in state; resolve the Azure approval or propagation issue, then rerun `terraform apply`.
 
 ## Workspace Identity
 
