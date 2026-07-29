@@ -140,32 +140,32 @@ locals {
   # Fabric names the managed PE as "{workspace_id}.{mpe_name}" in the Fabric-managed subscription.
   # The ARM PE connection object's privateEndpoint.id ends with that string.
   # We match by suffix — never by Fabric resource UUID (which is not an ARM ID).
-  storage_pe_conn_name = one([
+  storage_pe_conn_name = local.deploy_outbound ? one([
     for conn in local._storage_pe_conns :
     conn.name
     if endswith(
       lower(try(conn.properties.privateEndpoint.id, "")),
-      lower("${fabric_workspace.workspace.id}.${coalesce(local._mpe_storage_name, "")}")
+      lower("${fabric_workspace.workspace.id}.${local._mpe_storage_name}")
     )
-  ])
+  ]) : null
 
-  sql_pe_conn_name = one([
+  sql_pe_conn_name = local.deploy_outbound ? one([
     for conn in local._sql_pe_conns :
     conn.name
     if endswith(
       lower(try(conn.properties.privateEndpoint.id, "")),
-      lower("${fabric_workspace.workspace.id}.${coalesce(local._mpe_sql_name, "")}")
+      lower("${fabric_workspace.workspace.id}.${local._mpe_sql_name}")
     )
-  ])
+  ]) : null
 
-  kv_pe_conn_name = one([
+  kv_pe_conn_name = local.deploy_outbound ? one([
     for conn in local._kv_pe_conns :
     conn.name
     if endswith(
       lower(try(conn.properties.privateEndpoint.id, "")),
-      lower("${fabric_workspace.workspace.id}.${coalesce(local._mpe_keyvault_name, "")}")
+      lower("${fabric_workspace.workspace.id}.${local._mpe_keyvault_name}")
     )
-  ])
+  ]) : null
 
   # Safe storage/SQL/KV IDs for check block data sources — null when resource has count=0
   _lab_storage_id = one(azurerm_storage_account.lab_storage[*].id)
@@ -223,4 +223,3 @@ check "mpe_keyvault_approved" {
     error_message = "MPE to Key Vault is not Approved after auto-approval. Run: az network private-endpoint-connection approve"
   }
 }
-
