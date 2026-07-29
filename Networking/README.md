@@ -57,6 +57,23 @@ Application landing zones consume these outputs via `terraform_remote_state`. Se
 | `log_analytics_workspace_id`             | Shared Log Analytics workspace used by application diagnostics                   |
 | `vm_admin_username`, `vm_admin_password` | Credentials for the platform test VMs                                            |
 
+`alz_regions.<region>` is an object with these fields:
+
+| Field                      | Type / nullable shape                         | Behavior |
+| -------------------------- | ---------------------------------------------- | -------- |
+| `enabled`                  | `bool`                                          | `true` for region 0; matches `create_vhub01` for region 1. |
+| `region_name`              | `string`                                        | Azure region name for the deployed or configured region. |
+| `region_abbr`              | `string`                                        | Short region label used by downstream naming and routing. |
+| `resource_group_id`        | `string \| null`                               | Resource group ID for the region, or `null` when the region is absent. |
+| `resource_group_name`      | `string \| null`                               | Resource group name for the region, or `null` when the region is absent. |
+| `resource_group_location`  | `string \| null`                               | Resource group location for the region, or `null` when the region is absent. |
+| `vhub_id`                  | `string \| null`                               | Virtual hub ID for the region, or `null` when the region is absent. |
+| `firewall_enabled`         | `bool`                                          | Mirrors the region's Firewall toggle; `false` when Firewall is not enabled. |
+| `dns_server_ip`            | `string \| null`                               | `null` when Private DNS is disabled for that region. With Private DNS enabled, this is the Azure Firewall private IP when that region's Firewall is enabled; otherwise it is the Private DNS Resolver inbound endpoint IP. |
+| `dns_resolver_policy_id`    | `string \| null`                               | DNS Resolver policy ID for the region, or `null` when the region or DNS resources are absent. |
+| `dns_vnet_id`              | `string \| null`                               | DNS VNet ID for the region, or `null` when the region or DNS resources are absent. |
+| `private_dns_zone_ids`     | `map(string \| null)`                           | Keeps the known zone-key map shape; values are `null` when the region or DNS resources are absent. |
+
 `alz_regions.region0` is always enabled. `alz_regions.region1.enabled` matches `create_vhub01`; its resource-derived values are null when region 1 is disabled. Application landing zones select their own deployment regions and must not assume that Networking region 1 automatically enables a second workload region.
 
 ### Inspect a deployed region
