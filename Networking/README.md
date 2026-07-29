@@ -51,11 +51,11 @@ Application landing zone modules (`Foundry-byoVnet/`, `Foundry-managedVnet/`, `C
 
 Application landing zones consume these outputs via `terraform_remote_state`. See the full list in `outputs.tf`.
 
-| Output | Purpose |
-| ------ | ------- |
-| `alz_regions` | Region 0 and optional region 1 resource group, vHub, Firewall, DNS, and Private DNS zone contract |
-| `log_analytics_workspace_id` | Shared Log Analytics workspace used by application diagnostics |
-| `vm_admin_username`, `vm_admin_password` | Credentials for the platform test VMs |
+| Output                                   | Purpose                                                                          |
+| ---------------------------------------- | -------------------------------------------------------------------------------- |
+| `alz_regions`                            | Region 0 and optional region 1 resource group, vHub, Firewall, DNS, and Private DNS zone contract |
+| `log_analytics_workspace_id`             | Shared Log Analytics workspace used by application diagnostics                   |
+| `vm_admin_username`, `vm_admin_password` | Credentials for the platform test VMs                                            |
 
 `alz_regions.region0` is always enabled. `alz_regions.region1.enabled` matches `create_vhub01`; its resource-derived values are null when region 1 is disabled. Application landing zones select their own deployment regions and must not assume that Networking region 1 automatically enables a second workload region.
 

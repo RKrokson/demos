@@ -30,7 +30,7 @@ data "azapi_resource_list" "storage_pe_connections" {
 resource "azapi_resource_action" "approve_mpe_storage" {
   count       = local.deploy_outbound ? 1 : 0 # outbound gate
   type        = "Microsoft.Storage/storageAccounts/privateEndpointConnections@2023-05-01"
-  resource_id = "${azurerm_storage_account.lab_storage[0].id}/privateEndpointConnections/${local.storage_pe_conn_name}"
+  resource_id = local.storage_pe_conn_name != null ? "${azurerm_storage_account.lab_storage[0].id}/privateEndpointConnections/${local.storage_pe_conn_name}" : "${azurerm_storage_account.lab_storage[0].id}/privateEndpointConnections/terraform-precondition-guard"
   method      = "PUT"
 
   body = {
@@ -39,6 +39,13 @@ resource "azapi_resource_action" "approve_mpe_storage" {
         status      = "Approved"
         description = "Auto-approved by Fabric-private Terraform module"
       }
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = local.storage_pe_conn_name != null
+      error_message = "Storage MPE approval could not start because Terraform could not find an exact private endpoint connection match for the Fabric storage managed private endpoint on the storage account. Confirm the target connection exists, then rerun terraform apply."
     }
   }
 }
@@ -66,7 +73,7 @@ data "azapi_resource_list" "sql_pe_connections" {
 resource "azapi_resource_action" "approve_mpe_sql" {
   count       = local.deploy_outbound ? 1 : 0 # outbound gate
   type        = "Microsoft.Sql/servers/privateEndpointConnections@2023-08-01-preview"
-  resource_id = "${azurerm_mssql_server.lab_sql[0].id}/privateEndpointConnections/${local.sql_pe_conn_name}"
+  resource_id = local.sql_pe_conn_name != null ? "${azurerm_mssql_server.lab_sql[0].id}/privateEndpointConnections/${local.sql_pe_conn_name}" : "${azurerm_mssql_server.lab_sql[0].id}/privateEndpointConnections/terraform-precondition-guard"
   method      = "PUT"
 
   body = {
@@ -75,6 +82,13 @@ resource "azapi_resource_action" "approve_mpe_sql" {
         status      = "Approved"
         description = "Auto-approved by Fabric-private Terraform module"
       }
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = local.sql_pe_conn_name != null
+      error_message = "SQL MPE approval could not start because Terraform could not find an exact private endpoint connection match for the Fabric SQL managed private endpoint on the SQL server. Confirm the target connection exists, then rerun terraform apply."
     }
   }
 }
@@ -104,7 +118,7 @@ data "azapi_resource_list" "kv_pe_connections" {
 resource "azapi_resource_action" "approve_mpe_keyvault" {
   count       = local.deploy_outbound ? 1 : 0 # outbound gate
   type        = "Microsoft.KeyVault/vaults/privateEndpointConnections@2023-07-01"
-  resource_id = "${azurerm_key_vault.fabric_kv[0].id}/privateEndpointConnections/${local.kv_pe_conn_name}"
+  resource_id = local.kv_pe_conn_name != null ? "${azurerm_key_vault.fabric_kv[0].id}/privateEndpointConnections/${local.kv_pe_conn_name}" : "${azurerm_key_vault.fabric_kv[0].id}/privateEndpointConnections/terraform-precondition-guard"
   method      = "PUT"
 
   body = {
@@ -113,6 +127,13 @@ resource "azapi_resource_action" "approve_mpe_keyvault" {
         status      = "Approved"
         description = "Auto-approved by Fabric-private Terraform module"
       }
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = local.kv_pe_conn_name != null
+      error_message = "Key Vault MPE approval could not start because Terraform could not find an exact private endpoint connection match for the Fabric Key Vault managed private endpoint on the Key Vault. Confirm the target connection exists, then rerun terraform apply."
     }
   }
 }
@@ -177,12 +198,17 @@ locals {
 data "azapi_resource" "mpe_storage_conn" {
   count       = local.deploy_outbound ? 1 : 0
   type        = "Microsoft.Storage/storageAccounts/privateEndpointConnections@2023-05-01"
-  resource_id = "${azurerm_storage_account.lab_storage[0].id}/privateEndpointConnections/${local.storage_pe_conn_name}"
+  resource_id = local.storage_pe_conn_name != null ? "${azurerm_storage_account.lab_storage[0].id}/privateEndpointConnections/${local.storage_pe_conn_name}" : "${azurerm_storage_account.lab_storage[0].id}/privateEndpointConnections/terraform-precondition-guard"
 
   response_export_values = ["properties.privateLinkServiceConnectionState.status"]
   depends_on             = [azapi_resource_action.approve_mpe_storage]
 
   lifecycle {
+    precondition {
+      condition     = local.storage_pe_conn_name != null
+      error_message = "Storage MPE approval could not be verified because Terraform could not find an exact private endpoint connection match for the Fabric storage managed private endpoint on the storage account. Confirm the target connection exists, then rerun terraform apply."
+    }
+
     postcondition {
       condition     = self.output.properties.privateLinkServiceConnectionState.status == "Approved"
       error_message = "Storage MPE approval could not be confirmed. Resolve the private endpoint connection status, then rerun terraform apply."
@@ -193,12 +219,17 @@ data "azapi_resource" "mpe_storage_conn" {
 data "azapi_resource" "mpe_sql_conn" {
   count       = local.deploy_outbound ? 1 : 0
   type        = "Microsoft.Sql/servers/privateEndpointConnections@2023-08-01-preview"
-  resource_id = "${azurerm_mssql_server.lab_sql[0].id}/privateEndpointConnections/${local.sql_pe_conn_name}"
+  resource_id = local.sql_pe_conn_name != null ? "${azurerm_mssql_server.lab_sql[0].id}/privateEndpointConnections/${local.sql_pe_conn_name}" : "${azurerm_mssql_server.lab_sql[0].id}/privateEndpointConnections/terraform-precondition-guard"
 
   response_export_values = ["properties.privateLinkServiceConnectionState.status"]
   depends_on             = [azapi_resource_action.approve_mpe_sql]
 
   lifecycle {
+    precondition {
+      condition     = local.sql_pe_conn_name != null
+      error_message = "SQL MPE approval could not be verified because Terraform could not find an exact private endpoint connection match for the Fabric SQL managed private endpoint on the SQL server. Confirm the target connection exists, then rerun terraform apply."
+    }
+
     postcondition {
       condition     = self.output.properties.privateLinkServiceConnectionState.status == "Approved"
       error_message = "SQL MPE approval could not be confirmed. Resolve the private endpoint connection status, then rerun terraform apply."
@@ -209,12 +240,17 @@ data "azapi_resource" "mpe_sql_conn" {
 data "azapi_resource" "mpe_kv_conn" {
   count       = local.deploy_outbound ? 1 : 0
   type        = "Microsoft.KeyVault/vaults/privateEndpointConnections@2023-07-01"
-  resource_id = "${azurerm_key_vault.fabric_kv[0].id}/privateEndpointConnections/${local.kv_pe_conn_name}"
+  resource_id = local.kv_pe_conn_name != null ? "${azurerm_key_vault.fabric_kv[0].id}/privateEndpointConnections/${local.kv_pe_conn_name}" : "${azurerm_key_vault.fabric_kv[0].id}/privateEndpointConnections/terraform-precondition-guard"
 
   response_export_values = ["properties.privateLinkServiceConnectionState.status"]
   depends_on             = [azapi_resource_action.approve_mpe_keyvault]
 
   lifecycle {
+    precondition {
+      condition     = local.kv_pe_conn_name != null
+      error_message = "Key Vault MPE approval could not be verified because Terraform could not find an exact private endpoint connection match for the Fabric Key Vault managed private endpoint on the Key Vault. Confirm the target connection exists, then rerun terraform apply."
+    }
+
     postcondition {
       condition     = self.output.properties.privateLinkServiceConnectionState.status == "Approved"
       error_message = "Key Vault MPE approval could not be confirmed. Resolve the private endpoint connection status, then rerun terraform apply."
