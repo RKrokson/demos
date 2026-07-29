@@ -166,60 +166,58 @@ locals {
       lower("${fabric_workspace.workspace.id}.${local._mpe_keyvault_name}")
     )
   ]) : null
-
-  # Safe storage/SQL/KV IDs for check block data sources — null when resource has count=0
-  _lab_storage_id = one(azurerm_storage_account.lab_storage[*].id)
-  _lab_sql_id     = one(azurerm_mssql_server.lab_sql[*].id)
-  _lab_kv_id      = one(azurerm_key_vault.fabric_kv[*].id)
 }
 
 # ─────────────────────────────────────────────
-# Post-apply assertions — verify each MPE reached Approved state
-# check {} blocks re-evaluate at end of apply; silent Pending is the failure mode.
-#
-# Assertions use !local.deploy_outbound short-circuit so they always pass in inbound_only mode.
-# Data source resource_id falls back to a placeholder when the resource has count=0 — the
-# data lookup will fail gracefully (warning only) and the assertion short-circuits to pass.
+# Post-apply verification — read each approved MPE connection back.
+# Top-level data sources can share the outbound count gate, so inbound_only
+# performs no placeholder reads. Postconditions make failed verification blocking.
 # ─────────────────────────────────────────────
 
-check "mpe_storage_approved" {
-  data "azapi_resource" "mpe_storage_conn" {
-    type = "Microsoft.Storage/storageAccounts/privateEndpointConnections@2023-05-01"
-    resource_id = local._lab_storage_id != null ? (
-      "${local._lab_storage_id}/privateEndpointConnections/${coalesce(local.storage_pe_conn_name, "placeholder")}"
-    ) : "placeholder-not-deployed"
-    response_export_values = ["properties.privateLinkServiceConnectionState.status"]
-  }
-  assert {
-    condition     = !local.deploy_outbound || data.azapi_resource.mpe_storage_conn.output.properties.privateLinkServiceConnectionState.status == "Approved"
-    error_message = "MPE to Storage (blob) is not Approved after auto-approval. Run: az network private-endpoint-connection approve"
+data "azapi_resource" "mpe_storage_conn" {
+  count       = local.deploy_outbound ? 1 : 0
+  type        = "Microsoft.Storage/storageAccounts/privateEndpointConnections@2023-05-01"
+  resource_id = "${azurerm_storage_account.lab_storage[0].id}/privateEndpointConnections/${local.storage_pe_conn_name}"
+
+  response_export_values = ["properties.privateLinkServiceConnectionState.status"]
+  depends_on             = [azapi_resource_action.approve_mpe_storage]
+
+  lifecycle {
+    postcondition {
+      condition     = self.output.properties.privateLinkServiceConnectionState.status == "Approved"
+      error_message = "Storage MPE approval could not be confirmed. Resolve the private endpoint connection status, then rerun terraform apply."
+    }
   }
 }
 
-check "mpe_sql_approved" {
-  data "azapi_resource" "mpe_sql_conn" {
-    type = "Microsoft.Sql/servers/privateEndpointConnections@2023-08-01-preview"
-    resource_id = local._lab_sql_id != null ? (
-      "${local._lab_sql_id}/privateEndpointConnections/${coalesce(local.sql_pe_conn_name, "placeholder")}"
-    ) : "placeholder-not-deployed"
-    response_export_values = ["properties.privateLinkServiceConnectionState.status"]
-  }
-  assert {
-    condition     = !local.deploy_outbound || data.azapi_resource.mpe_sql_conn.output.properties.privateLinkServiceConnectionState.status == "Approved"
-    error_message = "MPE to SQL Server is not Approved after auto-approval. Run: az network private-endpoint-connection approve"
+data "azapi_resource" "mpe_sql_conn" {
+  count       = local.deploy_outbound ? 1 : 0
+  type        = "Microsoft.Sql/servers/privateEndpointConnections@2023-08-01-preview"
+  resource_id = "${azurerm_mssql_server.lab_sql[0].id}/privateEndpointConnections/${local.sql_pe_conn_name}"
+
+  response_export_values = ["properties.privateLinkServiceConnectionState.status"]
+  depends_on             = [azapi_resource_action.approve_mpe_sql]
+
+  lifecycle {
+    postcondition {
+      condition     = self.output.properties.privateLinkServiceConnectionState.status == "Approved"
+      error_message = "SQL MPE approval could not be confirmed. Resolve the private endpoint connection status, then rerun terraform apply."
+    }
   }
 }
 
-check "mpe_keyvault_approved" {
-  data "azapi_resource" "mpe_kv_conn" {
-    type = "Microsoft.KeyVault/vaults/privateEndpointConnections@2023-07-01"
-    resource_id = local._lab_kv_id != null ? (
-      "${local._lab_kv_id}/privateEndpointConnections/${coalesce(local.kv_pe_conn_name, "placeholder")}"
-    ) : "placeholder-not-deployed"
-    response_export_values = ["properties.privateLinkServiceConnectionState.status"]
-  }
-  assert {
-    condition     = !local.deploy_outbound || data.azapi_resource.mpe_kv_conn.output.properties.privateLinkServiceConnectionState.status == "Approved"
-    error_message = "MPE to Key Vault is not Approved after auto-approval. Run: az network private-endpoint-connection approve"
+data "azapi_resource" "mpe_kv_conn" {
+  count       = local.deploy_outbound ? 1 : 0
+  type        = "Microsoft.KeyVault/vaults/privateEndpointConnections@2023-07-01"
+  resource_id = "${azurerm_key_vault.fabric_kv[0].id}/privateEndpointConnections/${local.kv_pe_conn_name}"
+
+  response_export_values = ["properties.privateLinkServiceConnectionState.status"]
+  depends_on             = [azapi_resource_action.approve_mpe_keyvault]
+
+  lifecycle {
+    postcondition {
+      condition     = self.output.properties.privateLinkServiceConnectionState.status == "Approved"
+      error_message = "Key Vault MPE approval could not be confirmed. Resolve the private endpoint connection status, then rerun terraform apply."
+    }
   }
 }
