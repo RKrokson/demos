@@ -49,6 +49,8 @@ Future modules will follow the same application landing zone pattern. See the [A
    terraform init && terraform apply
    ```
 
+   If this checkout just upgraded to the `alz_regions` contract, run `terraform apply` in `Networking/` before planning any application landing zone so the local state contains `alz_regions`.
+
 4. (Optional) Deploy an **application landing zone**. Each module is independent:
    ```sh
    cd ../Foundry-byoVnet   # or ../Foundry-managedVnet, ../ContainerApps-byoVnet, or ../Fabric-private
