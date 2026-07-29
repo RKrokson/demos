@@ -51,7 +51,7 @@ The apply exits nonzero if:
 
 Terraform does not roll back resources created before a failure. Those resources remain in state. After resolving the Azure or approval issue, the operator reruns `terraform apply`.
 
-No fixed delay or retry is part of this change. The current flow already waits until the connection appears in the target resource's connection list before sending the approval PUT. Add a delay only if a real outbound apply demonstrates a repeatable stale-read problem.
+No fixed delay or retry is part of this change. The current flow orders the approval PUT after MPE creation and one target connection-list read; it does not poll for the connection to appear. Add a delay only if a real outbound apply demonstrates a repeatable stale-read problem.
 
 ## Documentation
 

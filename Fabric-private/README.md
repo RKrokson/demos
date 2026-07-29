@@ -124,6 +124,8 @@ For shared lab deployments, set `capacity_admin_group_object_id` to a security g
 
 The `network_mode` variable controls which private connectivity paths are deployed. The spoke VNet, subnets, NSG, vHub connection, and DNS always deploy in all modes.
 
+For either outbound mode, Terraform approves each managed private endpoint, reads the target connection back, and stops the apply if `Approved` cannot be confirmed. If a connection stays pending, approve it manually with `az network private-endpoint-connection approve --id <connection-resource-id>`, then rerun `terraform apply`. Resources created earlier in the apply remain in state; resolve the Azure approval or propagation issue first.
+
 ### `inbound_only` (default)
 
 Deploys the workspace private endpoint and denies public access. The workspace is accessible only via the PE (Bastion, VPN, or ExpressRoute). No managed private endpoints or data targets are deployed.
@@ -135,8 +137,6 @@ Use this when the Fabric tenant setting "Configure workspace-level inbound netwo
 Deploys managed private endpoints from the Fabric workspace to Storage, SQL, and Key Vault, along with those resources. The workspace remains publicly accessible (no workspace PE or deny-public-access policy). The workspace System-Assigned identity gets Storage Blob Data Contributor on the storage account.
 
 Use this when the Fabric tenant setting "Configure workspace-level inbound network rules" is not enabled, or when you want private data-plane connectivity to Azure resources but accept public workspace access. This pattern works for organizations exploring Fabric's outbound networking without inbound lockdown.
-
-For either outbound mode, Terraform approves each managed private endpoint and reads the target connection back. If a connection stays pending, approve it manually with `az network private-endpoint-connection approve --id <connection-resource-id>`, then rerun `terraform apply`. Resources created earlier in the apply remain in state; resolve the Azure approval or propagation issue first.
 
 ### `inbound_and_outbound`
 
