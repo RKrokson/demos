@@ -230,20 +230,53 @@ Tenant-level private link (`BlockPublicNetworkAccess`) is not configured here. T
 
 ## Destroy Procedure
 
-### Step 1: Destroy the module
+### Step 1: Prepare for destroy
 
-```sh
-cd Fabric-private
-terraform destroy
+Keep the Fabric capacity in the `Active` state. If it is paused, resume it first:
+
+```powershell
+az fabric capacity resume --resource-group <rg> --capacity-name <name>
 ```
 
-### Step 2: Capacity and workspace cleanup
+For `inbound_only` and `inbound_and_outbound`, restore workspace public access before running Terraform:
 
-- Do NOT pause the capacity before destroy — destroy from `Active` state. If already paused, resume first: `az fabric capacity resume --resource-group <rg> --capacity-name <name>`
-- Workspaces enter soft-delete for ~90 days. Random suffix prevents name collisions on re-deploy.
-- SQL server names are reserved for ~7 days post-delete. Random suffix mitigates collisions.
-- The workspace-local Key Vault has soft-delete enabled with **7-day retention** and purge protection disabled. Re-deploy unblocked. If a same-named KV exists in soft-deleted state, purge it first: `az keyvault purge --name <kv-name>`
+1. Connect from the workspace private network through Bastion, VPN, ExpressRoute, or another connected host.
+2. In the Fabric workspace, open **Workspace settings** > **Inbound networking** and set public access to `Allow`.
+3. Wait for the policy change to propagate. Microsoft notes that workspace communication-policy changes can take up to 30 minutes.
+
+This step prevents the Fabric provider refresh from failing with `RequestDeniedByInboundPolicy` before Terraform can delete the workspace. If cleanup is abandoned, set the policy back to `Deny`.
+
+`outbound_only` does not deploy the inbound restriction and does not need this preparation.
+
+### Step 2: Create and apply a destroy plan
+
+```powershell
+$repoRoot = git rev-parse --show-toplevel
+Set-Location (Join-Path $repoRoot 'Fabric-private')
+
+terraform plan -destroy -out fabric-destroy.tfplan
+terraform show fabric-destroy.tfplan
+terraform apply fabric-destroy.tfplan
+```
+
+Review every resource in the saved plan before applying it.
+
+### Step 3: Retry partial cleanup
+
+Terraform records resources removed by a partial destroy. Do not remove the remaining resources from state, and do not manually delete Fabric resources as the first response.
+
+- `RequestDeniedByInboundPolicy`: confirm public access is `Allow`, wait for propagation, then create and apply a new destroy plan.
+- `UnknownError` during `outbound_only`: Fabric can return a generic delete error while cleaning up managed private endpoints or the workspace managed network. Keep the request ID, wait a few minutes, then create and apply a new destroy plan.
+- `inbound_and_outbound`: complete the inbound policy preparation first. If Fabric later returns `UnknownError`, follow the outbound retry procedure.
+
+Each failed attempt can delete some resources, so never reuse the previous destroy plan. If `UnknownError` continues after bounded retries or an extended wait, capture the complete `with <resource-address>` line, request ID, and local debug log for Microsoft support or a [Fabric provider issue](https://github.com/microsoft/terraform-provider-fabric/issues).
+
+### Step 4: Account for soft-delete retention
+
+- Fabric workspaces enter soft-delete for about 90 days. The random suffix prevents name collisions on redeploy.
+- SQL server names are reserved for about seven days after deletion. The random suffix mitigates collisions.
+- The workspace-local Key Vault has soft-delete enabled with seven-day retention and purge protection disabled. If the same name remains soft-deleted, purge it with `az keyvault purge --name <kv-name>`.
 
 ### Important
 
-Do NOT toggle the "Configure workspace-level inbound network rules" tenant setting during a deploy lifecycle. If toggled, re-register `Microsoft.Fabric` afterward.
+Do not toggle the **Configure workspace-level inbound network rules** tenant setting during a deployment lifecycle. If it is toggled, re-register `Microsoft.Fabric` afterward.
