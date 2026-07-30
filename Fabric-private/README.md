@@ -266,7 +266,7 @@ Review every resource in the saved plan before applying it.
 Terraform records resources removed by a partial destroy. Do not remove the remaining resources from state, and do not manually delete Fabric resources as the first response.
 
 - `RequestDeniedByInboundPolicy`: confirm public access is `Allow`, wait for propagation, then create and apply a new destroy plan.
-- `UnknownError` during `outbound_only`: Fabric can return a generic delete error while cleaning up managed private endpoints or the workspace managed network. Keep the request ID, wait a few minutes, then create and apply a new destroy plan.
+- `UnknownError` during `outbound_only`: Fabric can return a generic delete error during outbound cleanup. Keep the request ID, wait a few minutes, then create and apply a new destroy plan.
 - `inbound_and_outbound`: complete the inbound policy preparation first. If Fabric later returns `UnknownError`, follow the outbound retry procedure.
 
 Each failed attempt can delete some resources, so never reuse the previous destroy plan. If `UnknownError` continues after bounded retries or an extended wait, capture the complete `with <resource-address>` line, request ID, and local debug log for Microsoft support or a [Fabric provider issue](https://github.com/microsoft/terraform-provider-fabric/issues).
