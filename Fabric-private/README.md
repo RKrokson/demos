@@ -241,10 +241,11 @@ az fabric capacity resume --resource-group <rg> --capacity-name <name>
 For `inbound_only` and `inbound_and_outbound`, restore workspace public access before running Terraform:
 
 1. Connect from the workspace private network through Bastion, VPN, ExpressRoute, or another connected host.
-2. In the Fabric workspace, open **Workspace settings** > **Inbound networking** and set public access to `Allow`.
-3. Wait for the policy change to propagate. Microsoft notes that workspace communication-policy changes can take up to 30 minutes.
+2. Make sure that connected host can still reach `app.fabric.microsoft.com` and `api.fabric.microsoft.com` over their public endpoints while it is on the workspace private network. The workspace-specific private FQDN helps with workspace access, but it cannot be used to change the communication policy.
+3. In the Fabric workspace, open **Workspace settings** > **Inbound networking** > **Workspace connection settings** > **Allow connections from all networks** > **Apply**.
+4. Wait for the policy change to propagate. Microsoft notes that workspace communication-policy changes can take up to 30 minutes.
 
-This step prevents the Fabric provider refresh from failing with `RequestDeniedByInboundPolicy` before Terraform can delete the workspace. If cleanup is abandoned, set the policy back to `Deny`.
+This step prevents the Fabric provider refresh from failing with `RequestDeniedByInboundPolicy` before Terraform can delete the workspace. If cleanup is abandoned, manually restore `Deny` because Terraform does not detect portal changes to the communication policy.
 
 `outbound_only` does not deploy the inbound restriction and does not need this preparation.
 
@@ -265,11 +266,11 @@ Review every resource in the saved plan before applying it.
 
 Terraform records resources removed by a partial destroy. Do not remove the remaining resources from state, and do not manually delete Fabric resources as the first response.
 
-- `RequestDeniedByInboundPolicy`: confirm public access is `Allow`, wait for propagation, then create and apply a new destroy plan.
+- `RequestDeniedByInboundPolicy`: confirm the portal control is still set to **Allow connections from all networks**, wait for propagation, then create and apply a new destroy plan.
 - `UnknownError` during `outbound_only`: Fabric can return a generic delete error during outbound cleanup. Keep the request ID, wait a few minutes, then create and apply a new destroy plan.
 - `inbound_and_outbound`: complete the inbound policy preparation first. If Fabric later returns `UnknownError`, follow the outbound retry procedure.
 
-Each failed attempt can delete some resources, so never reuse the previous destroy plan. If `UnknownError` continues after bounded retries or an extended wait, capture the complete `with <resource-address>` line, request ID, and local debug log for Microsoft support or a [Fabric provider issue](https://github.com/microsoft/terraform-provider-fabric/issues).
+Each failed attempt can delete some resources, so never reuse the previous destroy plan. If `UnknownError` continues after bounded retries or an extended wait, capture the complete `with <resource-address>` line and Fabric request ID for Microsoft support or a [Fabric provider issue](https://github.com/microsoft/terraform-provider-fabric/issues).
 
 ### Step 4: Account for soft-delete retention
 
