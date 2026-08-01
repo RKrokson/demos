@@ -19,6 +19,8 @@ resource "azurerm_monitor_diagnostic_setting" "diag_foundry" {
 }
 
 resource "azurerm_monitor_diagnostic_setting" "diag_aisearch" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   name               = "diag-aisearch-${random_string.unique.result}"
   target_resource_id = azapi_resource.ai_search.id
 
@@ -37,6 +39,8 @@ resource "azurerm_monitor_diagnostic_setting" "diag_aisearch" {
 }
 
 resource "azurerm_monitor_diagnostic_setting" "diag_cosmosdb" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   name               = "diag-cosmosdb-${random_string.unique.result}"
   target_resource_id = azurerm_cosmosdb_account.cosmosdb.id
 
@@ -57,6 +61,8 @@ resource "azurerm_monitor_diagnostic_setting" "diag_cosmosdb" {
 }
 
 resource "azurerm_monitor_diagnostic_setting" "diag_storage_blob" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   name               = "diag-storage-blob-${random_string.unique.result}"
   target_resource_id = "${azurerm_storage_account.storage_account.id}/blobServices/default"
 
@@ -75,6 +81,8 @@ resource "azurerm_monitor_diagnostic_setting" "diag_storage_blob" {
 }
 
 resource "azurerm_monitor_diagnostic_setting" "diag_storage_file" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   name               = "diag-storage-file-${random_string.unique.result}"
   target_resource_id = "${azurerm_storage_account.storage_account.id}/fileServices/default"
 
@@ -93,6 +101,8 @@ resource "azurerm_monitor_diagnostic_setting" "diag_storage_file" {
 }
 
 resource "azurerm_monitor_diagnostic_setting" "diag_storage_queue" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   name               = "diag-storage-queue-${random_string.unique.result}"
   target_resource_id = "${azurerm_storage_account.storage_account.id}/queueServices/default"
 
@@ -111,6 +121,8 @@ resource "azurerm_monitor_diagnostic_setting" "diag_storage_queue" {
 }
 
 resource "azurerm_monitor_diagnostic_setting" "diag_storage_table" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   name               = "diag-storage-table-${random_string.unique.result}"
   target_resource_id = "${azurerm_storage_account.storage_account.id}/tableServices/default"
 
@@ -131,6 +143,8 @@ resource "azurerm_monitor_diagnostic_setting" "diag_storage_table" {
 # Storage account parent — metrics only. No log categories exist at parent level; logs live at sub-service tier.
 # Azure only exposes the Transaction metric at Microsoft.Storage/storageAccounts parent scope.
 resource "azurerm_monitor_diagnostic_setting" "diag_storage_account" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   name               = "diag-storage-account-${random_string.unique.result}"
   target_resource_id = azurerm_storage_account.storage_account.id
 
