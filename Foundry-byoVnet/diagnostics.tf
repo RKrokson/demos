@@ -22,7 +22,7 @@ resource "azurerm_monitor_diagnostic_setting" "diag_aisearch" {
   count = var.deploy_agent_data_services ? 1 : 0
 
   name               = "diag-aisearch-${random_string.unique.result}"
-  target_resource_id = azapi_resource.ai_search.id
+  target_resource_id = azapi_resource.ai_search[0].id
 
   log_analytics_workspace_id = data.terraform_remote_state.networking.outputs.log_analytics_workspace_id
 
@@ -42,7 +42,7 @@ resource "azurerm_monitor_diagnostic_setting" "diag_cosmosdb" {
   count = var.deploy_agent_data_services ? 1 : 0
 
   name               = "diag-cosmosdb-${random_string.unique.result}"
-  target_resource_id = azurerm_cosmosdb_account.cosmosdb.id
+  target_resource_id = azurerm_cosmosdb_account.cosmosdb[0].id
 
   log_analytics_workspace_id = data.terraform_remote_state.networking.outputs.log_analytics_workspace_id
   # Dedicated = Resource-specific schema (not legacy AzureDiagnostics) — required for Cosmos per portal finding #6
@@ -64,7 +64,7 @@ resource "azurerm_monitor_diagnostic_setting" "diag_storage_blob" {
   count = var.deploy_agent_data_services ? 1 : 0
 
   name               = "diag-storage-blob-${random_string.unique.result}"
-  target_resource_id = "${azurerm_storage_account.storage_account.id}/blobServices/default"
+  target_resource_id = "${azurerm_storage_account.storage_account[0].id}/blobServices/default"
 
   log_analytics_workspace_id = data.terraform_remote_state.networking.outputs.log_analytics_workspace_id
 
@@ -84,7 +84,7 @@ resource "azurerm_monitor_diagnostic_setting" "diag_storage_file" {
   count = var.deploy_agent_data_services ? 1 : 0
 
   name               = "diag-storage-file-${random_string.unique.result}"
-  target_resource_id = "${azurerm_storage_account.storage_account.id}/fileServices/default"
+  target_resource_id = "${azurerm_storage_account.storage_account[0].id}/fileServices/default"
 
   log_analytics_workspace_id = data.terraform_remote_state.networking.outputs.log_analytics_workspace_id
 
@@ -104,7 +104,7 @@ resource "azurerm_monitor_diagnostic_setting" "diag_storage_queue" {
   count = var.deploy_agent_data_services ? 1 : 0
 
   name               = "diag-storage-queue-${random_string.unique.result}"
-  target_resource_id = "${azurerm_storage_account.storage_account.id}/queueServices/default"
+  target_resource_id = "${azurerm_storage_account.storage_account[0].id}/queueServices/default"
 
   log_analytics_workspace_id = data.terraform_remote_state.networking.outputs.log_analytics_workspace_id
 
@@ -124,7 +124,7 @@ resource "azurerm_monitor_diagnostic_setting" "diag_storage_table" {
   count = var.deploy_agent_data_services ? 1 : 0
 
   name               = "diag-storage-table-${random_string.unique.result}"
-  target_resource_id = "${azurerm_storage_account.storage_account.id}/tableServices/default"
+  target_resource_id = "${azurerm_storage_account.storage_account[0].id}/tableServices/default"
 
   log_analytics_workspace_id = data.terraform_remote_state.networking.outputs.log_analytics_workspace_id
 
@@ -146,7 +146,7 @@ resource "azurerm_monitor_diagnostic_setting" "diag_storage_account" {
   count = var.deploy_agent_data_services ? 1 : 0
 
   name               = "diag-storage-account-${random_string.unique.result}"
-  target_resource_id = azurerm_storage_account.storage_account.id
+  target_resource_id = azurerm_storage_account.storage_account[0].id
 
   log_analytics_workspace_id = data.terraform_remote_state.networking.outputs.log_analytics_workspace_id
 
