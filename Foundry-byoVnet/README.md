@@ -4,7 +4,7 @@ This is an optional application landing zone. It deploys Microsoft Foundry with 
 
 This module is based on the [validated Terraform sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-terraform/15b-private-network-standard-agent-setup-byovnet), modified to pull network dependencies from the platform landing zone via `terraform_remote_state`.
 
-"Secure" refers to the use of private endpoints. Local auth (API keys) is disabled on AI Search and Cognitive Services (`disableLocalAuth = true`). All access requires Entra ID authentication.
+"Secure" refers to the use of private endpoints. Local auth (API keys) is disabled on AI Search and Cosmos DB when the agent data services are deployed. The Foundry account keeps `disableLocalAuth = false`, which the Agent proxy requires for internal communication over a BYO VNet.
 
 The template follows the [documented architecture](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/virtual-networks) for Microsoft Foundry Standard Setup with private networking (BYO VNet).
 
@@ -30,13 +30,11 @@ terraform init && terraform apply
 
 This module creates its own VNet with subnets and hub connection. Customize networking and deployment names, or use defaults.
 
-| Variable                    | Default              | Purpose                       |
-| --------------------------- | -------------------- | ----------------------------- |
-| `resource_group_name_ai00`  | `"rg-ai00"`          | Resource group name           |
-| `ai_vnet_address_space`     | `["172.20.32.0/20"]` | VNet address range            |
-| `ai_foundry_subnet_address` | `["172.20.32.0/26"]` | Foundry workload subnet       |
-| `connect_to_vhub`           | `true`               | Connect to platform hub       |
-| `enable_dns_link`           | `false`              | Link to platform DNS resolver |
+| Variable                     | Default              | Purpose                        |
+| ---------------------------- | -------------------- | ------------------------------ |
+| `resource_group_name_ai00`   | `"rg-ai00"`          | Resource group name            |
+| `ai_vnet_address_space`      | `["172.20.32.0/20"]` | VNet address range             |
+| `ai_foundry_subnet_address`  | `["172.20.32.0/26"]` | Foundry workload subnet        |
 | `deploy_agent_data_services` | `true`               | Deploy BYO agent data services |
 
 ### Agent data services
