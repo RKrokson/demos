@@ -1,6 +1,8 @@
 ## Create the necessary role assignments for the AI Foundry project over the resources used to store agent data
 ##
 resource "azurerm_role_assignment" "cosmosdb_operator_foundry_project" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   depends_on = [
     resource.time_sleep.wait_project_identities
   ]
@@ -11,6 +13,8 @@ resource "azurerm_role_assignment" "cosmosdb_operator_foundry_project" {
 }
 
 resource "azurerm_role_assignment" "storage_blob_data_contributor_foundry_project" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   depends_on = [
     resource.time_sleep.wait_project_identities
   ]
@@ -21,6 +25,8 @@ resource "azurerm_role_assignment" "storage_blob_data_contributor_foundry_projec
 }
 
 resource "azurerm_role_assignment" "search_index_data_contributor_foundry_project" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   depends_on = [
     resource.time_sleep.wait_project_identities
   ]
@@ -31,6 +37,8 @@ resource "azurerm_role_assignment" "search_index_data_contributor_foundry_projec
 }
 
 resource "azurerm_role_assignment" "search_service_contributor_foundry_project" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   depends_on = [
     resource.time_sleep.wait_project_identities
   ]
@@ -43,6 +51,8 @@ resource "azurerm_role_assignment" "search_service_contributor_foundry_project" 
 ## Create the necessary data plane role assignments to the CosmosDb databases created by the AI Foundry Project
 ##
 resource "azurerm_cosmosdb_sql_role_assignment" "cosmosdb_db_sql_role_aifp" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   depends_on = [
     azapi_resource.foundry_project_capability_host
   ]
@@ -57,6 +67,8 @@ resource "azurerm_cosmosdb_sql_role_assignment" "cosmosdb_db_sql_role_aifp" {
 ## Create the necessary data plane role assignments to the Azure Storage Account containers created by the AI Foundry Project
 ##
 resource "azurerm_role_assignment" "storage_blob_data_owner_foundry_project" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   depends_on = [
     azapi_resource.foundry_project_capability_host
   ]

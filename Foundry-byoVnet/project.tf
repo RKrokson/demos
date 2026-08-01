@@ -49,6 +49,8 @@ resource "time_sleep" "wait_project_identities" {
 ## Create AI Foundry project connections
 ##
 resource "azapi_resource" "conn_cosmosdb" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-06-01"
   name                      = azurerm_cosmosdb_account.cosmosdb.name
   parent_id                 = azapi_resource.foundry_project.id
@@ -72,6 +74,8 @@ resource "azapi_resource" "conn_cosmosdb" {
 ## Create the AI Foundry project connection to Azure Storage Account
 ##
 resource "azapi_resource" "conn_storage" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-06-01"
   name                      = azurerm_storage_account.storage_account.name
   parent_id                 = azapi_resource.foundry_project.id
@@ -99,6 +103,8 @@ resource "azapi_resource" "conn_storage" {
 ## Create the AI Foundry project connection to AI Search
 ##
 resource "azapi_resource" "conn_aisearch" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-06-01"
   name                      = azapi_resource.ai_search.name
   parent_id                 = azapi_resource.foundry_project.id
@@ -170,6 +176,8 @@ resource "azapi_resource" "conn_appinsights" {
 
 # Wait duration from PG-validated reference implementation. Do not reduce without testing.
 resource "time_sleep" "wait_rbac" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   depends_on = [
     azurerm_role_assignment.cosmosdb_operator_foundry_project,
     azurerm_role_assignment.storage_blob_data_contributor_foundry_project,
