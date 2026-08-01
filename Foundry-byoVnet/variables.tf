@@ -75,3 +75,10 @@ variable "foundry_sku" {
   type        = string
   default     = "S0"
 }
+
+## Agent data services
+variable "deploy_agent_data_services" {
+  description = "Deploy BYO agent data services (Storage, Cosmos DB, AI Search) with their private endpoints, project connections, role assignments, and diagnostics. When false, Foundry Agent Service uses Microsoft-managed storage for agent data."
+  type        = bool
+  default     = true
+}

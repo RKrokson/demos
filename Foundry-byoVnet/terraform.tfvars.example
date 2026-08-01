@@ -20,3 +20,8 @@ gpt_model_capacity        = 1
 # ── Service SKUs ─────────────────────────────
 # ai_search_sku = "standard"
 # foundry_sku   = "S0"
+
+# ── Agent data services ──────────────────────
+# Set to false to omit Storage, Cosmos DB, and AI Search and let
+# Foundry Agent Service use Microsoft-managed storage instead.
+# deploy_agent_data_services = true
