@@ -52,19 +52,19 @@ resource "azapi_resource" "conn_cosmosdb" {
   count = var.deploy_agent_data_services ? 1 : 0
 
   type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-06-01"
-  name                      = azurerm_cosmosdb_account.cosmosdb.name
+  name                      = azurerm_cosmosdb_account.cosmosdb[0].name
   parent_id                 = azapi_resource.foundry_project.id
   schema_validation_enabled = false
 
   body = {
-    name = azurerm_cosmosdb_account.cosmosdb.name
+    name = azurerm_cosmosdb_account.cosmosdb[0].name
     properties = {
       category = "CosmosDB"
-      target   = azurerm_cosmosdb_account.cosmosdb.endpoint
+      target   = azurerm_cosmosdb_account.cosmosdb[0].endpoint
       authType = "AAD"
       metadata = {
         ApiType    = "Azure"
-        ResourceId = azurerm_cosmosdb_account.cosmosdb.id
+        ResourceId = azurerm_cosmosdb_account.cosmosdb[0].id
         location   = azurerm_resource_group.rg-ai00.location
       }
     }
@@ -77,19 +77,19 @@ resource "azapi_resource" "conn_storage" {
   count = var.deploy_agent_data_services ? 1 : 0
 
   type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-06-01"
-  name                      = azurerm_storage_account.storage_account.name
+  name                      = azurerm_storage_account.storage_account[0].name
   parent_id                 = azapi_resource.foundry_project.id
   schema_validation_enabled = false
 
   body = {
-    name = azurerm_storage_account.storage_account.name
+    name = azurerm_storage_account.storage_account[0].name
     properties = {
       category = "AzureStorageAccount"
-      target   = azurerm_storage_account.storage_account.primary_blob_endpoint
+      target   = azurerm_storage_account.storage_account[0].primary_blob_endpoint
       authType = "AAD"
       metadata = {
         ApiType    = "Azure"
-        ResourceId = azurerm_storage_account.storage_account.id
+        ResourceId = azurerm_storage_account.storage_account[0].id
         location   = azurerm_resource_group.rg-ai00.location
       }
     }
@@ -106,20 +106,20 @@ resource "azapi_resource" "conn_aisearch" {
   count = var.deploy_agent_data_services ? 1 : 0
 
   type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-06-01"
-  name                      = azapi_resource.ai_search.name
+  name                      = azapi_resource.ai_search[0].name
   parent_id                 = azapi_resource.foundry_project.id
   schema_validation_enabled = false
 
   body = {
-    name = azapi_resource.ai_search.name
+    name = azapi_resource.ai_search[0].name
     properties = {
       category = "CognitiveSearch"
-      target   = "https://${azapi_resource.ai_search.name}.search.windows.net"
+      target   = "https://${azapi_resource.ai_search[0].name}.search.windows.net"
       authType = "AAD"
       metadata = {
         ApiType    = "Azure"
         ApiVersion = "2025-05-01-preview"
-        ResourceId = azapi_resource.ai_search.id
+        ResourceId = azapi_resource.ai_search[0].id
         location   = azurerm_resource_group.rg-ai00.location
       }
     }
@@ -203,17 +203,21 @@ resource "azapi_resource" "foundry_project_capability_host" {
   schema_validation_enabled = false
 
   body = {
-    properties = {
-      capabilityHostKind = "Agents"
-      vectorStoreConnections = [
-        azapi_resource.ai_search.name
-      ]
-      storageConnections = [
-        azurerm_storage_account.storage_account.name
-      ]
-      threadStorageConnections = [
-        azurerm_cosmosdb_account.cosmosdb.name
-      ]
-    }
+    properties = merge(
+      {
+        capabilityHostKind = "Agents"
+      },
+      var.deploy_agent_data_services ? {
+        vectorStoreConnections = [
+          azapi_resource.ai_search[0].name
+        ]
+        storageConnections = [
+          azurerm_storage_account.storage_account[0].name
+        ]
+        threadStorageConnections = [
+          azurerm_cosmosdb_account.cosmosdb[0].name
+        ]
+      } : {}
+    )
   }
 }

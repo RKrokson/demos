@@ -14,16 +14,16 @@ output "ai_foundry_project_id" {
 }
 
 output "storage_account_id" {
-  description = "The ID of the Storage Account"
-  value       = azurerm_storage_account.storage_account.id
+  description = "The ID of the Storage Account, or null when agent data services are disabled"
+  value       = one(azurerm_storage_account.storage_account[*].id)
 }
 
 output "cosmosdb_account_id" {
-  description = "The ID of the Cosmos DB account"
-  value       = azurerm_cosmosdb_account.cosmosdb.id
+  description = "The ID of the Cosmos DB account, or null when agent data services are disabled"
+  value       = one(azurerm_cosmosdb_account.cosmosdb[*].id)
 }
 
 output "ai_search_id" {
-  description = "The ID of the AI Search service"
-  value       = azapi_resource.ai_search.id
+  description = "The ID of the AI Search service, or null when agent data services are disabled"
+  value       = one(azapi_resource.ai_search[*].id)
 }

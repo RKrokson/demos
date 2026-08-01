@@ -1,6 +1,8 @@
 ## Create the Cosmos DB account to store agent threads
 ##
 resource "azurerm_cosmosdb_account" "cosmosdb" {
+  count = var.deploy_agent_data_services ? 1 : 0
+
   name                = "aifoundry${random_string.unique.result}cosmosdb"
   resource_group_name = azurerm_resource_group.rg-ai00.name
   location            = azurerm_resource_group.rg-ai00.location
@@ -35,15 +37,17 @@ resource "azurerm_cosmosdb_account" "cosmosdb" {
 ## Create Private Endpoint for Cosmos DB
 ##
 resource "azurerm_private_endpoint" "pe-cosmosdb" {
-  name                = "${azurerm_cosmosdb_account.cosmosdb.name}-private-endpoint"
+  count = var.deploy_agent_data_services ? 1 : 0
+
+  name                = "${azurerm_cosmosdb_account.cosmosdb[0].name}-private-endpoint"
   resource_group_name = azurerm_resource_group.rg-ai00.name
   location            = azurerm_resource_group.rg-ai00.location
   subnet_id           = azurerm_subnet.private_endpoint_subnet.id
   tags                = local.common_tags
 
   private_service_connection {
-    name                           = "${azurerm_cosmosdb_account.cosmosdb.name}-private-link-service-connection"
-    private_connection_resource_id = azurerm_cosmosdb_account.cosmosdb.id
+    name                           = "${azurerm_cosmosdb_account.cosmosdb[0].name}-private-link-service-connection"
+    private_connection_resource_id = azurerm_cosmosdb_account.cosmosdb[0].id
     subresource_names = [
       "Sql"
     ]
@@ -51,7 +55,7 @@ resource "azurerm_private_endpoint" "pe-cosmosdb" {
   }
 
   private_dns_zone_group {
-    name = "${azurerm_cosmosdb_account.cosmosdb.name}-dns-config"
+    name = "${azurerm_cosmosdb_account.cosmosdb[0].name}-dns-config"
     private_dns_zone_ids = [
       local.platform_region0.private_dns_zone_ids.documents
     ]
