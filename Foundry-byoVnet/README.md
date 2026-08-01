@@ -37,6 +37,17 @@ This module creates its own VNet with subnets and hub connection. Customize netw
 | `ai_foundry_subnet_address` | `["172.20.32.0/26"]` | Foundry workload subnet       |
 | `connect_to_vhub`           | `true`               | Connect to platform hub       |
 | `enable_dns_link`           | `false`              | Link to platform DNS resolver |
+| `deploy_agent_data_services` | `true`               | Deploy BYO agent data services |
+
+### Agent data services
+
+By default the module deploys its own Azure Storage, Cosmos DB, and AI Search, and the project capability host points agent data at them.
+
+Set `deploy_agent_data_services = false` to omit all three, along with their private endpoints, project connections, role assignments, and diagnostic settings. Foundry Agent Service then uses Microsoft-managed storage for conversation history, file uploads, and vector data.
+
+The module remains a bring-your-own virtual network deployment in both modes. The Foundry account, its network injection, the project, the model deployment, and the private endpoint are unchanged.
+
+Capability hosts cannot be updated in place, so pick a value before you deploy. Changing it on a live deployment requires `terraform destroy` first.
 
 For GPT deployment names, SKUs, and other service config, see `variables.tf`.
 
@@ -47,9 +58,9 @@ For GPT deployment names, SKUs, and other service config, see `variables.tf`.
 | `resource_group_id`     | Resource group ID            |
 | `ai_foundry_id`         | Microsoft Foundry account ID |
 | `ai_foundry_project_id` | Microsoft Foundry project ID |
-| `storage_account_id`    | Storage account ID           |
-| `cosmosdb_account_id`   | Cosmos DB account ID         |
-| `ai_search_id`          | AI Search service ID         |
+| `storage_account_id`    | Storage account ID, null when data services are disabled |
+| `cosmosdb_account_id`   | Cosmos DB account ID, null when data services are disabled |
+| `ai_search_id`          | AI Search service ID, null when data services are disabled |
 
 ## Cleanup
 
