@@ -72,10 +72,27 @@ resource "azurerm_cognitive_deployment" "aifoundry_deployment_gpt_4o" {
   }
 }
 
+# The Foundry account reports a completed create while still in provisioning state
+# "Accepted", and a private endpoint against it then fails with
+# AccountProvisioningStateInvalid. When the agent data services are deployed, the
+# sequential cosmosdb -> storage -> aisearch endpoint chain covers that window. Without
+# them the endpoint below is gated only by the account, so it needs an explicit wait.
+resource "time_sleep" "wait_foundry_account" {
+  count = var.deploy_agent_data_services ? 0 : 1
+
+  depends_on = [
+    azapi_resource.foundry
+  ]
+  create_duration = "180s"
+}
+
 ## Create Private Endpoint for AI Foundry (Cognitive Services)
 ##
 resource "azurerm_private_endpoint" "pe-aifoundry" {
-  depends_on = [azurerm_private_endpoint.pe-aisearch]
+  depends_on = [
+    azurerm_private_endpoint.pe-aisearch,
+    time_sleep.wait_foundry_account
+  ]
 
   name                = "${azapi_resource.foundry.name}-private-endpoint"
   resource_group_name = azurerm_resource_group.rg-ai00.name

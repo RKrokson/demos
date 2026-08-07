@@ -45,18 +45,20 @@ Set `deploy_agent_data_services = false` to omit all three, along with their pri
 
 The module remains a bring-your-own virtual network deployment in both modes. The Foundry account, its network injection, the project, the model deployment, and the private endpoint are unchanged.
 
+When the data services are omitted, the module waits three minutes after creating the Foundry account before it creates the account's private endpoint. The account reports a finished create while its provisioning state is still `Accepted`, and an endpoint created during that window fails with `AccountProvisioningStateInvalid`. In the default mode the sequential data service endpoints already cover the wait.
+
 Capability hosts cannot be updated in place, so pick a value before you deploy. Changing it on a live deployment requires `terraform destroy` first.
 
 For GPT deployment names, SKUs, and other service config, see `variables.tf`.
 
 ## Outputs
 
-| Output                  | Purpose                      |
-| ----------------------- | ---------------------------- |
-| `resource_group_id`     | Resource group ID            |
-| `ai_foundry_id`         | Microsoft Foundry account ID |
-| `ai_foundry_project_id` | Microsoft Foundry project ID |
-| `storage_account_id`    | Storage account ID, null when data services are disabled |
+| Output                  | Purpose                                                    |
+| ----------------------- | ---------------------------------------------------------- |
+| `resource_group_id`     | Resource group ID                                          |
+| `ai_foundry_id`         | Microsoft Foundry account ID                               |
+| `ai_foundry_project_id` | Microsoft Foundry project ID                               |
+| `storage_account_id`    | Storage account ID, null when data services are disabled   |
 | `cosmosdb_account_id`   | Cosmos DB account ID, null when data services are disabled |
 | `ai_search_id`          | AI Search service ID, null when data services are disabled |
 
@@ -65,6 +67,8 @@ For GPT deployment names, SKUs, and other service config, see `variables.tf`.
 ⚠️ **Soft-delete gotcha:** After `terraform destroy`, Foundry enters soft-delete state with a `serviceassociationlink` to the AI subnet. You must purge it before destroying Networking, or the subnet delete will fail. Wait ~10 minutes after purge completes.
 
 - [Purge a deleted resource](https://learn.microsoft.com/en-us/azure/ai-services/recover-purge-resources?tabs=azure-cli#purge-a-deleted-resource)
+
+⚠️ **Orphaned Service Association Link:** Another issue could be an orphaned SAL. The AI subnet uses a SAL to the Microsoft managed environment behind the scenes. The SAL is owned by the Microsoft backend. If you find you're unable to delete the AI subnet because of an existing SAL. Attempt to remove the service link from the subnet and then wait 48-72 hours for the backend clean up process to complete. Then you will be able to delete the vNet.
 
 ## Security & Privacy — Foundry Trace Logs
 
