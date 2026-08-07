@@ -68,7 +68,7 @@ For GPT deployment names, SKUs, and other service config, see `variables.tf`.
 
 - [Purge a deleted resource](https://learn.microsoft.com/en-us/azure/ai-services/recover-purge-resources?tabs=azure-cli#purge-a-deleted-resource)
 
-⚠️ **Orphaned Service Association Link:** Another issue could be an orphaned SAL. The AI subnet uses a SAL to the Microsoft managed environment behind the scenes. The SAL is owned by the Microsoft backend. If you find you're unable to delete the AI subnet because of an existing SAL. Attempt to remove the service link from the subnet and then wait 48-72 hours for the backend clean up process to complete. Then you will be able to delete the vNet.
+⚠️ **Orphaned Service Association Link:** Another issue could be an orphaned service association link (SAL). The AI subnet uses a SAL to the Microsoft-managed environment behind the scenes, and the SAL is owned by the Microsoft backend. If you’re unable to delete the AI subnet due to an existing SAL, remove the service association from the subnet and wait 48-72 hours for the backend cleanup process to complete; then you should be able to delete the VNet.
 
 ## Security & Privacy — Foundry Trace Logs
 
