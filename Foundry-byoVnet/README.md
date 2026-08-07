@@ -45,7 +45,7 @@ Set `deploy_agent_data_services = false` to omit all three, along with their pri
 
 The module remains a bring-your-own virtual network deployment in both modes. The Foundry account, its network injection, the project, the model deployment, and the private endpoint are unchanged.
 
-When the data services are omitted, the module waits three minutes after creating the Foundry account before it creates the account's private endpoint. The account reports a finished create while its provisioning state is still `Accepted`, and an endpoint created during that window fails with `AccountProvisioningStateInvalid`. In the default mode the sequential data service endpoints already cover the wait.
+The module waits three minutes after creating or replacing the Foundry account before it creates the account's private endpoint. The account reports a finished create while its provisioning state is still `Accepted`, and an endpoint created during that window fails with `AccountProvisioningStateInvalid`. In the default mode, the wait runs in parallel with the sequential data service endpoints.
 
 Capability hosts cannot be updated in place, so pick a value before you deploy. Changing it on a live deployment requires `terraform destroy` first.
 
